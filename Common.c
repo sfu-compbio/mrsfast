@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-02-01
  */
 
 
@@ -38,12 +39,15 @@
 #include <sys/time.h>
 #include <zlib.h>
 #include <string.h>
+#include <math.h>
 #include "Common.h"
 
 
 unsigned short 			SEQ_LENGTH = 0;
 unsigned short 			QUAL_LENGTH = 0;
+unsigned short			CMP_SEQ_LENGTH = 0;
 long long				memUsage = 0;
+char					*alphabet = "ACGTN";
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
 {
@@ -79,8 +83,14 @@ double getTime(void)
 }
 
 /**********************************************/
-char reverseCompleteChar(char c)
+inline char reverseCompleteChar(char c)
 {
+	/*char rc[26];
+	rc['A']='T';
+	rc['T']='A';
+	rc['C']='G';
+	rc['G']='C';
+	return rc[c];*/
 	char ret;
 	switch (c)
 	{
@@ -103,12 +113,21 @@ char reverseCompleteChar(char c)
 	return ret;
 }
 /**********************************************/
-void reverseComplete (char *seq, char *rcSeq , int length)
+inline void reverseComplete (char *seq, char *rcSeq , int length)
 {
+	char rc[100];
+	memset(rc, 'N', 100);
+	rc['A']='T';
+	rc['T']='A';
+	rc['C']='G';
+	rc['G']='C';
+	rc['N']='N';
 	int i;
+	seq+=length-1;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=reverseCompleteChar (seq[length-1-i]) ;
+		rcSeq[i]=rc[*(seq--)];
+		//rcSeq[i]=reverseCompleteChar (seq[length-1-i]) ;
 	}
 }
 /**********************************************/
@@ -129,12 +148,14 @@ double getMemUsage()
 	return memUsage/1048576.0;
 }
 /**********************************************/
-void reverse (char *seq, char *rcSeq , int length)
+inline void reverse (char *seq, char *rcSeq , int length)
 {
 	int i;
+	seq += length-1;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=seq[length-1-i];
+		//rcSeq[i]=seq[length-1-i];
+		rcSeq[i]=*(seq--);
 	}
 }
 /**********************************************/
@@ -164,4 +185,100 @@ void stripPath(char *full, char **path, char **fileName)
 		sprintf(*fileName, "%s%c", full, '\0');
 		sprintf(*path,"%c", '\0');
 	}
+}
+/**********************************************/
+inline int calculateCompressedLen(int normalLen)
+{
+	return (normalLen / 21) + ((normalLen%21)?1:0);
+	//return (normalLen >> 4) + ((normalLen & 15)?1:0);
+}
+/**********************************************/
+void compressSequence(char *seq, int seqLen, CompressedSeq *cseq)
+{
+	CompressedSeq val = 0;
+	int i = 0, pos = 0;
+	
+	*cseq = 0;
+	while (pos < seqLen)
+	{
+		if (i == 0)
+			*cseq = 0;
+		*cseq <<= 3;
+		switch (seq[pos++])
+		{
+			case 'A':
+				break;
+			case 'C':
+				*cseq |= 1;				
+				break;
+			case 'G':
+				*cseq |= 2;
+				break;
+			case 'T':
+				*cseq |= 3;
+				break;
+			case 'N':
+				*cseq |= 4;
+				break;
+			default:
+				*cseq |= 4;
+				break;
+		}
+
+		if (++i == 21)
+		{
+			i = 0;
+			cseq++;
+		}
+	}
+	if (i > 0)
+	{
+		*cseq <<= (3*(21-i));
+	}
+}
+
+/**********************************************/
+char 		**decompressLookup		= NULL;
+void initDecompressLookup()
+{
+	int i, j, t;
+
+	decompressLookup = getMem((1 << 15) * sizeof(char *));
+	for (i = 0; i < (1 << 15); i++)
+	{
+		decompressLookup[i] = getMem(5*sizeof(char));
+		t = i;
+		for (j = 4; j >= 0; j--)
+		{
+			decompressLookup[i][j] = alphabet[t&7];
+			t >>= 3;
+		}
+	}
+}
+/**********************************************/
+void decompressSequence(CompressedSeq *cseq, char *seq)
+{
+	int i;
+	char *seqq = seq;
+	
+	for (i = 0; i < CMP_SEQ_LENGTH; i++)
+	{
+		memcpy(seq, decompressLookup[(*cseq >> 48) & 0x7fff], 5);
+		memcpy(seq + 5, decompressLookup[(*cseq >> 33) & 0x7fff], 5);
+		memcpy(seq + 10, decompressLookup[(*cseq >> 18) & 0x7fff], 5);
+		memcpy(seq + 15, decompressLookup[(*cseq >> 3) & 0x7fff], 5);
+		seq += 20;
+		*(seq++) = alphabet[*cseq & 7];
+		cseq++;
+	}
+	seqq[SEQ_LENGTH] = '\0';
+}
+/**********************************************/
+finalizeDecompressLookup()
+{
+	int i;
+	for (i = 0; i < (1 << 15); i++)
+		freeMem(decompressLookup[i], 5);
+	freeMem(decompressLookup, (1 << 15)*sizeof(char *));
+	decompressLookup = NULL;
 }

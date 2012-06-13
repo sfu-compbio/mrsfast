@@ -29,6 +29,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -39,8 +40,6 @@
 #include <zlib.h>
 #include "Common.h"
 #include "Reads.h"
-
-
 
 FILE *_r_fp1;
 FILE *_r_fp2;
@@ -87,13 +86,17 @@ int readAllReads(char *fileName1,
 	double startTime=getTime();
 
 	char seq1[SEQ_MAX_LENGTH];
-	char rseq1[SEQ_MAX_LENGTH];
+	CompressedSeq cseq1[CMP_SEQ_MAX_LENGTH];		// cmp of seq
 	char name1[SEQ_MAX_LENGTH];
 	char qual1[SEQ_MAX_LENGTH];
+
 	char seq2[SEQ_MAX_LENGTH];
-	char rseq2[SEQ_MAX_LENGTH];
+	CompressedSeq cseq2[CMP_SEQ_MAX_LENGTH];		// cmp of seq2
 	char name2[SEQ_MAX_LENGTH];
 	char qual2[SEQ_MAX_LENGTH];
+
+	char rseq[SEQ_MAX_LENGTH];
+	CompressedSeq crseq1[CMP_SEQ_MAX_LENGTH];		// cmp of rseq1
 
 	char dummy[SEQ_MAX_LENGTH];
 	char ch;
@@ -166,7 +169,7 @@ int readAllReads(char *fileName1,
 		*fastq = 0;
 	else
 		*fastq = 1;
-
+	
 	// Counting the number of lines in the file
 	while (readFirstSeq(dummy)) maxCnt++;
 
@@ -195,6 +198,7 @@ int readAllReads(char *fileName1,
 		maxCnt *= 2;
 
 	list = getMem(sizeof(Read)*maxCnt);
+
 
 	while( readFirstSeq(name1) )
 	{
@@ -314,17 +318,30 @@ int readAllReads(char *fileName1,
 
 		if (!pairedEnd && !err1)
 		{
-
 			int _mtmp = strlen(seq1);
-			list[seqCnt].hits = getMem (1+3*_mtmp+3+strlen(name1)+1);
-			list[seqCnt].seq = list[seqCnt].hits + 1;
-			list[seqCnt].rseq = list[seqCnt].seq + _mtmp+1;
-			list[seqCnt].qual = list[seqCnt].rseq + _mtmp+1;
-			list[seqCnt].name = list[seqCnt].qual + _mtmp+1;
+			int cmpLen = calculateCompressedLen(_mtmp);
+			list[seqCnt].hits	= getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + strlen(name1) + 1);
+			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
+			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
+			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
+			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
+			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
+			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
+			//
+			/*fprintf(stderr, "%d %d %d %d %d %d\n", 
+				(list[seqCnt].hits), 
+				(list[seqCnt].seq), 
+				list[seqCnt].qual, 
+				list[seqCnt].cseq, 
+				list[seqCnt].crseq, 
+				list[seqCnt].name);
+			exit (0);*/
 
+			reverseComplete(seq1, rseq, _mtmp);
+			rseq[_mtmp] = '\0';
+			compressSequence(seq1, _mtmp, list[seqCnt].cseq);
+			compressSequence(rseq, _mtmp, list[seqCnt].crseq);
 
-			reverseComplete(seq1, rseq1, _mtmp);
-			rseq1[_mtmp] =  '\0';
 			int i;
 
 			list[seqCnt].hits[0] = 0;
@@ -332,13 +349,13 @@ int readAllReads(char *fileName1,
 			for (i=0; i<=_mtmp; i++)
 			{
 				list[seqCnt].seq[i] = seq1[i];
-				list[seqCnt].rseq[i] = rseq1[i] ;
+				list[seqCnt].rseq[i] = rseq[i];
 				list[seqCnt].qual[i] = qual1[i];
 			}
+			
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
 
 			seqCnt++;
-
 		}
 		else if (pairedEnd && !err1 && !err2)
 		{
@@ -349,20 +366,22 @@ int readAllReads(char *fileName1,
 				tmplen = strlen(name1)-2;
 			}
 		
-			if (strcmp(name1, "@IL11_266:2:1:922:509/1") == 0)
-			{
-				fprintf(stdout, "%d\n", seqCnt);
-			}
 			//first seq
-			int _mtmp = strlen(seq1);
-			list[seqCnt].hits = getMem (1+3*_mtmp+3+tmplen+1);
-			list[seqCnt].seq = list[seqCnt].hits + 1;
-			list[seqCnt].rseq = list[seqCnt].seq + _mtmp+1;
-			list[seqCnt].qual = list[seqCnt].rseq + _mtmp+1;
-			list[seqCnt].name = list[seqCnt].qual + _mtmp+1;
+			int _mtmp = strlen(seq1);	
+			int cmpLen = calculateCompressedLen(_mtmp);
+			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1);
+			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
+			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
+			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
+			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
+			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
+			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
 
-			reverseComplete(seq1, rseq1, _mtmp);
-			rseq1[_mtmp] =  '\0';
+			reverseComplete(seq1, rseq, _mtmp);
+			rseq[_mtmp] = '\0';
+			compressSequence(seq1, _mtmp, list[seqCnt].cseq);
+			compressSequence(rseq, _mtmp, list[seqCnt].crseq);
+
 			int i;
 
 			list[seqCnt].hits[0] = 0;
@@ -370,11 +389,10 @@ int readAllReads(char *fileName1,
 			for (i=0; i<=_mtmp; i++)
 			{
 				list[seqCnt].seq[i] = seq1[i];
-				list[seqCnt].rseq[i] = rseq1[i] ;
+				list[seqCnt].rseq[i] = rseq[i];
 				list[seqCnt].qual[i] = qual1[i];
 			}
-
-
+			
 			name1[tmplen]='\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
 
@@ -382,28 +400,30 @@ int readAllReads(char *fileName1,
 			seqCnt++;
 
 			//second seq
-			list[seqCnt].hits = getMem (1+3*_mtmp+3+tmplen+1);
-			list[seqCnt].seq = list[seqCnt].hits + 1;
-			list[seqCnt].rseq = list[seqCnt].seq + _mtmp+1;
-			list[seqCnt].qual = list[seqCnt].rseq + _mtmp+1;
-			list[seqCnt].name = list[seqCnt].qual + _mtmp+1;
+			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1);
+			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
+			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
+			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
+			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
+			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
+			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
 
-			reverseComplete(seq2, rseq2, _mtmp);
-			rseq2[_mtmp] =  '\0';
+			reverseComplete(seq2, rseq, _mtmp);
+			rseq[_mtmp] = '\0';
+			compressSequence(seq2, _mtmp, list[seqCnt].cseq);
+			compressSequence(rseq, _mtmp, list[seqCnt].crseq);
 
 			list[seqCnt].hits[0] = 0;
 
 			for (i=0; i<=_mtmp; i++)
 			{
 				list[seqCnt].seq[i] = seq2[i];
-				list[seqCnt].rseq[i] = rseq2[i] ;
+				list[seqCnt].rseq[i] = rseq[i];
 				list[seqCnt].qual[i] = qual2[i];
 			}
 
-
 			name2[tmplen]='\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name2)+1,'\0');
-
 
 			seqCnt++;
 
@@ -412,16 +432,17 @@ int readAllReads(char *fileName1,
 		{
 			discarded++;
 		}
+
 	}
 
 	if (seqCnt > 0)
 	{
 		QUAL_LENGTH = SEQ_LENGTH = strlen(list[0].seq);
+		CMP_SEQ_LENGTH = calculateCompressedLen(SEQ_LENGTH);
 		if (! *fastq)
 		{
 			QUAL_LENGTH = 1;
 		}
-		//fprintf(stderr, "%d %d\n", SEQ_LENGTH, QUAL_LENGTH);
 	}
 	else
 	{
@@ -461,26 +482,23 @@ int readAllReads(char *fileName1,
 	_r_seqCnt = seqCnt;
 
 	fprintf(stdout, "%d sequences are read in %0.2f. (%d discarded) [Mem:%0.2f M]\n", seqCnt, (getTime()-startTime), discarded, getMemUsage());
-	//totalLoadingTime+=getTime()-startTime;
-
 	return 1;
 }
 /**********************************************/
-void loadSamplingLocations(int **samplingLocs, int * samplingLocsSize)
+void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize)
 {
 	int i;
 	int samLocsSize = errThreshold + 1;
-	int *samLocs = getMem(sizeof(int)*samLocsSize);
-
+	int *samLocs = getMem(sizeof(int)*(samLocsSize+1));
 	for (i=0; i<samLocsSize; i++)
 	{
 		samLocs[i] = (SEQ_LENGTH / samLocsSize) *i;
 		if ( samLocs[i] + WINDOW_SIZE > SEQ_LENGTH)
 			samLocs[i] = SEQ_LENGTH - WINDOW_SIZE;
 	}
-
+	samLocs[samLocsSize]=SEQ_LENGTH;
+	
 	// Outputing the sampling locations
-
 /*	int j;
  	for (i=0; i<SEQ_LENGTH; i++)
 	{
@@ -491,13 +509,9 @@ void loadSamplingLocations(int **samplingLocs, int * samplingLocsSize)
 	for ( i=0; i<samLocsSize; i++ )
 	{
 		for ( j=0; j<samLocs[i]; j++ )
-		{
 			fprintf(stdout," ");
-		}
 		for (j=0; j<WINDOW_SIZE; j++)
-		{
 			fprintf(stdout,"+");
-		}
 		fprintf(stdout, "\n");
 		fflush(stdout);
 	}
@@ -556,3 +570,4 @@ void finalizeReads(char *fileName)
 	freeMem(_r_seq,0);
 	freeMem(_r_samplingLocs,0);
 }
+

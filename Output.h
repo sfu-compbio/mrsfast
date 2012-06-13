@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -70,6 +71,7 @@ typedef struct
 int initOutput(char *fileName, int compressed);
 void (*finalizeOutput)();
 void (*output)(SAM map);
+void (*outputMeta)(char*);
 
 
 #endif

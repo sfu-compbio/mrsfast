@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -137,6 +138,18 @@ void outputQ(SAM map)
 	fprintf(_out_fp, "\n");
 }
 
+void outputMetaQ(char* str)
+{
+	fprintf(_out_fp, "%s\n", str);
+}
+
+void gzOutputMetaQ(char* str)
+{
+	gzprintf(_out_gzfp, "%s\n", str);
+}
+
+
+
 int initOutput ( char *fileName, int compressed)
 {
 	if (compressed)
@@ -152,6 +165,7 @@ int initOutput ( char *fileName, int compressed)
 		finalizeOutput = &finalizeGZOutput;
 
 		output = &gzOutputQ;
+		outputMeta =&gzOutputMetaQ;
 	}
 	else
 	{
@@ -167,7 +181,9 @@ int initOutput ( char *fileName, int compressed)
 
 		finalizeOutput = &finalizeTXOutput;
 		output = &outputQ;
+		outputMeta = &outputMetaQ;
 	}
+	outputMeta("@HD VN:1.4 SO:unsorted");
 	return 1;
 }
 

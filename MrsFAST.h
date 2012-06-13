@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -61,7 +62,7 @@ typedef struct mn
 	char err;
 	float score;
 	char md[40];
-	char chr[15];
+	char chr[40];
 } FullMappingInfo;
 
 typedef struct lc
@@ -96,7 +97,7 @@ void initFAST(	Read *seqList,
 void finalizeFAST();
 
 int mapSingleEndSeq();
-int mapPairedEndSeq();
+int mapPaiedEndSeq();
 void outputPairedEnd();
 void outputPairedEndDiscPP();
 #endif

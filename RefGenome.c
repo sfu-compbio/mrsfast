@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2012>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -44,11 +45,15 @@ FILE *_rg_fp;
 char *_rg_gen;
 char *_rg_name;
 int _rg_offset;
-int _rg_contGen; 
+int _rg_contGen;
+
 
 /**********************************************/
-int initLoadingRefGenome(char *fileName)
+int initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize)
 {
+	if (!getGenomeInfo(fileName, genomeInfo, genomeInfoSize))
+		return 0;
+
 	char ch;
 	_rg_fp = fileOpen (fileName, "r");
 	if (fscanf(_rg_fp, "%c", &ch))
@@ -57,7 +62,7 @@ int initLoadingRefGenome(char *fileName)
 		{
 			_rg_contGen = 0;
 			_rg_offset = 0;
-			_rg_gen = getMem(CONTIG_MAX_SIZE);
+			_rg_gen = getMem(CONTIG_MAX_SIZE + 1);
 			_rg_name = getMem(CONTIG_NAME_SIZE);
 			return 1;
 		}
@@ -67,7 +72,7 @@ int initLoadingRefGenome(char *fileName)
 /**********************************************/
 void finalizeLoadingRefGenome()
 {
-	freeMem(_rg_gen, CONTIG_MAX_SIZE);
+	freeMem(_rg_gen, CONTIG_MAX_SIZE + 1);
 	freeMem(_rg_name, CONTIG_NAME_SIZE); 
 	fclose(_rg_fp);
 }
@@ -125,7 +130,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 			{
 				actualSize++;
 			}
-			if (actualSize == CONTIG_SIZE || size == CONTIG_MAX_SIZE)
+			if ((actualSize > CONTIG_SIZE || size == CONTIG_MAX_SIZE) && size%21 == 0)
 			{
 				_rg_contGen = 1;
 				returnVal=1;
@@ -154,7 +159,58 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 		_rg_offset = 0;
 	}
 	
-	
 	return returnVal;
 }
 /**********************************************/
+int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
+{
+	char ch, *tmp;
+	int *nameLen, *genSize, *num = (int *)genomeInfo;
+	*num = 0;
+	int i = sizeof(int);
+	_rg_fp = fileOpen (fileName, "r");
+	if ( fscanf(_rg_fp, "%c", &ch) > 0 )
+	{
+		if (ch != '>')
+			return 0;
+	}
+	else
+		return 0;
+	rewind(_rg_fp);
+	
+	fprintf(stdout, "Scanning the fasta file: ");
+
+	while( fscanf(_rg_fp, "%c", &ch) > 0 )
+	{
+		if (!isspace(ch))
+		{
+			if (ch == '>')
+			{
+				(*num)++;
+				nameLen = (int *)(genomeInfo + i);
+				*nameLen = 0;
+				i += sizeof(int);
+				tmp = fgets(genomeInfo + i, SEQ_MAX_LENGTH, _rg_fp);
+				while(!isspace(*(genomeInfo+i)))
+				{
+					i++;
+					(*nameLen)++;
+				}
+				genSize = (int *)(genomeInfo + i);
+				i += sizeof(int);
+				*genSize = 0;
+				fprintf(stdout, ".");
+				fflush(stdout);
+			}
+			else
+			{
+				(*genSize)++;
+			}
+		}
+
+	}
+	*genomeInfoSize = i;
+	fprintf(stdout, "\n");
+	fclose(_rg_fp);
+	return 1;
+}

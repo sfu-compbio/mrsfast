@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -52,6 +53,10 @@ void			configHashTable();
 char			*getRefGenome();
 char			*getRefGenomeName();
 int				getRefGenomeOffset();
+CompressedSeq	*getCmpRefGenome();
+CompressedSeq	*getCmpRefGenOrigin();
+int				getRefGenLength();
+int				getCmpRefGenLen();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
 

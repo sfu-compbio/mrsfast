@@ -30,8 +30,8 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-02-01
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,8 +43,7 @@
 #include "Output.h"
 #include "HashTable.h"
 #include "MrsFAST.h"
-
-char 				*versionNumber = "2.4";			// Current Version
+char 				*versionNumber = "3.0";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -87,6 +86,9 @@ int main(int argc, char *argv[])
 		int fc;
 		int samplingLocsSize;
 		int *samplingLocs;
+		int *samplingLocsOffset;
+		int *samplingLocsLen;
+		int *samplingLocsLenFull;
 		double totalLoadingTime = 0;
 		double totalMappingTime = 0;
 		double startTime;
@@ -183,7 +185,6 @@ int main(int argc, char *argv[])
 					loadingTime = 0;
 					prevGen[0] = '\0';
 					flag = 1;
-					
 					do
 					{
 						flag = loadHashTable ( &tmpTime );  			// Reading a fragment
@@ -197,7 +198,6 @@ int main(int argc, char *argv[])
 
 						if ( !flag || strcmp(prevGen, curGen)!=0)
 						{
-
 							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
@@ -220,14 +220,12 @@ int main(int argc, char *argv[])
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
-
 						sprintf(prevGen, "%s", curGen);
 
 						loadingTime += tmpTime;
 						lstartTime = getTime();
 
 						initFAST(seqList, seqListSize, samplingLocs, samplingLocsSize, fileName[fc][0]);
-
 						mapSingleEndSeq();
 
 						mappingTime += getTime() - lstartTime;
@@ -236,7 +234,6 @@ int main(int argc, char *argv[])
 							maxMem = getMemUsage();
 						}
 					} while (flag);
-
 				} // end for;
 				finalizeFAST();
 				finalizeLoadingHashTable();
@@ -260,7 +257,6 @@ int main(int argc, char *argv[])
 					loadingTime = 0;
 					prevGen[0] = '\0';
 					flag = 1;
-
 					do
 					{
 						flag = loadHashTable ( &tmpTime );  			// Reading a fragment
@@ -319,7 +315,6 @@ int main(int argc, char *argv[])
 							maxMem = getMemUsage();
 						}
 					} while (flag);
-
 				} // end for;
 
 				finalizeLoadingHashTable();
@@ -393,5 +388,5 @@ int main(int argc, char *argv[])
 
 
 
-	return 0;
+	return 1;
 }

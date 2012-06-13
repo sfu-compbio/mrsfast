@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -37,22 +38,25 @@
 #define __COMMON__
 
 #include <zlib.h>
+#include <stdint.h>
 
 #define SEQ_MAX_LENGTH		200			// Seq Max Length
-#define CONTIG_OVERLAP		200 		// No. of characters overlapped between contings
+#define CMP_SEQ_MAX_LENGTH	10			// Compressed Seq Max Length
+#define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	400			// Filename Max Length
-//define DISCORDANT_CUT_OFF  800
+#define DISCORDANT_CUT_OFF  800
 
-extern unsigned int		DISCORDANT_CUT_OFF;
+
+typedef uint64_t CompressedSeq;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
 
-
-extern unsigned char	WINDOW_SIZE				;		// WINDOW SIZE for indexing/searching
+extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
 extern unsigned short	QUAL_LENGTH;
+extern unsigned short	CMP_SEQ_LENGTH;
 
 extern char				*versionNumber;
 extern char				*versionNumberF;
@@ -70,7 +74,6 @@ extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
 extern int				progressRep;
-extern char				phredQual;
 extern char 			*seqFile1;
 extern char				*seqFile2;
 extern char				*seqUnmapped;
@@ -87,14 +90,18 @@ extern int				maxPairEndedDistance;
 extern char				fileName[1000][2][FILE_NAME_LENGTH];
 extern int				fileCnt;
 extern long long		memUsage;
+extern char				*alphabet;
+
 
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
 double	getTime(void);
-void	reverseComplete (char *seq, char *rcSeq , int length);
+inline void	reverseComplete (char *seq, char *rcSeq , int length);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
-void 	reverse (char *seq, char *rcSeq , int length);
+inline void 	reverse (char *seq, char *rcSeq , int length);
 void 	stripPath(char *full, char **path, char **fileName);
+void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
+inline int 	calculateCompressedLen(int normalLen);
 #endif

@@ -30,13 +30,14 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
 #ifndef _REF_GENOME_
 #define _REF_GENOME_
 
-int		initLoadingRefGenome(char *fileName);
+int		initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize);
 void	finalizeLoadingRefGenome();
 int		loadRefGenome(char **refGen, char **refGenName, int *refGenOff);
 

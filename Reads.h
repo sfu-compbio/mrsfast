@@ -30,6 +30,7 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
  */
 
 
@@ -38,11 +39,14 @@
 
 typedef struct
 {
-	char *name;
+	uint16_t *hits;
 	char *seq;
-	char *rseq;
 	char *qual;
-	char *hits;
+	char *rseq;		// TODO: delete
+	CompressedSeq *cseq;
+	CompressedSeq *crseq;
+	char *name;
+
 } Read;
 
 int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);
