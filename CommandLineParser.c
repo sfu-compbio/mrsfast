@@ -42,6 +42,7 @@ int						bisulfiteMode;
 int						pairedEndMode;
 int						seqCompressed;
 int						outCompressed;
+int						cropSize = 0;
 int						progressRep = 0;
 char					*seqFile1;
 char					*seqFile2;
@@ -79,7 +80,8 @@ int parseCommandLine (int argc, char *argv[])
 		{"seq2",			required_argument,	0,					'y'},
 		{"ws",				required_argument,  0,					'w'},
 		{"min",				required_argument,  0,					'l'},
-		{"max",				required_argument,  0,					'm'}
+		{"max",				required_argument,  0,					'm'},
+		{"crop",			required_argument,  0,					'c'}
 	};
 
 		
@@ -88,6 +90,9 @@ int parseCommandLine (int argc, char *argv[])
 	{
 		switch (o)
 		{
+			case 'c': 
+					cropSize = atoi(optarg);
+					break;
 			case 'w':
 					WINDOW_SIZE = atoi(optarg);
 					break;
@@ -278,19 +283,19 @@ void printHelp()
 	char *errorType;
 	if (mrFAST)
 	{
-		fprintf(stdout,"mrFAST : Mircro-Read Fast Alignment Search Tool.\n\n");
+		fprintf(stdout,"mrFAST : Micro-Read Fast Alignment Search Tool.\n\n");
 		fprintf(stdout,"Usage: mrFAST [options]\n\n");
 		errorType="edit distance";
 	}
 	else
 	{
-		fprintf(stdout,"mrFAST : Mircro-Read Substitutions (only) Fast Alignment Search Tool.\n\n");
+		fprintf(stdout,"mrsFAST : Micro-Read Substitutions (only) Fast Alignment Search Tool.\n\n");
 		fprintf(stdout,"Usage: mrsFAST [options]\n\n");
 		errorType="hamming distance";
 	}
 	
 	fprintf(stdout,"Indexing Options:\n");
-	fprintf(stdout," --index\t\tMake Index from a fasta file. \n");
+	fprintf(stdout," --index\t\tMake index from a fasta file. \n");
 	fprintf(stdout," -f [fastafile]\t\tInput fasta file for indexing. The output will be saved into '[fastafile].index' unless it is specified with -f. \n");
 	fprintf(stdout," -b [file]\t\tIndex a set of fasta files listed in [file].\n");
 	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-max:14).\n");
@@ -299,19 +304,20 @@ void printHelp()
 	fprintf(stdout,"\n\n");
 	fprintf(stdout,"Searching Options:\n");
 	fprintf(stdout," --search\t\tSearch an index file\n");
-	fprintf(stdout," --pe \t\t\tSearch will be done in Pairedend mode.\n");
-	fprintf(stdout," --bs \t\t\tSearch will be done in Bisulfite mode.\n");
+	fprintf(stdout," --pe \t\t\tSearch will be done in paired-end mode.\n");
+	fprintf(stdout," --bs \t\t\tSearch will be done in bisulfite mode.\n");
 	fprintf(stdout," -i [indexfile]\t\tIndex file for search.\n");
 	fprintf(stdout," -b [file]\t\tSearch a set of index files listed in [file].\n");
-	fprintf(stdout," --seq [file]\t\tInput sequences in fasta/fastq format [file]. If pairend reads are interleaved, use this option.\n");
-	fprintf(stdout," --seq1 [file]\t\tInput sequences in fasta/fastq format [file] (First file). Use this option to indicate the first file of pair-end reads. You can use this option alone in bisulfite mode. \n");
-	fprintf(stdout," --seq2 [file]\t\tInput sequences in fasta/fastq format [file] (Second file). Use this option to indicate the second file of pair-end reads. You can use this option alone in bisulfite mode. \n");
-	fprintf(stdout," -o [file]\t\tOutput of the mapped sequences. The default is output.map\n");
+	fprintf(stdout," --seq [file]\t\tInput sequences in fasta/fastq format [file]. If paired-end sequences are interleaved, use this option.\n");
+	fprintf(stdout," --seq1 [file]\t\tInput sequences in fasta/fastq format [file] (First file). Use this option to indicate the first file of pair-end sequences. You can use this option alone in bisulfite mode. \n");
+	fprintf(stdout," --seq2 [file]\t\tInput sequences in fasta/fastq format [file] (Second file). Use this option to indicate the second file of pair-end sequences. You can use this option alone in bisulfite mode. \n");
+	fprintf(stdout," -o [file]\t\tOutput of the mapped sequences. The default is output\n");
 	fprintf(stdout," --seqcomp \t\tIndicates that the input sequences are compressed(gz).\n");
 	fprintf(stdout," --outcomp \t\tIndicates that output file should be compressed(gz).\n");
 	fprintf(stdout," -u [file]\t\tSave unmapped sequences to the [file] in fasta format.\n");
 	fprintf(stdout," -n [int]\t\tMaximum number of locations a sequence can map to (default 1). To report all use 0.\n");
 	fprintf(stdout," -e [int]\t\t%s (default 2).\n", errorType);
-	fprintf(stdout," --min [int]\t\tMin distance allowed between two pairend sequences.(Should be used with -pe)\n");
-	fprintf(stdout," --max [int]\t\tMax distance allowed between two pairend sequences.(Should be used with -pe)\n");
+	fprintf(stdout," --min [int]\t\tMin distance allowed between two pairend sequences.(Should be used with --pe)\n");
+	fprintf(stdout," --max [int]\t\tMax distance allowed between two pairend sequences.(Should be used with --pe)\n");
+	fprintf(stdout," --crop [int]\t\tCrops the input sequences after the specified number of base pairs.\n");
 }

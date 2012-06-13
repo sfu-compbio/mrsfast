@@ -207,6 +207,16 @@ int readAllReads(char *fileName1,
 			sprintf(qual1, "*");
 		}
 
+
+		// Cropping
+		if (cropSize > 0)
+		{
+			seq1[cropSize] = '\0';
+			if ( *fastq )
+				qual1[cropSize] = '\0';
+		}
+
+
 		nCnt = 0;
 		for (i=0; i<strlen(seq1); i++)
 		{
@@ -246,6 +256,16 @@ int readAllReads(char *fileName1,
 			{
 				sprintf(qual2, "*");
 			}
+
+
+			// Cropping
+			if (cropSize > 0)
+			{
+				seq2[cropSize] = '\0';
+				if ( *fastq )
+					qual2[cropSize] = '\0';
+			}
+
 
 			nCnt = 0;
 			for (i=0; i<strlen(seq2); i++)
@@ -325,10 +345,16 @@ int readAllReads(char *fileName1,
 		}
 	}
 
-	if (list != NULL)
+	if (seqCnt > 0)
 	{
 		SEQ_LENGTH = strlen(list[0].seq);
 	}
+	else
+	{
+		fprintf(stdout, "ERR: No reads can be found for mapping\n");
+		return 0;
+	}
+
 
 	if (pairedEnd)
 	{

@@ -1,3 +1,10 @@
+2009-07-31  Faraz Hach  <fhach@cs.sfu.ca>
+	* Bug #2828635 is fixed.
+	* Bug #2828636 is fixed.
+	* Serveral Bugs in PE mode is fixed.
+	* SAM field TLEN is fixed.
+	* --crop is added to command line options.
+
 2009-06-17  Faraz Hach  <fhach@cs.sfu.ca>
 	* Performance Improvement.
 

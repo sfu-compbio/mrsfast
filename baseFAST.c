@@ -41,7 +41,7 @@
 #include "MrsFAST.h"
 
 
-char 				*versionNumber = "1.1";			// Current Version
+char 				*versionNumber = "1.2";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -395,7 +395,7 @@ int main(int argc, char *argv[])
 						for (sc= 0; sc < seqListSize; sc++)
 						{
 							cseq = &(seqList[sc]);
-							reverse(cseq->qual, rq1, SEQ_LENGTH);
+							//reverse(cseq->qual, rq1, SEQ_LENGTH);
 							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo++, FORWARD, BSTableType);
 							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo++, REVERSE, !BSTableType);
 						}

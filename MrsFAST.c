@@ -2,9 +2,9 @@
  * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without modification, 
+ * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- *   
+ *
  * Redistributions of source code must retain the above copyright notice, this list
  * of conditions and the following disclaimer.
  * - Redistributions in binary form must reproduce the above copyright notice, this
@@ -13,7 +13,7 @@
  * - Neither the name of the <ORGANIZATION> nor the names of its contributors may be
  *   used to endorse or promote products derived from this software without specific
  *   prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -37,13 +37,13 @@
 #include "Output.h"
 
 unsigned char		mrFAST = 0;
-char				*versionNumberF="6.2";
+char				*versionNumberF="6.3";
 
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
+long long			mappedSeqCnt = 0;
 long long			completedSeqCnt = 0;
-long long			mappedSeqCnt = 0;	
 long long			metTotal = 0;
 long long			regTotal = 0;
 
@@ -69,26 +69,34 @@ OPT_FIELDS			*_msf_optionalFields;
 char				*_msf_op;
 char				*_msf_opP;
 
+char				_msf_numbers[200][4];
+
 /**********************************************/
 void initFAST(int *samplingLocs, int samplingLocsSize)
 {
-	if (_msf_optionalFields == NULL)	
+	if (_msf_optionalFields == NULL)
 	{
 		_msf_op = getMem(SEQ_LENGTH);
 		if (pairedEndMode)
 		{
 			_msf_opP = getMem(SEQ_LENGTH);
 			_msf_optionalFields = getMem(4*sizeof(OPT_FIELDS));
-		}	
+		}
 		else
 		{
 			_msf_optionalFields = getMem(2*sizeof(OPT_FIELDS));
+		}
+	
+		int i;
+		for (i=0; i<200;i++)
+		{
+			sprintf(_msf_numbers[i],"%d%c",i, '\0');
 		}
 	}
 
 	if (_msf_verifiedLocs != NULL)
 		freeMem(_msf_verifiedLocs, sizeof(int) * (_msf_refGenLength+1));
-	
+
 	if (_msf_verifiedLocsP != NULL )
 		freeMem(_msf_verifiedLocsP, sizeof(int) * (_msf_refGenLength+1));
 
@@ -114,7 +122,7 @@ void initFAST(int *samplingLocs, int samplingLocsSize)
 		_msf_hashTableBS = getHashTableBS();
 	}
 
-	
+
 	_msf_verifiedLocs = getMem(sizeof(int)*(_msf_refGenLength+1));
 	int i;
 	for (i=0; i<=_msf_refGenLength; i++)
@@ -160,17 +168,17 @@ int verify(int index, char* seq, char **opSeq)
 	verificationCnt ++;
 
 	errCnt = 0;
-	
+
 	ref = _msf_refGen + index-1;
 	ver = seq;
-	
+
 	for (i=0; i < SEQ_LENGTH; i++)
-	{	
+	{
 		err = * ref != *ver;
 		errCnt += err;
 
 		if (errCnt > errThreshold)
-		{	
+		{
 			errCnt = -1;
 			break;
 		}
@@ -180,21 +188,27 @@ int verify(int index, char* seq, char **opSeq)
 			{
 				if (matchCnt < 10)
 				{
-					op[pp++]=48+matchCnt;
+					op[pp++]=_msf_numbers[matchCnt][0];
+					//op[pp++]=48+matchCnt;
 					op[pp++]=*ref;
 				}
 				else if (matchCnt < 100)
 				{
-					op[pp++]=48+(matchCnt/10);
-					op[pp++]=48+(matchCnt%10);
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
+					//op[pp++]=48+(matchCnt/10);
+					//op[pp++]=48+(matchCnt%10);
 					op[pp++] = *ref;
 				}
 				else
 				{
-					op[pp++] = 48+matchCnt/100;
-					matchCnt %= 100;
-					op[pp++] = 48+matchCnt/10;
-					op[pp++] = 48+matchCnt%10;
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
+					op[pp++]=_msf_numbers[matchCnt][2];
+					//op[pp++] = 48+matchCnt/100;
+					//matchCnt %= 100;
+					//op[pp++] = 48+matchCnt/10;
+					//op[pp++] = 48+matchCnt%10;
 					op[pp++] = *ref;
 				}
 
@@ -216,19 +230,25 @@ int verify(int index, char* seq, char **opSeq)
 	{
 		if (matchCnt < 10)
 		{
-			op[pp++]=48+matchCnt;
+			op[pp++]=_msf_numbers[matchCnt][0];
+			//op[pp++]=48+matchCnt;
 		}
 		else if (matchCnt < 100)
 		{
-			op[pp++]=48+matchCnt/10;
-			op[pp++]=48+matchCnt%10;
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
+			//op[pp++]=48+matchCnt/10;
+			//op[pp++]=48+matchCnt%10;
 		}
 		else
 		{
-			op[pp++]=48+matchCnt/100;
-			matchCnt %= 100;
-			op[pp++]=48+matchCnt/10;
-			op[pp++]=48+matchCnt%10;
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
+			op[pp++]=_msf_numbers[matchCnt][2];
+			//op[pp++]=48+matchCnt/100;
+			//matchCnt %= 100;
+			//op[pp++]=48+matchCnt/10;
+			//op[pp++]=48+matchCnt%10;
 		}
 	}
 	op[pp]='\0';
@@ -253,7 +273,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 	int size;
 	int hv;
 	int hits = 0;
-	unsigned int *locs;
+	int *locs;
 	char cigar[5];
 
 	sprintf(cigar, "%dM", SEQ_LENGTH);
@@ -263,7 +283,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 		offset = _msf_samplingLocs[i];
 		hv = hashVal(seq + offset);
 		j = 1;
-		locs = getCandidates(hv);
+		locs = (int *)getCandidates(hv);
 		if (locs != NULL)
 		{
 			size = locs[0];
@@ -293,7 +313,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 					mappingCnt++;
 
 					_msf_output.QNAME		= seqName;
-					_msf_output.FLAG		= 16 * mappingDirection; 
+					_msf_output.FLAG		= 16 * mappingDirection;
 					_msf_output.RNAME		= _msf_refGenName;
 					_msf_output.POS			= genLoc + _msf_refGenOffset;
 					_msf_output.MAPQ		= 255;
@@ -301,7 +321,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 					_msf_output.MRNAME		= "*";
 					_msf_output.MPOS		= 0;
 					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= seq;					
+					_msf_output.SEQ			= seq;
 					_msf_output.QUAL		= seqQual;
 
 					_msf_output.optSize		= 2;
@@ -355,7 +375,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq1Hits, int seq1No, short mappingDirection1,
 						char *seq2Name, char *seq2, char* seq2Qual, unsigned int seq2Hits, int seq2No, short mappingDirection2)
 {
-	
+
 	if (maxHits !=0 && maxHits == seq1Hits)
 	{
 		return 0;
@@ -374,8 +394,8 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 	int size2;
 	int hv1;
 	int hv2;
-	unsigned int *locs1;
-	unsigned int *locs2;
+	int *locs1;
+	int *locs2;
 
 	int p1, p2, p3;
 
@@ -395,7 +415,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 	{
 		offset1 = _msf_samplingLocs[i];
 		hv1 = hashVal(seq1 + offset1);
-		locs1 = getCandidates(hv1);
+		locs1 =(int *) getCandidates(hv1);
 		if (locs1 != NULL)
 		{
 			size1 = locs1[0];
@@ -410,7 +430,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
         {
             offset2 = _msf_samplingLocs[j];
             hv2 = hashVal(seq2 + offset2);
-            locs2 = getCandidates(hv2);
+            locs2 = (int *)getCandidates(hv2);
 			if ( locs2 != NULL)
 			{
 				size2 = locs2[0];
@@ -466,26 +486,32 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 					rl = genLoc1 + minPairEndedDistance - 1;
 					rm = genLoc1 + maxPairEndedDistance - 1;
 
-//					fprintf(stdout, "%d %d [%d] %d %d\n", lm, ll,genLoc1, rl, rm);
+					//fprintf(stdout, "%d %d [%d] %d %d\n", lm, ll,genLoc1, rl, rm);
 
-                    while (p2<=size2 && (locs2[p2]-offset2) < lm)
+                    while (p2<=size2 && ((int)locs2[p2]-offset2) < lm)
                     {
+						//fprintf(stdout, "]Passing ... %d %d \n", p2, locs2[p2]-offset2); 
                         p2++;
                     }
+					//fprintf(stdout, "--------------\n");
                     while (p3<=size2 && (locs2[p3]-offset2) <= rm)
                     {
+						//fprintf(stdout, ">Passing ... %d %d \n", p3, locs2[p3]-offset2); 
                         p3++;
                     }
 
+					//fprintf(stdout, "[%d, %d]=> %d %d\n", p2, p3, locs2[p2]-offset2, locs2[p3]-offset2);
                     k=p2;
-                    while (flag && k<=p3)
+                    while (flag && k<=p3 && p2<=size2)
                     {
 						genLoc2 = locs2[k] - offset2;
-                        if ( genLoc2 >  ll && genLoc2 < rl )
+                        if ( ( genLoc2 >  ll && genLoc2 < rl ) || (genLoc2>rm) )
                         {
                             k++;
+							//fprintf(stdout, "Continue ... \n");
                             continue;
                         }
+
 
                         if (genLoc2 < 1 ||
                             genLoc2 > (_msf_refGenLength - SEQ_LENGTH + 1)||
@@ -512,10 +538,14 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 								mappingCnt++;
                                 _msf_verifiedLocsP[genLoc2] = seq2No;
 								
+								int isize = abs(genLoc1 - genLoc2)+SEQ_LENGTH-1;
+								if (genLoc1 - genLoc2 > 0)
+									isize*=-1;
+
 								_msf_output.POS			= genLoc1 + _msf_refGenOffset;
 								_msf_output.MPOS		= genLoc2 + _msf_refGenOffset;
 								_msf_output.FLAG		= 1+2+16*mappingDirection1+32*mappingDirection2+64;
-								_msf_output.ISIZE		= abs(genLoc2 - genLoc1) + SEQ_LENGTH;
+								_msf_output.ISIZE		= isize;
 								_msf_output.SEQ			= seq1,
 								_msf_output.QUAL		= seq1Qual;
 								_msf_output.QNAME		= seqName;
@@ -523,7 +553,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 								_msf_output.MAPQ		= 255;
 								_msf_output.CIGAR		= cigar;
 								_msf_output.MRNAME		= "=";
-								
+
 								_msf_output.optSize	= 2;
 								_msf_output.optFields	= _msf_optionalFields;
 
@@ -537,11 +567,11 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 
 
 								output(_msf_output);
-								
+							
 								_msf_output.POS			= genLoc2 + _msf_refGenOffset;
 								_msf_output.MPOS		= genLoc1 + _msf_refGenOffset;
 								_msf_output.FLAG		= 1+2+16*mappingDirection2+32*mappingDirection1+128;
-								_msf_output.ISIZE		= abs(genLoc2 - genLoc1) + SEQ_LENGTH;
+								_msf_output.ISIZE		= -isize;
 								_msf_output.SEQ			= seq2,
 								_msf_output.QUAL		= seq2Qual;
 								_msf_output.QNAME		= seqName;
@@ -549,7 +579,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 								_msf_output.MAPQ		= 255;
 								_msf_output.CIGAR		= cigar;
 								_msf_output.MRNAME		= "=";
-								
+
 								_msf_output.optSize	= 2;
 								_msf_output.optFields	= _msf_optionalFields;
 
@@ -562,7 +592,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 								_msf_optionalFields[1].sVal = _msf_opP;
 
 								output(_msf_output);
-                                
+
 								if (hits+seq1Hits == 0)
 								{
 									mappedSeqCnt ++;
@@ -612,7 +642,7 @@ int verifyBS(int index, char *seq, char **opSeq, int type, int *met, int *reg)
 	short matchCnt=0;
 
 	verificationCnt ++;
-	errCnt = 0; 
+	errCnt = 0;
 	ref = _msf_refGen +index - 1;
 	ver = seq;
 
@@ -735,17 +765,17 @@ int mapSingleEndSeqBS( char *seqName, char *seq, char* seqQual, unsigned int seq
 	int hits = 0;
 	int reg = 0;
 	int met = 0;
-	unsigned int *locs;
+	int *locs;
 	char cigar[5];
 
 	sprintf(cigar, "%dM", SEQ_LENGTH);
-	
+
 	while (flag && i <  _msf_samplingLocsSize )
 	{
 		offset = _msf_samplingLocs[i];
 		hv = hashValBS(seq + offset, type);
 		j = 1;
-		locs = getCandidatesBS(hv, type);
+		locs = (int *) getCandidatesBS(hv, type);
 		if (locs != NULL)
 		{
 			size = locs[0];
@@ -772,13 +802,13 @@ int mapSingleEndSeqBS( char *seqName, char *seq, char* seqQual, unsigned int seq
 				{
 
 					metTotal += met;
-					regTotal += reg;					
+					regTotal += reg;
 					mappingCnt++;
 
 					_msf_verifiedLocs[genLoc] = seqNo;
 
 					_msf_output.QNAME		= seqName;
-					_msf_output.FLAG		= 16 * mappingDirection; 
+					_msf_output.FLAG		= 16 * mappingDirection;
 					_msf_output.RNAME		= _msf_refGenName;
 					_msf_output.POS			= genLoc + _msf_refGenOffset;
 					_msf_output.MAPQ		= 255;
@@ -786,7 +816,7 @@ int mapSingleEndSeqBS( char *seqName, char *seq, char* seqQual, unsigned int seq
 					_msf_output.MRNAME		= "*";
 					_msf_output.MPOS		= 0;
 					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= seq;					
+					_msf_output.SEQ			= seq;
 					_msf_output.QUAL		= seqQual;
 
 					_msf_output.optSize		= 2;
@@ -863,8 +893,8 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 	int size2;
 	int hv1;
 	int hv2;
-	unsigned int *locs1;
-	unsigned int *locs2;
+	int *locs1;
+	int *locs2;
 
 	int p1, p2, p3;
 
@@ -881,12 +911,12 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 	char cigar[5];
 
 	sprintf(cigar, "%dM", SEQ_LENGTH);
-	
+
 	while (flag && i < _msf_samplingLocsSize)
 	{
 		offset1 = _msf_samplingLocs[i];
 		hv1 = hashValBS(seq1 + offset1, type1);
-		locs1 = getCandidatesBS(hv1, type1);
+		locs1 = (int*)getCandidatesBS(hv1, type1);
 		if (locs1 != NULL)
 		{
 			size1 = locs1[0];
@@ -900,7 +930,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
         {
             offset2 = _msf_samplingLocs[j];
             hv2 = hashValBS(seq2 + offset2, type2);
-			locs2 = getCandidatesBS(hv2, type2);
+			locs2 = (int*)getCandidatesBS(hv2, type2);
 			if (locs2 != NULL)
 			{
 				size2 = locs2[0];
@@ -968,10 +998,10 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
                     }
 
                     k=p2;
-                    while (flag && k<p3)
+                    while (flag && k<=p3 && p2<=size2)
                     {
 						genLoc2 = locs2[k] - offset2;
-                        if ( genLoc2 >  ll && genLoc2 < rl )
+                        if ( ( genLoc2 >  ll && genLoc2 < rl ) || (genLoc2>rm) )
                         {
                             k++;
                             continue;
@@ -1006,10 +1036,14 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 
                                 _msf_verifiedLocsP[genLoc2] = seq2No;
 
+								int isize = abs(genLoc1 - genLoc2)+SEQ_LENGTH-1;
+								if (genLoc1 - genLoc2 > 0)
+									isize*=-1;
+
 								_msf_output.POS			= genLoc1 + _msf_refGenOffset;
 								_msf_output.MPOS		= genLoc2 + _msf_refGenOffset;
 								_msf_output.FLAG		= 1+2+16*mappingDirection1+32*mappingDirection2+64;
-								_msf_output.ISIZE		= abs(genLoc2 - genLoc1) + SEQ_LENGTH;
+								_msf_output.ISIZE		= isize;
 								_msf_output.SEQ			= seq1,
 								_msf_output.QUAL		= seq1Qual;
 								_msf_output.QNAME		= seqName;
@@ -1017,7 +1051,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 								_msf_output.MAPQ		= 255;
 								_msf_output.CIGAR		= cigar;
 								_msf_output.MRNAME		= "=";
-								
+
 								_msf_output.optSize	= 2;
 								_msf_output.optFields	= _msf_optionalFields;
 
@@ -1031,11 +1065,11 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 
 
 								output(_msf_output);
-								
+
 								_msf_output.POS			= genLoc2 + _msf_refGenOffset;
 								_msf_output.MPOS		= genLoc1 + _msf_refGenOffset;
 								_msf_output.FLAG		= 1+2+16*mappingDirection2+32*mappingDirection1+128;
-								_msf_output.ISIZE		= abs(genLoc2 - genLoc1) + SEQ_LENGTH;
+								_msf_output.ISIZE		= -isize;
 								_msf_output.SEQ			= seq2,
 								_msf_output.QUAL		= seq2Qual;
 								_msf_output.QNAME		= seqName;
@@ -1043,7 +1077,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 								_msf_output.MAPQ		= 255;
 								_msf_output.CIGAR		= cigar;
 								_msf_output.MRNAME		= "=";
-								
+
 								_msf_output.optSize	= 2;
 								_msf_output.optFields	= _msf_optionalFields;
 
@@ -1056,7 +1090,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
 								_msf_optionalFields[1].sVal = _msf_opP;
 
 								output(_msf_output);
-                                
+
 								if (hits+seq1Hits == 0)
 								{
 									mappedSeqCnt ++;

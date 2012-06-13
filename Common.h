@@ -54,6 +54,7 @@ extern int				bisulfiteMode;
 extern int				pairedEndMode;
 extern int				seqCompressed;
 extern int				outCompressed;
+extern int				cropSize;
 extern int				progressRep;
 extern char 			*seqFile1;
 extern char				*seqFile2;
