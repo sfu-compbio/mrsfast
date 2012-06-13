@@ -27,6 +27,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-01-29
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +46,7 @@
 
 float calculateScore(int index, char *seq, char *qual, int *err);
 unsigned char		mrFAST = 0;
-char				*versionNumberF="0.0";
+char				*versionNumberF="0.1";
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
@@ -867,10 +873,8 @@ int	 mapPairedEndSeq()
 	int j;
 	int lmax=0, rmax=0;
 
-	sprintf(fname1, "__%s__%d__1", mappingOutput, _msf_openFiles);
-	sprintf(fname2, "__%s__%d__2", mappingOutput, _msf_openFiles);
-
-	//fprintf(stdout, "%s %s\n", fname1, fname2);
+	sprintf(fname1, "%s__%s__%d__1",mappingOutputPath, mappingOutput, _msf_openFiles);
+	sprintf(fname2, "%s__%s__%d__2",mappingOutputPath, mappingOutput, _msf_openFiles);
 
 	FILE* out;
 	FILE* out1 = fileOpen(fname1, "w");
@@ -951,9 +955,9 @@ void outputPairedEnd()
 
 	if (pairedEndDiscordantMode)
 	{
-		sprintf(fname3, "__%s__disc", mappingOutput);
-		sprintf(fname4, "__%s__oea1", mappingOutput);
-		sprintf(fname5, "__%s__oea2", mappingOutput);
+		sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
+		sprintf(fname4, "%s__%s__oea1", mappingOutputPath, mappingOutput);
+		sprintf(fname5, "%s__%s__oea2", mappingOutputPath, mappingOutput);
 		out = fileOpen(fname3, "a");
 		out1 = fileOpen(fname4, "a");
 		out2 = fileOpen(fname5, "a");
@@ -969,8 +973,8 @@ void outputPairedEnd()
 
 	for (i=0; i<_msf_openFiles; i++)
 	{
-		sprintf(fname1[i], "__%s__%d__1", mappingOutput, i);
-		sprintf(fname2[i], "__%s__%d__2", mappingOutput, i);
+		sprintf(fname1[i], "%s__%s__%d__1", mappingOutputPath, mappingOutput, i);
+		sprintf(fname2[i], "%s__%s__%d__2", mappingOutputPath, mappingOutput, i);
 		in1[i] = fileOpen(fname1[i], "r");
 		in2[i] = fileOpen(fname2[i], "r");
 	}
@@ -1165,8 +1169,6 @@ void outputPairedEnd()
 						tmp = fwrite(&err, sizeof(char), 1, out);
 						tmp = fwrite(&sc, sizeof(float), 1, out);
 
-						//if (i == 6615)
-						//	fprintf(stdout, "%d %s: %d %d %0.20f ", rNo, _msf_refGenName, loc, err, sc);
 
 						loc = mi2[k].loc*mi2[k].dir;
 						err = mi2[k].err;
@@ -1175,18 +1177,23 @@ void outputPairedEnd()
 						tmp = fwrite(&loc, sizeof(int), 1, out);
 						tmp = fwrite(&err, sizeof(char), 1, out);
 						tmp = fwrite(&sc, sizeof(float), 1, out);
-						//if (i==6615)
-						//	fprintf(stdout, " - %d %d %0.20f\n", loc, err, sc);
 					} // end discordant
 					else
 					{ //start sampe
-
-						int isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH-1;
+						char *seq;
+						char *qual;
+						char d1;
+						char d2;
+						int isize;
+						int proper=0;
+						// ISIZE CALCULATION
+						// The distance between outer edges								
+						isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH-1;												
 						if (mi1[j].loc - mi2[k].loc > 0)
-							isize*=-1;
+						{
+							isize *= -1;
+						}
 
-						char *seq, *qual;
-						char d1, d2;
 						d1 = (mi1[j].dir == -1)?1:0;
 						d2 = (mi2[k].dir == -1)?1:0;
 
@@ -1201,12 +1208,23 @@ void outputPairedEnd()
 							qual = qual1;
 						}
 
+						if ( (mi1[j].loc < mi2[k].loc && !d1 && d2) ||
+							 (mi1[j].loc > mi2[k].loc && d1 && !d2) )
+						{
+							proper = 2;
+						}
+						else
+						{
+							proper = 0;
+						}
+						   
+
 						_msf_output.POS			= mi1[j].loc;
 						_msf_output.MPOS		= mi2[k].loc;
-						_msf_output.FLAG		= 1+2+16*d1+32*d2+64;
+						_msf_output.FLAG		= 1+proper+16*d1+32*d2+64;
 						_msf_output.ISIZE		= isize;
 						_msf_output.SEQ			= seq,
-							_msf_output.QUAL		= qual;
+						_msf_output.QUAL		= qual;
 						_msf_output.QNAME		= _msf_seqList[i*2].name;
 						_msf_output.RNAME		= _msf_refGenName;
 						_msf_output.MAPQ		= 255;
@@ -1240,10 +1258,10 @@ void outputPairedEnd()
 
 						_msf_output.POS			= mi2[k].loc;
 						_msf_output.MPOS		= mi1[j].loc;
-						_msf_output.FLAG		= 1+2+16*d2+32*d1+128;
+						_msf_output.FLAG		= 1+proper+16*d2+32*d1+128;
 						_msf_output.ISIZE		= -isize;
 						_msf_output.SEQ			= seq,
-							_msf_output.QUAL		= qual;
+						_msf_output.QUAL		= qual;
 						_msf_output.QNAME		= _msf_seqList[i*2].name;
 						_msf_output.RNAME		= _msf_refGenName;
 						_msf_output.MAPQ		= 255;
@@ -1342,12 +1360,12 @@ void outputPairedEndDiscPP()
 	int tmp;
 	FILE *in, *in1, *in2, *out, *out1, *out2;
 
-	sprintf(fname1, "__%s__disc", mappingOutput);
-	sprintf(fname2, "__%s__oea1", mappingOutput);
-	sprintf(fname3, "__%s__oea2", mappingOutput);
-	sprintf(fname4, "%s_DIVET.vh", mappingOutput);
-	sprintf(fname5, "%s_OEA1.vh", mappingOutput);
-	sprintf(fname6, "%s_OEA2.vh", mappingOutput);
+	sprintf(fname1, "%s__%s__disc", mappingOutputPath, mappingOutput);
+	sprintf(fname2, "%s__%s__oea1", mappingOutputPath, mappingOutput);
+	sprintf(fname3, "%s__%s__oea2", mappingOutputPath, mappingOutput);
+	sprintf(fname4, "%s%s_DIVET.vh", mappingOutputPath, mappingOutput);
+	sprintf(fname5, "%s%s_OEA1.vh", mappingOutputPath, mappingOutput);
+	sprintf(fname6, "%s%s_OEA2.vh", mappingOutputPath, mappingOutput);
 
 	in   = fileOpen(fname1, "r");
 	in1  = fileOpen(fname2, "r");

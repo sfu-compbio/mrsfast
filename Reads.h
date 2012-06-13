@@ -27,6 +27,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
+ */
+
 
 #ifndef __READ__
 #define __READ__

@@ -27,6 +27,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-01-29
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +41,7 @@
 #include "Common.h"
 #include "CommandLineParser.h"
 
+int						uniqueMode=1;
 int						indexingMode;
 int						searchingMode;
 int						bisulfiteMode;
@@ -53,6 +59,7 @@ int						maxPairEndedDiscordantDistance=-1;
 char					*seqFile1;
 char					*seqFile2;
 char					*mappingOutput = "output";
+char					*mappingOutputPath = "";
 char					*unmappedOutput = "unmapped";
 char					fileName[1000][2][FILE_NAME_LENGTH];
 int						fileCnt;
@@ -131,7 +138,9 @@ int parseCommandLine (int argc, char *argv[])
 				unmappedOutput = optarg;
 				break;
 			case 'o':
-				mappingOutput = optarg;
+				mappingOutput = getMem(FILE_NAME_LENGTH);
+				mappingOutputPath = getMem(FILE_NAME_LENGTH);
+				stripPath (optarg, &mappingOutputPath, &mappingOutput);
 				break;
 			case 'n':
 				maxHits = atoi(optarg);
@@ -359,6 +368,6 @@ void printHelp()
 	//	fprintf(stdout," -u [file]\t\tSave unmapped sequences to the [file] in fasta format.\n");
 	fprintf(stdout," -n [int]\t\tMaximum number of locations reported for a sequence \n\t\t\t(default 0, all mappings). \n");
 	fprintf(stdout," -e [int]\t\t%s (default 2).\n", errorType);
-	fprintf(stdout," --min [int]\t\tMin distance allowed between two pairend sequences.\n");
-	fprintf(stdout," --max [int]\t\tMax distance allowed between two pairend sequences.\n");
+	fprintf(stdout," --min [int]\t\tMin inferred distance allowed between two pairend sequences.\n");
+	fprintf(stdout," --max [int]\t\tMax inferred distance allowed between two pairend sequences.\n");
 }

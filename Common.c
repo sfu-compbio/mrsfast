@@ -27,11 +27,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-02-01
+ */
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <zlib.h>
+#include <string.h>
 #include "Common.h"
 
 
@@ -128,5 +135,33 @@ void reverse (char *seq, char *rcSeq , int length)
 	for (i=0; i<length; i++)
 	{
 		rcSeq[i]=seq[length-1-i] ;
+	}
+}
+/**********************************************/
+void stripPath(char *full, char **path, char **fileName)
+{
+	int i;
+	int pos = -1;
+
+	for (i=strlen(full)-1; i>=0; i--)
+	{
+		if (full[i]=='/')
+		{
+			pos = i;
+			break;
+		}
+
+	}
+
+	if (pos != -1)
+	{
+		sprintf(*fileName, "%s%c", (full+pos+1), '\0');
+		full[pos+1]='\0';
+		sprintf(*path,"%s%c", full, '\0');
+	}
+	else
+	{
+		sprintf(*fileName, "%s%c", full, '\0');
+		sprintf(*path,"%c", '\0');
 	}
 }

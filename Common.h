@@ -27,6 +27,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
+ */
+
 
 #ifndef __COMMON__
 #define __COMMON__
@@ -50,6 +56,8 @@ extern char				*versionNumber;
 extern char				*versionNumberF;
 extern unsigned char	mrFAST;
 
+
+extern int				uniqueMode;
 extern int				indexingMode;
 extern int				searchingMode;
 extern int				bisulfiteMode;
@@ -64,6 +72,7 @@ extern char 			*seqFile1;
 extern char				*seqFile2;
 extern char				*seqUnmapped;
 extern char				*mappingOutput;
+extern char 			*mappingOutputPath;
 extern char				*unmappedOutput;
 extern unsigned char	seqFastq;
 extern unsigned char	errThreshold;
@@ -84,4 +93,5 @@ void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
 void 	reverse (char *seq, char *rcSeq , int length);
+void 	stripPath(char *full, char **path, char **fileName);
 #endif

@@ -1,3 +1,9 @@
+2010-02-08  Faraz Hach  <fhach@cs.sfu.ca>
+	* SAM field flag is fixed.
+	* Paths in discordant-vh mode is fixed.
+	* --min and --max parameters are now defining template length (the
+	distance between outer edges of the mapping).
+
 2009-12-08  Faraz Hach  <fhach@cs.sfu.ca>
 	* Cache oblivious algorithm is implemented (2x speed up)
 	* Bugs related to PE mode are fixed.

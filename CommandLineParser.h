@@ -27,6 +27,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-12-08
+ */
+
 
 #ifndef __COMMAND_LINE_PARSER__
 #define __COMMAND_LINE_PARSER__

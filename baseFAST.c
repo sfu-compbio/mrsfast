@@ -27,6 +27,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Author         : Faraz Hach
+ * Email          : fhach AT cs DOT sfu
+ * Last Update    : 2009-02-01
+ */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +45,7 @@
 #include "HashTable.h"
 #include "MrsFAST.h"
 
-char 				*versionNumber = "2.0";			// Current Version
+char 				*versionNumber = "2.2";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -122,13 +128,23 @@ int main(int argc, char *argv[])
 
 		if (pairedEndMode)
 		{
+			//Switching to Inferred Size 
+			minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 2;
+			maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 2;
+			if (pairedEndDiscordantMode)
+			{
+				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 2;
+				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 2;
+			}
+			
+			/* The size between the ends;
 			minPairEndedDistance = minPairEndedDistance + SEQ_LENGTH + 1;
 			maxPairEndedDistance = maxPairEndedDistance + SEQ_LENGTH + 1;
 			if (pairedEndDiscordantMode)
 			{
 				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance + SEQ_LENGTH + 1;
 				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance + SEQ_LENGTH + 1;
-			}
+			}*/
 			sprintf(fname1, "__%s__1", mappingOutput);
 			sprintf(fname2, "__%s__2", mappingOutput);
 			sprintf(fname3, "__%s__disc", mappingOutput);
