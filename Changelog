@@ -1,0 +1,7 @@
+2009-06-01  Faraz Hach <fhach@cs.sfu.ca>
+	* Command line options are simplified.
+	* Support for reading gzip files are added
+	* Support for outputing in gzip format is added.
+	* Support for SAM output is added.
+	* Multiple bug fixes related to memory leackage during indexing is fixed.
+	* Memory Usage is reported in the output.

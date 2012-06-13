@@ -1,0 +1,80 @@
+/*
+ * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, 
+ * are permitted provided that the following conditions are met:
+ *   
+ * Redistributions of source code must retain the above copyright notice, this list
+ * of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, this
+ *   list of conditions and the following disclaimer in the documentation and/or other
+ *   materials provided with the distribution.
+ * - Neither the name of the <ORGANIZATION> nor the names of its contributors may be
+ *   used to endorse or promote products derived from this software without specific
+ *   prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+#ifndef __COMMON__
+#define __COMMON__
+
+#include <zlib.h>
+
+#define SEQ_MAX_LENGTH		200			// Seq Max Length
+#define CONTIG_OVERLAP		200 		// No. of characters overlapped between contings
+#define CONTIG__SIZE		15000000	// Actual contig size (not counting Ns)
+#define CONTIG_MAX_SIZE		40000000	// Max contig size (including Ns)
+#define CONTIG_NAME_SIZE	200			// Contig name max size
+#define FILE_NAME_LENGTH	400			// Filename Max Length
+
+
+extern unsigned char	WINDOW_SIZE				;		// WINDOW SIZE for indexing/searching
+extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
+
+extern char				*versionNumber;
+extern char				*versionNumberF;
+extern unsigned char	mrFAST;
+
+extern int				indexingMode;
+extern int				searchingMode;
+extern int				bisulfiteMode;
+extern int				pairedEndMode;
+extern int				seqCompressed;
+extern int				outCompressed;
+extern int				progressRep;
+extern char 			*seqFile1;
+extern char				*seqFile2;
+extern char				*seqUnmapped;
+extern char				*mappingOutput;
+extern char				*unmappedOutput;
+extern unsigned char	seqFastq;
+extern unsigned char	errThreshold;
+extern unsigned char	maxHits;	
+extern short			minPairEndedDistance;
+extern short			maxPairEndedDistance;
+extern char				fileName[1000][2][FILE_NAME_LENGTH];
+extern int				fileCnt;
+extern long long		memUsage;
+
+FILE	* fileOpen(char *fileName, char *mode);
+gzFile	fileOpenGZ(char *fileName, char *mode);
+double	getTime(void);
+void	reverseComplete (char *seq, char *rcSeq , int length);
+void	* getMem(size_t size);
+void	freeMem(void * ptr, size_t size);
+double	getMemUsage();
+
+#endif
