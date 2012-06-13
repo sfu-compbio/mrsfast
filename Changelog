@@ -1,4 +1,7 @@
-2009-06-17  Faraz Hach  <fhach@cs.sfu.ca> 
+2009-06-17  Faraz Hach  <fhach@cs.sfu.ca>
+	* Performance Improvement.
+
+2009-06-04  Faraz Hach  <fhach@cs.sfu.ca> 
 	* SAM fields CIGAR and MD are implemented.
 	* Screen log output is modified.
 	* Same mate pair names without identifiers (/1,/2) in two files are supported.

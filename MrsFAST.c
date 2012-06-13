@@ -37,7 +37,7 @@
 #include "Output.h"
 
 unsigned char		mrFAST = 0;
-char				*versionNumberF="6.1";
+char				*versionNumberF="6.2";
 
 
 long long			verificationCnt = 0;
@@ -147,22 +147,23 @@ void finalizeFAST()
 		freeMem(_msf_verifiedLocs, sizeof(int) * (_msf_refGenLength+1));
 }
 /**********************************************/
-int verify(int index, char* seq, char **op)
+int verify(int index, char* seq, char **opSeq)
 {
 	int i;
 	int err, errCnt;
 	char *ref;
 	char *ver;
 	short matchCnt = 0;
+	char *op = *opSeq;
+	int pp = 0;
 
 	verificationCnt ++;
 
 	errCnt = 0;
 	
-	*op[0]='\0';
-
 	ref = _msf_refGen + index-1;
 	ver = seq;
+	
 	for (i=0; i < SEQ_LENGTH; i++)
 	{	
 		err = * ref != *ver;
@@ -177,12 +178,31 @@ int verify(int index, char* seq, char **op)
 		{
 			if (err && matchCnt)
 			{
-				sprintf(*op, "%s%d%c%c", *op, matchCnt, *ref, '\0');
+				if (matchCnt < 10)
+				{
+					op[pp++]=48+matchCnt;
+					op[pp++]=*ref;
+				}
+				else if (matchCnt < 100)
+				{
+					op[pp++]=48+(matchCnt/10);
+					op[pp++]=48+(matchCnt%10);
+					op[pp++] = *ref;
+				}
+				else
+				{
+					op[pp++] = 48+matchCnt/100;
+					matchCnt %= 100;
+					op[pp++] = 48+matchCnt/10;
+					op[pp++] = 48+matchCnt%10;
+					op[pp++] = *ref;
+				}
+
 				matchCnt = 0;
 			}
 			else if (err && matchCnt == 0)
 			{
-				sprintf(*op, "%s%c%c", *op, *ref, '\0');
+				op[pp++]=*ref;
 			}
 			else
 			{
@@ -193,7 +213,25 @@ int verify(int index, char* seq, char **op)
 		ver++;
 	}
 	if (matchCnt)
-		sprintf(*op, "%s%d%c", *op, matchCnt, '\0');
+	{
+		if (matchCnt < 10)
+		{
+			op[pp++]=48+matchCnt;
+		}
+		else if (matchCnt < 100)
+		{
+			op[pp++]=48+matchCnt/10;
+			op[pp++]=48+matchCnt%10;
+		}
+		else
+		{
+			op[pp++]=48+matchCnt/100;
+			matchCnt %= 100;
+			op[pp++]=48+matchCnt/10;
+			op[pp++]=48+matchCnt%10;
+		}
+	}
+	op[pp]='\0';
 	return errCnt;
 }
 /**********************************************/
@@ -565,7 +603,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
 
 
 /**********************************************/
-int verifyBS(int index, char *seq, char **op, int type, int *met, int *reg)
+int verifyBS(int index, char *seq, char **opSeq, int type, int *met, int *reg)
 {
 	int i;
 	int errCnt, err;
@@ -581,7 +619,8 @@ int verifyBS(int index, char *seq, char **op, int type, int *met, int *reg)
 	*met = 0;
 	*reg = 0;
 
-	*op[0]='\0';
+	int pp = 0;
+	char *op=*opSeq;
 
 	for (i=0; i < SEQ_LENGTH; i++)
 	{
@@ -618,12 +657,31 @@ int verifyBS(int index, char *seq, char **op, int type, int *met, int *reg)
 		{
 			if (err && matchCnt)
 			{
-				sprintf(*op, "%s%d%c%c", *op, matchCnt, *ref, '\0');
+				if (matchCnt < 10)
+				{
+					op[pp++]=48+matchCnt;
+					op[pp++]=*ref;
+				}
+				else if (matchCnt < 100)
+				{
+					op[pp++]=48+(matchCnt/10);
+					op[pp++]=48+(matchCnt%10);
+					op[pp++] = *ref;
+				}
+				else
+				{
+					op[pp++] = 48+matchCnt/100;
+					matchCnt %= 100;
+					op[pp++] = 48+matchCnt/10;
+					op[pp++] = 48+matchCnt%10;
+					op[pp++] = *ref;
+				}
+
 				matchCnt = 0;
 			}
 			else if (err && matchCnt == 0)
 			{
-				sprintf(*op, "%s%c%c", *op, *ref, '\0');
+				op[pp++]=*ref;
 			}
 			else
 			{
@@ -634,7 +692,25 @@ int verifyBS(int index, char *seq, char **op, int type, int *met, int *reg)
 		ver++;
 	}
 	if (matchCnt)
-		sprintf(*op, "%s%d%c", *op, matchCnt, '\0');
+	{
+		if (matchCnt < 10)
+		{
+			op[pp++]=48+matchCnt;
+		}
+		else if (matchCnt < 100)
+		{
+			op[pp++]=48+matchCnt/10;
+			op[pp++]=48+matchCnt%10;
+		}
+		else
+		{
+			op[pp++]=48+matchCnt/100;
+			matchCnt %= 100;
+			op[pp++]=48+matchCnt/10;
+			op[pp++]=48+matchCnt%10;
+		}
+	}
+	op[pp]='\0';
 
 	return errCnt;
 }
