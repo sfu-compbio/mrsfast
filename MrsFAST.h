@@ -34,6 +34,7 @@
 extern long long			verificationCnt;
 extern long long			mappingCnt;
 extern long long			completedSeqCnt;
+extern long long			mappedSeqCnt;
 extern long long			regTotal;
 extern long long			metTotal;
 

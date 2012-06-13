@@ -285,16 +285,20 @@ int readAllReads(char *fileName1,
 		}
 		else if (pairedEnd && !err1 && !err2)
 		{
-
+			// Naming Conventions X/1, X/2 OR X
 			int tmplen = strlen(name1);
+			if (strcmp(name1, name2) != 0)
+			{
+				tmplen = strlen(name1)-2;
+			}
 			//first seq
-			list[seqCnt].name = getMem(tmplen-2);
+			list[seqCnt].name = getMem(tmplen);
 			list[seqCnt].seq = getMem(strlen(seq1)+1);
 			list[seqCnt].rseq = getMem(strlen(seq1)+1);
 			list[seqCnt].qual = getMem(strlen(qual1)+1);
 			list[seqCnt].hits = 0;
 	
-			name1[tmplen-2]='\0';
+			name1[tmplen]='\0';
 	
 			sprintf(list[seqCnt].name,"%s", ((char *)name1)+1);
 			sprintf(list[seqCnt].seq,"%s", seq1);
@@ -303,15 +307,11 @@ int readAllReads(char *fileName1,
 			seqCnt++;
 
 			//second seq
-//			list[seqCnt].name = getMem(tmplen-2);
 			list[seqCnt].seq = getMem(strlen(seq2)+1);
 			list[seqCnt].rseq = getMem(strlen(seq2)+1);
 			list[seqCnt].qual = getMem(strlen(qual2)+1);
 			list[seqCnt].hits = 0;
 
-//			name2[tmplen-2]='\0';
-			
-//			sprintf(list[seqCnt].name,"%s", ((char *)name2)+1);
 			sprintf(list[seqCnt].seq,"%s", seq2);
 			reverseComplete(seq2, list[seqCnt].rseq, strlen(seq2));
 			sprintf(list[seqCnt].qual,"%s", qual2);

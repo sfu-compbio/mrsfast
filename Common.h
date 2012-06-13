@@ -76,5 +76,5 @@ void	reverseComplete (char *seq, char *rcSeq , int length);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
-
+void reverse (char *seq, char *rcSeq , int length);
 #endif

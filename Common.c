@@ -123,3 +123,12 @@ double getMemUsage()
 {
 	return memUsage/1048576.0;
 }
+/**********************************************/
+void reverse (char *seq, char *rcSeq , int length)
+{
+	int i;
+	for (i=0; i<length; i++)
+	{
+		rcSeq[i]=seq[length-1-i] ;
+	}
+}

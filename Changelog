@@ -1,4 +1,9 @@
-2009-06-01  Faraz Hach <fhach@cs.sfu.ca>
+2009-06-17  Faraz Hach  <fhach@cs.sfu.ca> 
+	* SAM fields CIGAR and MD are implemented.
+	* Screen log output is modified.
+	* Same mate pair names without identifiers (/1,/2) in two files are supported.
+
+2009-06-01  Faraz Hach  <fhach@cs.sfu.ca>
 	* Command line options are simplified.
 	* Support for reading gzip files are added
 	* Support for outputing in gzip format is added.

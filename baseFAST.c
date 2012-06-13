@@ -41,7 +41,7 @@
 #include "MrsFAST.h"
 
 
-char 				*versionNumber = "1.0";			// Current Version
+char 				*versionNumber = "1.1";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -133,9 +133,9 @@ int main(int argc, char *argv[])
 		// Preparing output
 		initOutput(mappingOutput, outCompressed);
 
-		fprintf(stdout, "---------------------------------------------------------------------------------------------\n");
-		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Mapped(completed)");
-		fprintf(stdout, "---------------------------------------------------------------------------------------------\n");
+		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
+		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
+		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 
 		/********************************
 		 * Regular Mode
@@ -143,6 +143,9 @@ int main(int argc, char *argv[])
 		if (!bisulfiteMode)
 		{
 			Read *cseq, *cseqP;
+			char rq1[SEQ_LENGTH+1];
+			char rq2[SEQ_LENGTH+1];
+			rq1[SEQ_LENGTH] = rq2[SEQ_LENGTH] = '\0';
 			if (!pairedEndMode)
 			{
 				for (fc = 0; fc <fileCnt; fc++)
@@ -172,8 +175,8 @@ int main(int argc, char *argv[])
 						if ( !flag || strcmp(prevGen, curGen)!=0)						
 						{
 
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, maxMem,completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
 							totalMappingTime += mappingTime;
@@ -190,8 +193,8 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| *%14s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, getMemUsage(),completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
 
@@ -205,8 +208,9 @@ int main(int argc, char *argv[])
 						for (sc= 0; sc < seqListSize; sc++)
 						{
 							cseq = &(seqList[sc]);
+							reverse(cseq->qual, rq1, SEQ_LENGTH);
 							cseq->hits += mapSingleEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo++, FORWARD);
-							cseq->hits += mapSingleEndSeq ( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo++, REVERSE);
+							cseq->hits += mapSingleEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo++, REVERSE);
 						}
 						mappingTime += getTime() - lstartTime;
 						if (maxMem < getMemUsage())
@@ -247,9 +251,8 @@ int main(int argc, char *argv[])
 
 						if ( !flag || strcmp(prevGen, curGen)!=0)						
 						{
-
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, maxMem,completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
 							totalMappingTime += mappingTime;
@@ -266,8 +269,8 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| *%14s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, getMemUsage(),completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
 
@@ -282,17 +285,20 @@ int main(int argc, char *argv[])
 						{
 							cseq = &(seqList[sc*2]);
 							cseqP = &(seqList[sc*2+1]);
+							
+							reverse(cseq->qual, rq1, SEQ_LENGTH);
+							reverse(cseqP->qual, rq2, SEQ_LENGTH);
 	
                             cseq->hits += mapPairedEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD,
 															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD);
 
 							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, 
-															  cseqP->name, cseqP->rseq, cseqP->qual, cseqP->hits, seqNo+3, REVERSE);
+															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE);
 
-							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo+1, REVERSE,
-															  cseqP->name, cseqP->rseq, cseqP->qual, cseqP->hits, seqNo+3, REVERSE);
+							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE,
+															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE);
 
-							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo+1, REVERSE,
+							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE,
 															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD);
 
 							seqNo += 4; 
@@ -323,6 +329,9 @@ int main(int argc, char *argv[])
 			}
 			Read *cseq;
 			Read *cseqP;
+			char rq1[SEQ_LENGTH+1];
+			char rq2[SEQ_LENGTH+1];
+			rq1[SEQ_LENGTH] = rq2[SEQ_LENGTH] = '\0';
 			/********************************
 			 * Single End
 			 ********************************/
@@ -353,9 +362,8 @@ int main(int argc, char *argv[])
 
 						if ( !flag || strcmp(prevGen, curGen)!=0)						
 						{
-
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, maxMem,completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
 							totalMappingTime += mappingTime;
@@ -372,8 +380,8 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| *%14s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, getMemUsage(),completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
 
@@ -387,8 +395,9 @@ int main(int argc, char *argv[])
 						for (sc= 0; sc < seqListSize; sc++)
 						{
 							cseq = &(seqList[sc]);
+							reverse(cseq->qual, rq1, SEQ_LENGTH);
 							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo++, FORWARD, BSTableType);
-							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo++, REVERSE, !BSTableType);
+							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo++, REVERSE, !BSTableType);
 						}
 						mappingTime += getTime() - lstartTime;
 						if (maxMem < getMemUsage())
@@ -434,9 +443,8 @@ int main(int argc, char *argv[])
 
 						if ( !flag || strcmp(prevGen, curGen)!=0)						
 						{
-
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, maxMem,completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
 							totalMappingTime += mappingTime;
@@ -453,8 +461,8 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| *%14s | %15.2f | %15.2f | %15.2f | %10lld %5.2f%% |\n", 
-									prevGen,loadingTime, mappingTime, getMemUsage(),completedSeqCnt, ((float)completedSeqCnt/(seqListSize))*100);
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
 
@@ -470,19 +478,22 @@ int main(int argc, char *argv[])
 							cseq = &(seqList[sc*2]);
 							cseqP = &(seqList[sc*2+1]);
 	
+							reverse(cseq->qual, rq1, SEQ_LENGTH);
+							reverse(cseqP->qual, rq2, SEQ_LENGTH);
+
                             cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, BSTableType,
 															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD, !BSTableType);
 							cseqP->hits = cseq->hits;
 
 							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, BSTableType,
-															  cseqP->name, cseqP->rseq, cseqP->qual, cseqP->hits, seqNo+3, REVERSE, BSTableType);
+															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE, BSTableType);
 							cseqP->hits = cseq->hits;
 
-							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo+1, REVERSE, !BSTableType,
-															  cseqP->name, cseqP->rseq, cseqP->qual, cseqP->hits, seqNo+3, REVERSE, BSTableType);
+							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE, !BSTableType,
+															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE, BSTableType);
 							cseqP->hits = cseq->hits;
 
-							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, cseq->qual, cseq->hits, seqNo+1, REVERSE, !BSTableType,
+							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE, !BSTableType,
 															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD, !BSTableType);
 							cseqP->hits = cseq->hits;
 
@@ -505,7 +516,7 @@ int main(int argc, char *argv[])
 		////////////////////////
 		finalizeOutput();
 
-		fprintf(stdout, "---------------------------------------------------------------------------------------------\n");
+		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", seqListSize);
@@ -519,7 +530,7 @@ int main(int argc, char *argv[])
 
 		int cof = (pairedEndMode)?2:1;
 
-		if (maxHits != 0)
+		if (progressRep && maxHits != 0)
 		{
 			int frequency[maxHits+1];
 			int i;
