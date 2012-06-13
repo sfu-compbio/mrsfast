@@ -30,7 +30,6 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-01-29
  */
 
 #include <stdio.h>
@@ -46,7 +45,7 @@
 
 float calculateScore(int index, char *seq, char *qual, int *err);
 unsigned char		mrFAST = 0;
-char				*versionNumberF="0.2";
+char				*versionNumberF="0.3";
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
@@ -81,7 +80,7 @@ OPT_FIELDS			*_msf_optionalFields;
 
 char				*_msf_op;
 
-char				_msf_numbers[200][3];
+char				_msf_numbers[200][4];
 char				_msf_cigar[5];
 
 MappingInfo			*_msf_mappingInfo;
@@ -173,7 +172,7 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 {
 	if (_msf_optionalFields == NULL)
 	{
-		_msf_op = getMem(SEQ_LENGTH);
+		_msf_op = getMem(SEQ_LENGTH*3);
 		if (pairedEndMode)
 		{
 			_msf_optionalFields = getMem(4*sizeof(OPT_FIELDS));
@@ -345,7 +344,7 @@ int calculateMD(int index, char *seq, int err, char **opSeq)
 		err = 0;
 		for (i=0; i < SEQ_LENGTH; i++)
 		{
-			if (* ref != *ver)
+			if (*ref != *ver)
 			{
 				err++;
 				if (matchCnt)
@@ -926,8 +925,7 @@ int	 mapPairedEndSeq()
 	fclose(out1);
 	fclose(out2);
 
-	//fprintf(stdout, "%d %d\n", _msf_maxLSize, _msf_maxRSize);
-
+	return 1;
 }
 
 /**********************************************/
@@ -953,6 +951,14 @@ void outputPairedEnd()
 	char fname4[FILE_NAME_LENGTH];
 	char fname5[FILE_NAME_LENGTH];
 
+	char *seq1, *seq2, *rseq1, *rseq2, *qual1, *qual2;
+	char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
+	
+	int i;
+	int size;
+	int j, k;
+	int size1, size2;
+
 	if (pairedEndDiscordantMode)
 	{
 		sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
@@ -965,7 +971,6 @@ void outputPairedEnd()
 
 
 
-	int i;
 
 	FullMappingInfo *mi1 = getMem(sizeof(FullMappingInfo) * _msf_maxLSize);
 	FullMappingInfo *mi2 = getMem(sizeof(FullMappingInfo) * _msf_maxRSize);
@@ -980,9 +985,7 @@ void outputPairedEnd()
 	}
 
 
-	int size;
-	int j, k;
-	int size1, size2;
+
 
 	for (i=0; i<_msf_seqListSize/2; i++)
 	{
@@ -1081,9 +1084,7 @@ void outputPairedEnd()
 		}
 		//if (i == 6615)
 		//	fprintf(stdout, "%d %d\n", size1, size2);	
-
-		char *seq1, *seq2, *rseq1, *rseq2, *qual1, *qual2;
-		char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
+		
 		rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
 		seq1 = _msf_seqList[i*2].seq;
 		rseq1 = _msf_seqList[i*2].rseq;
@@ -1188,6 +1189,8 @@ void outputPairedEnd()
 						int proper=0;
 						// ISIZE CALCULATION
 						// The distance between outer edges								
+						_msf_seqList[i*2].hits[0]=1;
+						_msf_seqList[i*2+1].hits[0]=1;
 						isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH-1;												
 						if (mi1[j].loc - mi2[k].loc > 0)
 						{
@@ -1332,7 +1335,7 @@ float calculateScore(int index, char *seq, char *qual, int *err)
 			{
 				//fprintf(stdout, "%c %c %d", *ref, *ver, *err);
 				(*err)++;
-				score *= 0.001 + 1/pow( 10, ((qual[i]-33)/10.0) );
+				score *= 0.001 + 1/pow( 10, ((qual[i]-phredQual)/10.0) );
 			}
 			ref++;
 			ver++;
@@ -1400,7 +1403,7 @@ void outputPairedEndDiscPP()
 
 		//if (rNo ==6615)
 		//	fprintf(stdout, "%s %d: %d %0.20f %d %d %0.20f\n", genName, loc1, err1, sc1, loc2, err2, sc2);
-
+		
 		if (_msf_seqList[rNo*2].hits[0] % 2 == 0 && _msf_seqHits[rNo] < DISCORDANT_CUT_OFF)
 		{
 			dir1 = dir2 = 'F';
@@ -1425,7 +1428,7 @@ void outputPairedEndDiscPP()
 					lsc += _msf_seqList[rNo*2].qual[j]+_msf_seqList[rNo*2+1].qual[j];
 				}
 				lsc /= 2*SEQ_LENGTH;
-				lsc -= 33;
+				lsc -= phredQual;
 				lrNo = rNo;
 			}
 
@@ -1486,8 +1489,10 @@ void outputPairedEndDiscPP()
 				}
 			}
 			_msf_seqList[rNo*2].hits[0] = 2;
-			fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%0.20f\n",
-					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
+			//fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
+			//		_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
+			fprintf(out, "%s\t%s\t%d\t%d\t%c\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
+					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
 		}
 		flag = fread(&rNo, sizeof(int), 1, in);
 
@@ -1700,7 +1705,7 @@ for (i=0; i<_msf_seqListSize/2; i++)
 		lsc += _msf_seqList[i*2].qual[j]+_msf_seqList[i*2+1].qual[j];
 	}
 	lsc /= 2*SEQ_LENGTH;
-	lsc -= 33;
+	lsc -= phredQual;
 	if (ls[i] * rs[i] < DISCORDANT_CUT_OFF && ls[i] & rs[i] > 0)
 	{
 		cur = lr[i];

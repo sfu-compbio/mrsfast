@@ -30,7 +30,6 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-12-08
  */
 
 
@@ -43,7 +42,9 @@
 #define CONTIG_OVERLAP		200 		// No. of characters overlapped between contings
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	400			// Filename Max Length
-#define DISCORDANT_CUT_OFF  800
+//define DISCORDANT_CUT_OFF  800
+
+extern unsigned int		DISCORDANT_CUT_OFF;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
@@ -69,6 +70,7 @@ extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
 extern int				progressRep;
+extern char				phredQual;
 extern char 			*seqFile1;
 extern char				*seqFile2;
 extern char				*seqUnmapped;

@@ -1,3 +1,10 @@
+2012-06-13  Faraz Hach  <fhach@cs.sfu.ca>
+	* Phred offset is added.
+	* DISCORDANT_CUT_OFF is added.
+	* Bug related to MD is fixed.
+	* Bug related to CIGAR is fixed.
+	* Bug related to indexing is fixed.
+
 2010-05-03  Faraz Hach  <fhach@cs.sfu.ca>
 	* SAM field quality for fasta files is fixed.
 	* Window size issues are fixed.

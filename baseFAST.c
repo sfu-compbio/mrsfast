@@ -30,7 +30,6 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-02-01
  */
 
 
@@ -45,7 +44,7 @@
 #include "HashTable.h"
 #include "MrsFAST.h"
 
-char 				*versionNumber = "2.3";			// Current Version
+char 				*versionNumber = "2.4";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -394,5 +393,5 @@ int main(int argc, char *argv[])
 
 
 
-	return 1;
+	return 0;
 }

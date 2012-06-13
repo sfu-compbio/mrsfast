@@ -29,7 +29,6 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-12-08
  */
 
 

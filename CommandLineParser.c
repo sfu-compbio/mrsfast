@@ -30,7 +30,6 @@
 /*
  * Author         : Faraz Hach
  * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-01-29
  */
 
 #include <stdio.h>
@@ -56,6 +55,7 @@ int						minPairEndedDistance=-1;
 int						maxPairEndedDistance=-1;
 int						minPairEndedDiscordantDistance=-1;
 int						maxPairEndedDiscordantDistance=-1;
+char					phredQual = 33;
 char					*seqFile1;
 char					*seqFile2;
 char					*mappingOutput = "output";
@@ -66,6 +66,7 @@ int						fileCnt;
 unsigned char			errThreshold=2;
 unsigned char			maxHits=0;
 unsigned char			WINDOW_SIZE = 12;
+unsigned int			DISCORDANT_CUT_OFF=300;
 unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
 
@@ -101,13 +102,14 @@ int parseCommandLine (int argc, char *argv[])
 		{"ws",				required_argument,  0,					'w'},
 		{"min",				required_argument,  0,					'l'},
 		{"max",				required_argument,  0,					'm'},
+		{"maxdis",			required_argument,  0,					'd'},
 		{"crop",			required_argument,  0,					'c'}
 
 	};
 
 
 
-	while ( (o = getopt_long ( argc, argv, "f:i:u:o:s:e:n:bhv", longOptions, &index))!= -1 )
+	while ( (o = getopt_long ( argc, argv, "f:i:u:o:s:e:n:p:bhv", longOptions, &index))!= -1 )
 	{
 		switch (o)
 		{
@@ -124,6 +126,9 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'c': 
 				cropSize = atoi(optarg);
+				break;
+			case 'd':
+				DISCORDANT_CUT_OFF = atoi(optarg);
 				break;
 			case 'w':
 				WINDOW_SIZE = atoi(optarg);
@@ -161,6 +166,9 @@ int parseCommandLine (int argc, char *argv[])
 			case 'v':
 				fprintf(stdout, "%s.%s\n", versionNumber, versionNumberF);
 				return 0;
+				break;
+			case 'p':
+				phredQual = atoi(optarg);
 				break;
 		}
 
@@ -258,6 +266,11 @@ int parseCommandLine (int argc, char *argv[])
 		{
 			fprintf(stdout, "ERROR: --profile should be used with --pe");
 			return 0;
+		}
+
+		if (pairedEndMode && phredQual != 33 && phredQual != 64)
+		{
+			fprintf(stdout, "ERROR: Phred Offset value is not correct (33/64).");
 		}
 	}
 
@@ -370,4 +383,6 @@ void printHelp()
 	fprintf(stdout," -e [int]\t\t%s (default 2).\n", errorType);
 	fprintf(stdout," --min [int]\t\tMin inferred distance allowed between two pairend sequences.\n");
 	fprintf(stdout," --max [int]\t\tMax inferred distance allowed between two pairend sequences.\n");
+	fprintf(stdout," --maxdis [int]\t\tMax number of discordant map locations returned for each read pair (default:300)\n");
+	fprintf(stdout," -p [int]\t\tPhred Offset (default=33).\n");
 }
