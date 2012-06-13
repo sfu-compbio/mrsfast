@@ -37,7 +37,7 @@
 #include "Output.h"
 
 unsigned char		mrFAST = 0;
-char				*versionNumberF="6.3";
+char				*versionNumberF="6.4";
 
 
 long long			verificationCnt = 0;
@@ -51,6 +51,9 @@ char				*_msf_refGen = NULL;
 int					_msf_refGenLength = 0;
 int					_msf_refGenOffset = 0;
 char				*_msf_refGenName = NULL;
+
+int					_msf_refGenBeg;
+int					_msf_refGenEnd;
 
 HashTable			*_msf_hashTable = NULL;
 HashTableBS			*_msf_hashTableBS = NULL;
@@ -135,6 +138,18 @@ void initFAST(int *samplingLocs, int samplingLocsSize)
 		for (i=0; i<=_msf_refGenLength; i++)
 			_msf_verifiedLocsP[i] = 0;
 	}
+
+
+	if (_msf_refGenOffset == 0)
+	{
+		_msf_refGenBeg = 1;
+	}
+	else
+	{
+		_msf_refGenBeg = CONTIG_OVERLAP - SEQ_LENGTH + 2;
+	}
+	_msf_refGenEnd = _msf_refGenLength - SEQ_LENGTH + 1;
+
 }
 /**********************************************/
 void finalizeFAST()
@@ -189,15 +204,12 @@ int verify(int index, char* seq, char **opSeq)
 				if (matchCnt < 10)
 				{
 					op[pp++]=_msf_numbers[matchCnt][0];
-					//op[pp++]=48+matchCnt;
 					op[pp++]=*ref;
 				}
 				else if (matchCnt < 100)
 				{
 					op[pp++]=_msf_numbers[matchCnt][0];
 					op[pp++]=_msf_numbers[matchCnt][1];
-					//op[pp++]=48+(matchCnt/10);
-					//op[pp++]=48+(matchCnt%10);
 					op[pp++] = *ref;
 				}
 				else
@@ -205,10 +217,6 @@ int verify(int index, char* seq, char **opSeq)
 					op[pp++]=_msf_numbers[matchCnt][0];
 					op[pp++]=_msf_numbers[matchCnt][1];
 					op[pp++]=_msf_numbers[matchCnt][2];
-					//op[pp++] = 48+matchCnt/100;
-					//matchCnt %= 100;
-					//op[pp++] = 48+matchCnt/10;
-					//op[pp++] = 48+matchCnt%10;
 					op[pp++] = *ref;
 				}
 
@@ -231,24 +239,17 @@ int verify(int index, char* seq, char **opSeq)
 		if (matchCnt < 10)
 		{
 			op[pp++]=_msf_numbers[matchCnt][0];
-			//op[pp++]=48+matchCnt;
 		}
 		else if (matchCnt < 100)
 		{
 			op[pp++]=_msf_numbers[matchCnt][0];
 			op[pp++]=_msf_numbers[matchCnt][1];
-			//op[pp++]=48+matchCnt/10;
-			//op[pp++]=48+matchCnt%10;
 		}
 		else
 		{
 			op[pp++]=_msf_numbers[matchCnt][0];
 			op[pp++]=_msf_numbers[matchCnt][1];
 			op[pp++]=_msf_numbers[matchCnt][2];
-			//op[pp++]=48+matchCnt/100;
-			//matchCnt %= 100;
-			//op[pp++]=48+matchCnt/10;
-			//op[pp++]=48+matchCnt%10;
 		}
 	}
 	op[pp]='\0';
@@ -297,8 +298,7 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 		{
 			genLoc = locs[j] - offset;
 
-			if ( genLoc <  1 ||
-					genLoc > (_msf_refGenLength- SEQ_LENGTH + 1) ||
+			if ( (genLoc <  _msf_refGenBeg || genLoc > _msf_refGenEnd) ||
 					_msf_verifiedLocs[genLoc] ==  seqNo ||
 					_msf_verifiedLocs[genLoc] == -seqNo )
 			{
@@ -449,8 +449,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
                 {
 					genLoc1 = locs1[p1] - offset1;
                     nv = 0;
-                    if ( genLoc1 <  1 ||
-                         genLoc1 > (_msf_refGenLength - SEQ_LENGTH + 1) ||
+                    if (  genLoc1<  _msf_refGenBeg || genLoc1 > _msf_refGenEnd ||  
                          _msf_verifiedLocs[genLoc1] == -seq1No )
                     {
                         p1++;
@@ -513,8 +512,7 @@ int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq
                         }
 
 
-                        if (genLoc2 < 1 ||
-                            genLoc2 > (_msf_refGenLength - SEQ_LENGTH + 1)||
+                        if ( (genLoc2 <  _msf_refGenBeg || genLoc2 > _msf_refGenEnd) || 
                             _msf_verifiedLocsP[genLoc2] == -seq2No)
                         {
                             k++;
@@ -687,23 +685,23 @@ int verifyBS(int index, char *seq, char **opSeq, int type, int *met, int *reg)
 		{
 			if (err && matchCnt)
 			{
+
 				if (matchCnt < 10)
 				{
-					op[pp++]=48+matchCnt;
+					op[pp++]=_msf_numbers[matchCnt][0];
 					op[pp++]=*ref;
 				}
 				else if (matchCnt < 100)
 				{
-					op[pp++]=48+(matchCnt/10);
-					op[pp++]=48+(matchCnt%10);
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
 					op[pp++] = *ref;
 				}
 				else
 				{
-					op[pp++] = 48+matchCnt/100;
-					matchCnt %= 100;
-					op[pp++] = 48+matchCnt/10;
-					op[pp++] = 48+matchCnt%10;
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
+					op[pp++]=_msf_numbers[matchCnt][2];
 					op[pp++] = *ref;
 				}
 
@@ -725,19 +723,18 @@ int verifyBS(int index, char *seq, char **opSeq, int type, int *met, int *reg)
 	{
 		if (matchCnt < 10)
 		{
-			op[pp++]=48+matchCnt;
+			op[pp++]=_msf_numbers[matchCnt][0];
 		}
 		else if (matchCnt < 100)
 		{
-			op[pp++]=48+matchCnt/10;
-			op[pp++]=48+matchCnt%10;
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
 		}
 		else
 		{
-			op[pp++]=48+matchCnt/100;
-			matchCnt %= 100;
-			op[pp++]=48+matchCnt/10;
-			op[pp++]=48+matchCnt%10;
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
+			op[pp++]=_msf_numbers[matchCnt][2];
 		}
 	}
 	op[pp]='\0';
@@ -788,8 +785,7 @@ int mapSingleEndSeqBS( char *seqName, char *seq, char* seqQual, unsigned int seq
 		while (j <= size)
 		{
 			genLoc = locs[j] - offset;
-			if ( genLoc <  1 ||
-				 genLoc > ( _msf_refGenLength - SEQ_LENGTH + 1) ||
+			if ( genLoc <  _msf_refGenBeg || genLoc > _msf_refGenEnd ||
 				 _msf_verifiedLocs[genLoc] ==  seqNo ||
 				 _msf_verifiedLocs[genLoc] == -seqNo )
 			{
@@ -949,8 +945,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
                 {
 					genLoc1 = locs1[p1] - offset1;
                     nv = 0;
-                    if ( genLoc1 <  1 ||
-                         genLoc1 > (_msf_refGenLength - SEQ_LENGTH + 1) ||
+                    if ( genLoc1 <  _msf_refGenBeg || genLoc1 > _msf_refGenEnd ||
                          _msf_verifiedLocs[genLoc1] == -seq1No )
                     {
                         p1++;
@@ -1007,8 +1002,7 @@ int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int s
                             continue;
                         }
 
-                        if (genLoc2 < 1 ||
-                            genLoc2 > (_msf_refGenLength - SEQ_LENGTH + 1)||
+                        if (genLoc2 < _msf_refGenBeg || genLoc2 > _msf_refGenEnd ||
                             _msf_verifiedLocsP[genLoc2] == -seq2No)
                         {
                             k++;
