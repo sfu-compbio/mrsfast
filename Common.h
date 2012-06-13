@@ -35,10 +35,12 @@
 
 #define SEQ_MAX_LENGTH		200			// Seq Max Length
 #define CONTIG_OVERLAP		200 		// No. of characters overlapped between contings
-#define CONTIG__SIZE		15000000	// Actual contig size (not counting Ns)
-#define CONTIG_MAX_SIZE		40000000	// Max contig size (including Ns)
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	400			// Filename Max Length
+#define DISCORDANT_CUT_OFF  800
+
+extern unsigned int		CONTIG_SIZE;
+extern unsigned int		CONTIG_MAX_SIZE;
 
 
 extern unsigned char	WINDOW_SIZE				;		// WINDOW SIZE for indexing/searching
@@ -52,6 +54,8 @@ extern int				indexingMode;
 extern int				searchingMode;
 extern int				bisulfiteMode;
 extern int				pairedEndMode;
+extern int				pairedEndDiscordantMode;
+extern int				pairedEndProfilingMode;
 extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
@@ -64,8 +68,10 @@ extern char				*unmappedOutput;
 extern unsigned char	seqFastq;
 extern unsigned char	errThreshold;
 extern unsigned char	maxHits;	
-extern short			minPairEndedDistance;
-extern short			maxPairEndedDistance;
+extern int				minPairEndedDiscordantDistance;
+extern int				maxPairEndedDiscordantDistance;
+extern int				minPairEndedDistance;
+extern int				maxPairEndedDistance;
 extern char				fileName[1000][2][FILE_NAME_LENGTH];
 extern int				fileCnt;
 extern long long		memUsage;
@@ -77,5 +83,5 @@ void	reverseComplete (char *seq, char *rcSeq , int length);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
-void reverse (char *seq, char *rcSeq , int length);
+void 	reverse (char *seq, char *rcSeq , int length);
 #endif

@@ -31,20 +31,67 @@
 #ifndef __MRS_FAST__
 #define __MRS_FAST__
 
+#include "Reads.h"
+
+#define MAP_CHUNKS 15
+
+// Pair is used to pre-processing and making the read index table
+typedef struct
+{
+	int hv;
+	int seqInfo;
+} Pair;
+
+typedef struct
+{
+	int hv;
+	unsigned int *seqInfo;
+} ReadIndexTable;
+
+
+typedef struct mn
+{
+	int loc;
+	char dir;
+	char err;
+	float score;
+	char md[10];
+	char chr[10];
+} FullMappingInfo;
+
+typedef struct lc
+{
+	int loc[MAP_CHUNKS];
+	struct lc *next;
+} MappingLocations;
+
+typedef struct inf
+{
+	int size;
+	MappingLocations *next;
+} MappingInfo;
+
+typedef struct 
+{
+	FILE * fp;
+	char name[400];
+} FILE_STRUCT;
+
 extern long long			verificationCnt;
 extern long long			mappingCnt;
 extern long long			mappedSeqCnt;
 extern long long			completedSeqCnt;
-extern long long			regTotal;
-extern long long			metTotal;
 
+void initFAST(	Read *seqList,
+				int seqListSize,
+				int *samplingLocs,
+				int samplingLocsSize, 
+				char *fileName);
 
-void initFAST(int *samplingLocs, int samplingLocsSize);
 void finalizeFAST();
-int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHits, int seqNo, short mappingDirection);
-int mapPairedEndSeq(char *seq1Name, char *seq1, char* seq1Qual, unsigned int seq1Hits, int seq1No, short mappingDirection1,
-					char *seq2Name, char *seq2, char* seq2Qual, unsigned int seq2Hits, int seq2No, short mappingDirection2);
-int mapSingleEndSeqBS(  char *seqName, char *seq, char* seqQual, unsigned int seqHits, int seqNo, short mappingDirection, int type);
-int mapPairedEndSeqBS(	char *seq1Name, char *seq1, char* seq1Qual, unsigned int seq1Hits, int seq1No, short mappingDirection1, int type1,
-						char *seq2Name, char *seq2, char* seq2Qual, unsigned int seq2Hits, int seq2No, short mappingDirection2, int type2);
+
+int mapSingleEndSeq();
+int mapPaiedEndSeq();
+void outputPairedEnd();
+void outputPairedEndDiscPP();
 #endif

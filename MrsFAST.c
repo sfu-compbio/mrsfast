@@ -27,26 +27,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "Common.h"
+#include "Reads.h"
 #include "HashTable.h"
-#include "HashTableBS.h"
 #include "Output.h"
+#include "MrsFAST.h"
+#include "RefGenome.h"
 
+float calculateScore(int index, char *seq, char *qual, int *err);
 unsigned char		mrFAST = 0;
-char				*versionNumberF="6.4";
-
+char				*versionNumberF="0.0";
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
 long long			mappedSeqCnt = 0;
 long long			completedSeqCnt = 0;
-long long			metTotal = 0;
-long long			regTotal = 0;
-
+char				*mappingOutput;
+/**********************************************/
 char				*_msf_refGen = NULL;
 int					_msf_refGenLength = 0;
 int					_msf_refGenOffset = 0;
@@ -55,90 +56,183 @@ char				*_msf_refGenName = NULL;
 int					_msf_refGenBeg;
 int					_msf_refGenEnd;
 
-HashTable			*_msf_hashTable = NULL;
-HashTableBS			*_msf_hashTableBS = NULL;
-
-int					*_msf_verifiedLocs = NULL;
-int					*_msf_verifiedLocsP = NULL;
+IHashTable			*_msf_hashTable = NULL;
 
 int					*_msf_samplingLocs;
+int					*_msf_samplingLocsEnds;
 int					_msf_samplingLocsSize;
 
+Read				*_msf_seqList;
+int					_msf_seqListSize;
+
+ReadIndexTable		*_msf_rIndex = NULL;
+int					_msf_rIndexSize;
+int					_msf_rIndexMax;
+
 SAM					_msf_output;
-SAM					_msf_outputP;
 
 OPT_FIELDS			*_msf_optionalFields;
 
 char				*_msf_op;
-char				*_msf_opP;
 
-char				_msf_numbers[200][4];
+char				_msf_numbers[200][3];
+char				_msf_cigar[5];
 
+MappingInfo			*_msf_mappingInfo;
+
+int					*_msf_seqHits;
+int					_msf_openFiles = 0;
+int					_msf_maxLSize=0;
+int					_msf_maxRSize=0;
 /**********************************************/
-void initFAST(int *samplingLocs, int samplingLocsSize)
+int compare (const void *a, const void *b)
+{
+	return ((Pair *)a)->hv - ((Pair *)b)->hv;
+}
+/**********************************************/
+void preProcessReads()
+{
+	int i=0;
+	int j=0;
+	int pos = 0;
+
+	_msf_rIndexMax = -1;
+
+	int tmpSize = _msf_seqListSize*_msf_samplingLocsSize*2;
+	Pair *tmp = getMem(sizeof(Pair)*tmpSize);
+
+	for (i=0; i<_msf_seqListSize; i++)
+	{
+		for (j=0; j< _msf_samplingLocsSize; j++)
+		{
+
+			tmp[pos].hv = hashVal(_msf_seqList[i].seq+_msf_samplingLocs[j]);
+			tmp[pos].seqInfo = pos;
+			pos++;
+		}
+		for (j=0; j<_msf_samplingLocsSize; j++)
+		{
+			tmp[pos].hv = hashVal(_msf_seqList[i].rseq+_msf_samplingLocs[j]);
+			tmp[pos].seqInfo = pos;
+			pos++;
+		}
+	}
+
+	qsort(tmp, tmpSize, sizeof(Pair), compare);
+
+
+	int uniq = 0;
+	int prev = -2;
+	int beg = -1;
+	int end = -1;
+
+	for (i=0; i<tmpSize; i++)
+	{
+		if (prev != tmp[i].hv)
+		{
+			uniq ++;
+			prev = tmp[i].hv;
+		}
+	}
+
+	_msf_rIndexSize = uniq;
+	_msf_rIndex = getMem(sizeof(ReadIndexTable)*_msf_rIndexSize);
+	prev = -2;
+
+	j=0;
+	beg =0;
+	while (beg < tmpSize)
+	{
+		end = beg;
+		while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
+			end++;
+
+		_msf_rIndex[j].hv = tmp[beg].hv;
+		_msf_rIndex[j].seqInfo = getMem(sizeof(int)*(end-beg+2));
+		_msf_rIndex[j].seqInfo[0] = end-beg+1;
+		if ((end-beg+1) > _msf_rIndexMax)
+			_msf_rIndexMax = end-beg+1;
+
+		for (i=1; i<=_msf_rIndex[j].seqInfo[0]; i++)
+		{
+			_msf_rIndex[j].seqInfo[i]=tmp[beg+i-1].seqInfo;
+		}
+		j++;
+		beg = end+1;
+	}
+	freeMem(tmp, sizeof(Pair)*tmpSize);
+}
+/**********************************************/
+void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLocsSize, char *genFileName)
 {
 	if (_msf_optionalFields == NULL)
 	{
 		_msf_op = getMem(SEQ_LENGTH);
 		if (pairedEndMode)
 		{
-			_msf_opP = getMem(SEQ_LENGTH);
 			_msf_optionalFields = getMem(4*sizeof(OPT_FIELDS));
 		}
 		else
 		{
 			_msf_optionalFields = getMem(2*sizeof(OPT_FIELDS));
 		}
-	
+
 		int i;
 		for (i=0; i<200;i++)
 		{
 			sprintf(_msf_numbers[i],"%d%c",i, '\0');
 		}
+		sprintf(_msf_cigar, "%dM", SEQ_LENGTH);
 	}
 
-	if (_msf_verifiedLocs != NULL)
-		freeMem(_msf_verifiedLocs, sizeof(int) * (_msf_refGenLength+1));
-
-	if (_msf_verifiedLocsP != NULL )
-		freeMem(_msf_verifiedLocsP, sizeof(int) * (_msf_refGenLength+1));
-
-	_msf_samplingLocs = samplingLocs;
-	_msf_samplingLocsSize = samplingLocsSize;
-
-	if (!bisulfiteMode)
+	if (_msf_samplingLocsEnds == NULL)
 	{
-		_msf_refGen =  getRefGenome();
-		_msf_refGenLength = strlen(_msf_refGen);
-		_msf_refGenOffset = getRefGenomeOffset();
-		_msf_refGenName = getRefGenomeName();
-
-		_msf_hashTable = getHashTable();
-	}
-	else
-	{
-		_msf_refGen =  getRefGenomeBS();
-		_msf_refGenLength = strlen(_msf_refGen);
-		_msf_refGenOffset = getRefGenomeOffsetBS();
-		_msf_refGenName = getRefGenomeNameBS();
-
-		_msf_hashTableBS = getHashTableBS();
-	}
-
-
-	_msf_verifiedLocs = getMem(sizeof(int)*(_msf_refGenLength+1));
-	int i;
-	for (i=0; i<=_msf_refGenLength; i++)
-		_msf_verifiedLocs[i] = 0;
-
-	if (pairedEndMode)
-	{
-		_msf_verifiedLocsP = getMem(sizeof(int)*(_msf_refGenLength+1));
 		int i;
-		for (i=0; i<=_msf_refGenLength; i++)
-			_msf_verifiedLocsP[i] = 0;
-	}
+		_msf_samplingLocs = samplingLocs;
+		_msf_samplingLocsSize = samplingLocsSize;
 
+		_msf_samplingLocsEnds = malloc(sizeof(int)*_msf_samplingLocsSize);
+		for (i=0; i<_msf_samplingLocsSize; i++)
+		{
+			_msf_samplingLocsEnds[i]=_msf_samplingLocs[i]+WINDOW_SIZE-1;
+		}
+
+		_msf_seqList = seqList;
+		_msf_seqListSize = seqListSize;
+
+		preProcessReads();
+	}
+	if (_msf_refGenName == NULL)
+	{
+		_msf_refGenName = getMem(SEQ_LENGTH);
+	}
+	_msf_refGen =  getRefGenome();
+	_msf_refGenLength = strlen(_msf_refGen);
+	_msf_refGenOffset = getRefGenomeOffset();
+	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
+
+	if (pairedEndMode && _msf_seqHits == NULL)
+	{
+		_msf_mappingInfo  = getMem(seqListSize * sizeof (MappingInfo));
+
+		int i=0;
+		for (i=0; i<seqListSize; i++)
+		{
+			//_msf_mappingInfo[i].next = getMem(sizeof(MappingLocations));
+			_msf_mappingInfo[i].next = NULL;
+			_msf_mappingInfo[i].size = 0;
+		}
+
+		_msf_seqHits = getMem((_msf_seqListSize/2) * sizeof(int));
+
+
+		for (i=0; i<_msf_seqListSize/2; i++)
+		{
+			_msf_seqHits[i] = 0;
+		}
+
+		initLoadingRefGenome(genFileName);
+	}
 
 	if (_msf_refGenOffset == 0)
 	{
@@ -150,91 +244,141 @@ void initFAST(int *samplingLocs, int samplingLocsSize)
 	}
 	_msf_refGenEnd = _msf_refGenLength - SEQ_LENGTH + 1;
 
+
 }
 /**********************************************/
 void finalizeFAST()
 {
-	freeMem(_msf_op, SEQ_LENGTH);
-
-	if (pairedEndMode)
+	freeMem(_msf_seqHits, (_msf_seqListSize/2) * sizeof(int));
+	freeMem(_msf_refGenName, SEQ_LENGTH);
+	int i;
+	for (i=0; i<_msf_rIndexSize; i++)
 	{
-		freeMem(_msf_opP, SEQ_LENGTH);
-		freeMem(_msf_optionalFields, 4*sizeof(OPT_FIELDS));
+		freeMem(_msf_rIndex[i].seqInfo, _msf_rIndex[i].seqInfo[0]+1);
 	}
-	else
-	{
-		freeMem(_msf_optionalFields, 1*sizeof(OPT_FIELDS));
-	}
-
-	if (_msf_verifiedLocs != NULL)
-		freeMem(_msf_verifiedLocs, sizeof(int) * (_msf_refGenLength+1));
+	freeMem(_msf_rIndex, _msf_rIndexSize);
 }
+
 /**********************************************/
-int verify(int index, char* seq, char **opSeq)
+int verifySingleEnd(int index, char* seq, int offset)
+{
+	int curOff = 0;
+	int i;
+
+	char *ref;
+
+	int err;
+	int errCnt =0;
+	int errCntOff = 0;
+	int NCntOff = 0;
+
+	int matchCnt = 0;
+	int pp = 0;
+
+	ref = _msf_refGen + index - 1;
+
+	verificationCnt++;
+
+	for (i = 0; i < SEQ_LENGTH; i++)
+	{
+		err	= *ref != *seq;
+
+		errCnt += err;
+		if (errCnt > errThreshold)
+		{
+
+			return -1;
+		}
+
+		if (i >= _msf_samplingLocs[curOff] && i <= _msf_samplingLocsEnds[curOff])
+		{
+			errCntOff +=  err;
+			NCntOff += (*seq == 'N');
+		}
+		else if (curOff < _msf_samplingLocsSize && i>=_msf_samplingLocs[curOff+1])
+		{
+
+			if (errCntOff == 0 && NCntOff == 0 && offset > curOff)
+			{
+				return -1;
+			}
+
+			errCntOff = 0;
+			NCntOff = 0;
+			curOff++;
+
+			if ( i >= _msf_samplingLocs[curOff])
+			{
+				errCntOff += err;
+				NCntOff += (*seq == 'N');
+			}
+		}
+
+		ref++;
+		seq++;
+	}
+	return errCnt;
+}
+
+/**********************************************/
+int calculateMD(int index, char *seq, int err, char **opSeq)
 {
 	int i;
-	int err, errCnt;
 	char *ref;
 	char *ver;
 	short matchCnt = 0;
 	char *op = *opSeq;
 	int pp = 0;
 
-	verificationCnt ++;
-
-	errCnt = 0;
-
 	ref = _msf_refGen + index-1;
 	ver = seq;
 
-	for (i=0; i < SEQ_LENGTH; i++)
+	if (err>0 || err == -1 )
 	{
-		err = * ref != *ver;
-		errCnt += err;
 
-		if (errCnt > errThreshold)
+		err = 0;
+		for (i=0; i < SEQ_LENGTH; i++)
 		{
-			errCnt = -1;
-			break;
-		}
-		else
-		{
-			if (err && matchCnt)
+			if (* ref != *ver)
 			{
-				if (matchCnt < 10)
+				err++;
+				if (matchCnt)
 				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=*ref;
-				}
-				else if (matchCnt < 100)
-				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=_msf_numbers[matchCnt][1];
-					op[pp++] = *ref;
-				}
-				else
-				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=_msf_numbers[matchCnt][1];
-					op[pp++]=_msf_numbers[matchCnt][2];
-					op[pp++] = *ref;
-				}
+					if (matchCnt < 10)
+					{
+						op[pp++]=_msf_numbers[matchCnt][0];
+					}
+					else if (matchCnt < 100)
+					{
+						op[pp++]=_msf_numbers[matchCnt][0];
+						op[pp++]=_msf_numbers[matchCnt][1];
+					}
+					else
+					{
+						op[pp++]=_msf_numbers[matchCnt][0];
+						op[pp++]=_msf_numbers[matchCnt][1];
+						op[pp++]=_msf_numbers[matchCnt][2];
+					}
 
-				matchCnt = 0;
-			}
-			else if (err && matchCnt == 0)
-			{
+					matchCnt = 0;
+				}
 				op[pp++]=*ref;
 			}
 			else
 			{
 				matchCnt++;
 			}
+			ref++;
+			ver++;
 		}
-		ref++;
-		ver++;
+
 	}
-	if (matchCnt)
+	if (err == 0)
+	{
+		matchCnt = SEQ_LENGTH;
+	}
+
+	if (matchCnt>0)
 	{
 		if (matchCnt < 10)
 		{
@@ -253,76 +397,101 @@ int verify(int index, char* seq, char **opSeq)
 		}
 	}
 	op[pp]='\0';
-	return errCnt;
+
+	return err;
 }
+
 /**********************************************/
-int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHits, int seqNo, short mappingDirection)
+void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
 {
 
-	if (maxHits !=0 && maxHits == seqHits)
+	if (s1 == 0 || s2 == 0)
 	{
-		return 0;
+		return;
 	}
-
-
-	int i = 0;
-	int j = 0;
-	int flag = 1;
-	int offset;
-	int genLoc;
-	int err;
-	int size;
-	int hv;
-	int hits = 0;
-	int *locs;
-	char cigar[5];
-
-	sprintf(cigar, "%dM", SEQ_LENGTH);
-
-	while ( flag && i < _msf_samplingLocsSize )
+	else if (s1 == s2 && s1 <= 50)
 	{
-		offset = _msf_samplingLocs[i];
-		hv = hashVal(seq + offset);
-		j = 1;
-		locs = (int *)getCandidates(hv);
-		if (locs != NULL)
+
+		int j = 0;
+		int z = 0;
+		int *locs;
+		int *seqInfo;
+		char *_tmpSeq, *_tmpQual;
+		char rqual[SEQ_LENGTH+1];
+		rqual[SEQ_LENGTH]='\0';
+
+		if (dir > 0)
 		{
-			size = locs[0];
+			locs		= (int *) l1;
+			seqInfo		= (int *) l2;
 		}
 		else
 		{
-			size = 0;
+			locs		= (int *) l2;
+			seqInfo		= (int *) l1;
 		}
 
-		while (j <= size)
-		{
-			genLoc = locs[j] - offset;
 
-			if ( (genLoc <  _msf_refGenBeg || genLoc > _msf_refGenEnd) ||
-					_msf_verifiedLocs[genLoc] ==  seqNo ||
-					_msf_verifiedLocs[genLoc] == -seqNo )
+		for (j=0; j<s2; j++)
+		{
+			int re = _msf_samplingLocsSize * 2;
+			int r = seqInfo[j]/re;
+			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 			{
-				j++;
+				continue;
+			}
+
+			int x = seqInfo[j] % re;
+			int o = x % _msf_samplingLocsSize;
+			char d = (x/_msf_samplingLocsSize)?1:0;
+
+
+			if (d)
+			{
+				reverse(_msf_seqList[r].qual, rqual, SEQ_LENGTH);
+				_tmpQual = rqual;
+				_tmpSeq = _msf_seqList[r].rseq;
 			}
 			else
 			{
-				err = verify(genLoc, seq, &_msf_op);
-				if ( err != -1 )
-				{
-					_msf_verifiedLocs[genLoc] = seqNo;
-					mappingCnt++;
+				_tmpQual = _msf_seqList[r].qual;
+				_tmpSeq = _msf_seqList[r].seq;
+			}
 
-					_msf_output.QNAME		= seqName;
-					_msf_output.FLAG		= 16 * mappingDirection;
+
+			for (z=0; z<s1; z++)
+			{
+				int genLoc = locs[z]-_msf_samplingLocs[o];
+
+
+				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
+					continue;
+
+				int err = -1;
+
+
+
+				err = verifySingleEnd(genLoc, _tmpSeq, o);
+
+
+
+				if (err != -1)
+				{
+					calculateMD(genLoc, _tmpSeq, err, &_msf_op);
+					mappingCnt++;
+					_msf_seqList[r].hits[0]++;
+
+					_msf_output.QNAME		= _msf_seqList[r].name;
+					_msf_output.FLAG		= 16 * d;
 					_msf_output.RNAME		= _msf_refGenName;
 					_msf_output.POS			= genLoc + _msf_refGenOffset;
 					_msf_output.MAPQ		= 255;
-					_msf_output.CIGAR		= cigar;
+					_msf_output.CIGAR		= _msf_cigar;
 					_msf_output.MRNAME		= "*";
 					_msf_output.MPOS		= 0;
 					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= seq;
-					_msf_output.QUAL		= seqQual;
+					_msf_output.SEQ			= _tmpSeq;
+					_msf_output.QUAL		= _tmpQual;
 
 					_msf_output.optSize		= 2;
 					_msf_output.optFields	= _msf_optionalFields;
@@ -331,6 +500,148 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 					_msf_optionalFields[0].type = 'i';
 					_msf_optionalFields[0].iVal = err;
 
+					_msf_optionalFields[1].tag = "MD";
+					_msf_optionalFields[1].type = 'Z';
+					_msf_optionalFields[1].sVal = _msf_op;
+
+					output(_msf_output);
+
+
+					if (_msf_seqList[r].hits[0] == 1)
+					{
+						mappedSeqCnt++;
+					}
+
+					if ( maxHits == 0 )
+					{
+						_msf_seqList[r].hits[0] = 2;
+					}
+
+
+					if ( maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
+					{
+						completedSeqCnt++;
+						break;
+					}
+				}
+
+			}
+		}
+	}
+	else
+	{
+		int tmp1=s1/2, tmp2= s2/2;
+		if (tmp1 != 0)
+			mapSingleEndSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
+		mapSingleEndSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
+		if (tmp2 !=0)
+			mapSingleEndSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
+		if (tmp1 + tmp2 != 0)
+			mapSingleEndSeqListBal(l2, tmp2, l1, tmp1, -dir);
+	}
+}
+
+
+/**********************************************/
+void mapSingleEndSeqListTOP(unsigned int *l1, int s1, unsigned int *l2, int s2)
+{
+	if (s1 < s2)
+	{
+		mapSingleEndSeqListBal(l1, s1, l2, s1,1);
+		mapSingleEndSeqListTOP(l1, s1, l2+s1, s2-s1);
+	}
+	else if (s1 > s2)
+	{
+		mapSingleEndSeqListBal(l1, s2, l2, s2,1);
+		mapSingleEndSeqListTOP(l1+s2, s1-s2, l2, s2);
+	}
+	else
+	{
+		mapSingleEndSeqListBal(l1, s1, l2, s2,1);
+	}
+}
+
+
+/**********************************************/
+void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
+{
+	if ( s2/s1 <= 2)
+	{
+		int j = 0;
+		int z = 0;
+		int *locs = (int *) l1;
+		int *seqInfo = (int *) l2;
+		char *_tmpSeq, *_tmpQual;
+		char rqual[SEQ_LENGTH+1];
+		rqual[SEQ_LENGTH]='\0';
+
+		for (j=0; j<s2; j++)
+		{
+			int re = _msf_samplingLocsSize * 2;
+			int r = seqInfo[j]/re;
+			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
+			{
+				continue;
+			}
+
+			int x = seqInfo[j] % re;
+			int o = x % _msf_samplingLocsSize;
+			char d = (x/_msf_samplingLocsSize)?1:0;
+
+
+			if (d)
+			{
+				reverse(_msf_seqList[r].qual, rqual, SEQ_LENGTH);
+				_tmpQual = rqual;
+				_tmpSeq = _msf_seqList[r].rseq;
+			}
+			else
+			{
+				_tmpQual = _msf_seqList[r].qual;
+				_tmpSeq = _msf_seqList[r].seq;
+			}
+
+
+			for (z=0; z<s1; z++)
+			{
+				int genLoc = locs[z]-_msf_samplingLocs[o];
+
+
+				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
+					continue;
+
+				int err = -1;
+
+
+
+				err = verifySingleEnd(genLoc, _tmpSeq, o);
+
+
+
+				if (err != -1)
+				{
+					calculateMD(genLoc, _tmpSeq, err, &_msf_op);
+					mappingCnt++;
+					_msf_seqList[r].hits[0]++;
+
+					_msf_output.QNAME		= _msf_seqList[r].name;
+					_msf_output.FLAG		= 16 * d;
+					_msf_output.RNAME		= _msf_refGenName;
+					_msf_output.POS			= genLoc + _msf_refGenOffset;
+					_msf_output.MAPQ		= 255;
+					_msf_output.CIGAR		= _msf_cigar;
+					_msf_output.MRNAME		= "*";
+					_msf_output.MPOS		= 0;
+					_msf_output.ISIZE		= 0;
+					_msf_output.SEQ			= _tmpSeq;
+					_msf_output.QUAL		= _tmpQual;
+
+					_msf_output.optSize		= 2;
+					_msf_output.optFields	= _msf_optionalFields;
+
+					_msf_optionalFields[0].tag = "NM";
+					_msf_optionalFields[0].type = 'i';
+					_msf_optionalFields[0].iVal = err;
 
 					_msf_optionalFields[1].tag = "MD";
 					_msf_optionalFields[1].type = 'Z';
@@ -338,787 +649,1089 @@ int mapSingleEndSeq(char *seqName, char *seq, char* seqQual, unsigned char seqHi
 
 					output(_msf_output);
 
-					if (hits+seqHits == 0)
+
+					if (_msf_seqList[r].hits[0] == 1)
 					{
-						mappedSeqCnt ++;
+						mappedSeqCnt++;
 					}
 
-					if ( maxHits == 0 && hits+seqHits == 0)
+					if ( maxHits == 0 )
 					{
-						hits=1;
+						_msf_seqList[r].hits[0] = 2;
 					}
-					else if (maxHits != 0 )
+
+
+					if ( maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 					{
-						hits++;
-						if (hits+seqHits == maxHits)
-						{
-							completedSeqCnt++;
-							flag =0;
-							break;
-						}
+						completedSeqCnt++;
+						break;
 					}
 				}
-				else
-				{
-					_msf_verifiedLocs[genLoc] = -seqNo;
-				}
-				j++;
 
 			}
 		}
+	}
+	else if (s1 == 1)
+	{
+		//	fprintf(stderr, "1");
+		int tmp = s2/2;
+		mapSingleEndSeqList(l1, s1, l2, tmp);
+		mapSingleEndSeqList(l1, s1, l2+tmp, s2-tmp);
+	}
+	else if (s2 == 1)
+	{
+		//	fprintf(stderr, "2");
+		int tmp = s1/2;
+		mapSingleEndSeqList(l1, tmp, l2, s2);
+		mapSingleEndSeqList(l1+tmp, s1-tmp, l2, s2);
+	}
+	else
+	{
+		//	fprintf(stderr, "3");
+		int tmp1=s1/2, tmp2= s2/2;
+		mapSingleEndSeqList(l1, tmp1, l2, tmp2);
+		mapSingleEndSeqList(l1+tmp1, s1-tmp1, l2, tmp2);
+		mapSingleEndSeqList(l1+tmp1, s1-tmp1, l2+tmp2, s2-tmp2);
+		mapSingleEndSeqList(l1, tmp1, l2+tmp2, s2-tmp2);
+	}
+}
+/**********************************************/
+int	 mapSingleEndSeq()
+{
+	int i = 0;
+	unsigned int *locs = NULL;
+	unsigned int *seqInfo = NULL;
+	while ( i < _msf_rIndexSize )
+	{
+
+		locs = getCandidates (_msf_rIndex[i].hv);
+		if ( locs != NULL)
+		{
+			seqInfo  = _msf_rIndex[i].seqInfo;
+			mapSingleEndSeqListTOP (locs+1, locs[0], seqInfo+1, seqInfo[0]);
+		}
 		i++;
 	}
-	return hits;
+	return 1;
+}
+
+
+/**********************************************/
+/**********************************************/
+/**********************************************/
+/**********************************************/
+/**********************************************/
+int compareOut (const void *a, const void *b)
+{
+	FullMappingInfo *aInfo = (FullMappingInfo *)a;
+	FullMappingInfo *bInfo = (FullMappingInfo *)b;
+	return aInfo->loc - bInfo->loc;
 }
 
 /**********************************************/
-int mapPairedEndSeq(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq1Hits, int seq1No, short mappingDirection1,
-						char *seq2Name, char *seq2, char* seq2Qual, unsigned int seq2Hits, int seq2No, short mappingDirection2)
+void mapPairedEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 {
-
-	if (maxHits !=0 && maxHits == seq1Hits)
+	if ( s2/s1 <= 2)
 	{
-		return 0;
-	}
+		int j = 0;
+		int z = 0;
+		int *locs = (int *) l1;
+		int *seqInfo = (int *) l2;
+		char *_tmpSeq, *_tmpQual;
+		char rqual[SEQ_LENGTH+1];
+		rqual[SEQ_LENGTH]='\0';
 
-
-	int i = 0;
-	int j = 0;
-
-	int flag = 1;
-	int offset1;
-	int offset2;
-	int genLoc1;
-	int genLoc2;
-	int size1;
-	int size2;
-	int hv1;
-	int hv2;
-	int *locs1;
-	int *locs2;
-
-	int p1, p2, p3;
-
-	int err1, err2;
-	int hits = 0;
-
-	int nv = 0;
-	int k;
-
-	int lm, ll, rl, rm; // leftmost, leftleast, rightleast, rightmost;
-
-	char cigar[5];
-
-	sprintf(cigar, "%dM", SEQ_LENGTH);
-
-	while (flag && i < _msf_samplingLocsSize)
-	{
-		offset1 = _msf_samplingLocs[i];
-		hv1 = hashVal(seq1 + offset1);
-		locs1 =(int *) getCandidates(hv1);
-		if (locs1 != NULL)
+		for (j=0; j<s2; j++)
 		{
-			size1 = locs1[0];
-		}
-		else
-		{
-			size1 = 0;
-		}
+			int re = _msf_samplingLocsSize * 2;
+			int r = seqInfo[j]/re;
 
-        j = 0;
-        while (flag && j < _msf_samplingLocsSize)
-        {
-            offset2 = _msf_samplingLocs[j];
-            hv2 = hashVal(seq2 + offset2);
-            locs2 = (int *)getCandidates(hv2);
-			if ( locs2 != NULL)
+			if (pairedEndDiscordantMode && (_msf_seqList[r].hits[0] == 1 || (_msf_seqHits[r/2] > DISCORDANT_CUT_OFF) ))
 			{
-				size2 = locs2[0];
+				continue;
+			}
+
+			int x = seqInfo[j] % re;
+			int o = x % _msf_samplingLocsSize;
+			char d = (x/_msf_samplingLocsSize)?-1:1;
+
+
+			if (d==-1)
+			{
+				_tmpSeq = _msf_seqList[r].rseq;
 			}
 			else
 			{
-				size2 = 0;
+				_tmpSeq = _msf_seqList[r].seq;
 			}
-            if (size2>0)
-            {
-                p1=1;
-                p2=1;
-                p3=1;
-				// Main Loop
-                while (flag && p1<=size1 && p2 <=size2)
-                {
-					genLoc1 = locs1[p1] - offset1;
-                    nv = 0;
-                    if (  genLoc1<  _msf_refGenBeg || genLoc1 > _msf_refGenEnd ||  
-                         _msf_verifiedLocs[genLoc1] == -seq1No )
-                    {
-                        p1++;
-                        continue;
-                    }
-                    else
-                    {
-                        if (_msf_verifiedLocs[genLoc1] == seq1No)
-                        {
-                            err1 = verify(genLoc1, seq1, &_msf_op);
-                        }
-                        else
-                        {
-                            err1 = verify(genLoc1, seq1, &_msf_op);
-
-                            if ( err1 != -1 )
-                            {
-                                _msf_verifiedLocs[genLoc1] = seq1No;
-                                nv = 1;
-                            }
-                            else
-                            {
-                                _msf_verifiedLocs[genLoc1] = -seq1No;
-                                p1++;
-                                continue;
-                            }
-                        }
-
-                    }
-
-					lm = genLoc1 - maxPairEndedDistance + 1;
-					ll = genLoc1 - minPairEndedDistance + 1;
-					rl = genLoc1 + minPairEndedDistance - 1;
-					rm = genLoc1 + maxPairEndedDistance - 1;
-
-					//fprintf(stdout, "%d %d [%d] %d %d\n", lm, ll,genLoc1, rl, rm);
-
-                    while (p2<=size2 && ((int)locs2[p2]-offset2) < lm)
-                    {
-						//fprintf(stdout, "]Passing ... %d %d \n", p2, locs2[p2]-offset2); 
-                        p2++;
-                    }
-					//fprintf(stdout, "--------------\n");
-                    while (p3<=size2 && (locs2[p3]-offset2) <= rm)
-                    {
-						//fprintf(stdout, ">Passing ... %d %d \n", p3, locs2[p3]-offset2); 
-                        p3++;
-                    }
-
-					//fprintf(stdout, "[%d, %d]=> %d %d\n", p2, p3, locs2[p2]-offset2, locs2[p3]-offset2);
-                    k=p2;
-                    while (flag && k<=p3 && p2<=size2)
-                    {
-						genLoc2 = locs2[k] - offset2;
-                        if ( ( genLoc2 >  ll && genLoc2 < rl ) || (genLoc2>rm) )
-                        {
-                            k++;
-							//fprintf(stdout, "Continue ... \n");
-                            continue;
-                        }
 
 
-                        if ( (genLoc2 <  _msf_refGenBeg || genLoc2 > _msf_refGenEnd) || 
-                            _msf_verifiedLocsP[genLoc2] == -seq2No)
-                        {
-                            k++;
-                        }
-                        else
-                        {
-
-                            err2 = -1;
-                            if (_msf_verifiedLocsP[genLoc2] == seq2No)
-                            {
-                                err2 = verify(genLoc2, seq2, &_msf_opP);
-                            }
-                            else if (_msf_verifiedLocsP[genLoc2] != -seq2No)
-                            {
-                                err2 = verify(genLoc2, seq2, &_msf_opP);
-                            }
-
-                            if ( (err2 != -1 && _msf_verifiedLocsP[genLoc2] != seq2No) ||
-								 (_msf_verifiedLocsP[genLoc2] == seq2No && nv) )
-                            {
-								mappingCnt++;
-                                _msf_verifiedLocsP[genLoc2] = seq2No;
-								
-								int isize = abs(genLoc1 - genLoc2)+SEQ_LENGTH-1;
-								if (genLoc1 - genLoc2 > 0)
-									isize*=-1;
-
-								_msf_output.POS			= genLoc1 + _msf_refGenOffset;
-								_msf_output.MPOS		= genLoc2 + _msf_refGenOffset;
-								_msf_output.FLAG		= 1+2+16*mappingDirection1+32*mappingDirection2+64;
-								_msf_output.ISIZE		= isize;
-								_msf_output.SEQ			= seq1,
-								_msf_output.QUAL		= seq1Qual;
-								_msf_output.QNAME		= seqName;
-								_msf_output.RNAME		= _msf_refGenName;
-								_msf_output.MAPQ		= 255;
-								_msf_output.CIGAR		= cigar;
-								_msf_output.MRNAME		= "=";
-
-								_msf_output.optSize	= 2;
-								_msf_output.optFields	= _msf_optionalFields;
-
-								_msf_optionalFields[0].tag = "NM";
-								_msf_optionalFields[0].type = 'i';
-								_msf_optionalFields[0].iVal = err1;
-
-								_msf_optionalFields[1].tag = "MD";
-								_msf_optionalFields[1].type = 'Z';
-								_msf_optionalFields[1].sVal = _msf_op;
+			for (z=0; z<s1; z++)
+			{
+				int genLoc = locs[z]-_msf_samplingLocs[o];
 
 
-								output(_msf_output);
-							
-								_msf_output.POS			= genLoc2 + _msf_refGenOffset;
-								_msf_output.MPOS		= genLoc1 + _msf_refGenOffset;
-								_msf_output.FLAG		= 1+2+16*mappingDirection2+32*mappingDirection1+128;
-								_msf_output.ISIZE		= -isize;
-								_msf_output.SEQ			= seq2,
-								_msf_output.QUAL		= seq2Qual;
-								_msf_output.QNAME		= seqName;
-								_msf_output.RNAME		= _msf_refGenName;
-								_msf_output.MAPQ		= 255;
-								_msf_output.CIGAR		= cigar;
-								_msf_output.MRNAME		= "=";
+				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
+					continue;
 
-								_msf_output.optSize	= 2;
-								_msf_output.optFields	= _msf_optionalFields;
+				int err = -1;
 
-								_msf_optionalFields[0].tag = "NM";
-								_msf_optionalFields[0].type = 'i';
-								_msf_optionalFields[0].iVal = err2;
 
-								_msf_optionalFields[1].tag = "MD";
-								_msf_optionalFields[1].type = 'Z';
-								_msf_optionalFields[1].sVal = _msf_opP;
 
-								output(_msf_output);
+				err = verifySingleEnd(genLoc, _tmpSeq, o);
 
-								if (hits+seq1Hits == 0)
-								{
-									mappedSeqCnt ++;
-								}
 
-								if ( maxHits == 0 && hits+seq1Hits == 0)
-								{
-									hits=1;
-								}
-								else if (maxHits != 0 )
-								{
-									hits++;
-									if (hits+seq1Hits == maxHits)
-									{
-										completedSeqCnt++;
-										flag =0;
-										break;
-									}
-								}
-                            }
-                            else if (err2 == -1)
-                            {
-                                _msf_verifiedLocsP[genLoc2] = -seq2No;
-                            }
-                            k++;
-                        }
-                    }
-                    p1++;
-                }// END of Mail Loop;
-            }
-            j++;
+				if (err != -1)
+				{
+					MappingLocations *parent = NULL;
+					MappingLocations *child = _msf_mappingInfo[r].next;
+
+					genLoc+= _msf_refGenOffset;
+
+					int i = 0;
+					for (i=0; i<(_msf_mappingInfo[r].size/MAP_CHUNKS); i++)
+					{
+						parent = child;
+						child = child->next;
+					}
+
+					if (child==NULL)
+					{
+						MappingLocations *tmp = getMem(sizeof(MappingLocations));
+						tmp->next = NULL;
+						tmp->loc[0]=genLoc * d;
+						if (parent == NULL)
+							_msf_mappingInfo[r].next = tmp;
+						else
+							parent->next = tmp;
+					}
+					else
+					{
+						child->loc[_msf_mappingInfo[r].size % MAP_CHUNKS] = genLoc * d;
+					}
+
+
+
+					_msf_mappingInfo[r].size++;
+
+				}
+
+			}
+		}
+	}
+	else if (s1 == 1)
+	{
+		int tmp = s2/2;
+		mapPairedEndSeqList(l1, s1, l2, tmp);
+		mapPairedEndSeqList(l1, s1, l2+tmp, s2-tmp);
+	}
+	else if (s2 == 1)
+	{
+		int tmp = s1/2;
+		mapPairedEndSeqList(l1, tmp, l2, s2);
+		mapPairedEndSeqList(l1+tmp, s1-tmp, l2, s2);
+	}
+	else
+	{
+		int tmp1=s1/2, tmp2= s2/2;
+		mapPairedEndSeqList(l1, tmp1, l2, tmp2);
+		mapPairedEndSeqList(l1+tmp1, s1-tmp1, l2, tmp2);
+		mapPairedEndSeqList(l1+tmp1, s1-tmp1, l2+tmp2, s2-tmp2);
+		mapPairedEndSeqList(l1, tmp1, l2+tmp2, s2-tmp2);
+	}
+}
+
+/**********************************************/
+int	 mapPairedEndSeq()
+{
+	int i = 0;
+	unsigned int *locs = NULL;
+	unsigned int *seqInfo = NULL;
+	while ( i < _msf_rIndexSize )
+	{
+		locs = getCandidates (_msf_rIndex[i].hv);
+		if ( locs != NULL)
+		{
+			seqInfo  = _msf_rIndex[i].seqInfo;
+			mapPairedEndSeqList(locs+1, locs[0], seqInfo+1, seqInfo[0]);
+
 		}
 		i++;
 	}
 
-	return hits;
+
+	char fname1[FILE_NAME_LENGTH];
+	char fname2[FILE_NAME_LENGTH];
+	MappingLocations *cur, *tmp;
+	int tmpOut;
+	int j;
+	int lmax=0, rmax=0;
+
+	sprintf(fname1, "__%s__%d__1", mappingOutput, _msf_openFiles);
+	sprintf(fname2, "__%s__%d__2", mappingOutput, _msf_openFiles);
+
+	//fprintf(stdout, "%s %s\n", fname1, fname2);
+
+	FILE* out;
+	FILE* out1 = fileOpen(fname1, "w");
+	FILE* out2 = fileOpen(fname2, "w");
+
+	_msf_openFiles++;
+
+	for (i=0; i<_msf_seqListSize; i++)
+	{
+
+		if (i%2==0)
+		{
+			out = out1;
+
+			if (lmax <  _msf_mappingInfo[i].size)
+			{
+				lmax = _msf_mappingInfo[i].size;
+			}
+		}
+		else
+		{
+			out = out2;
+			if (rmax < _msf_mappingInfo[i].size)
+			{	
+				rmax = _msf_mappingInfo[i].size;
+			}
+		}
+
+		tmpOut = fwrite(&(_msf_mappingInfo[i].size), sizeof(int), 1, out);					
+		if (_msf_mappingInfo[i].size > 0)
+		{
+			cur = _msf_mappingInfo[i].next;
+			for (j=0; j < _msf_mappingInfo[i].size; j++)
+			{
+				if ( j>0  && j%MAP_CHUNKS==0)
+				{
+					cur = cur->next;
+				}
+				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
+			}
+			_msf_mappingInfo[i].size = 0;
+			//	_msf_mappingInfo[i].next = NULL;
+		}
+	}
+
+	_msf_maxLSize += lmax;
+	_msf_maxRSize += rmax;
+
+	fclose(out1);
+	fclose(out2);
+
+	//fprintf(stdout, "%d %d\n", _msf_maxLSize, _msf_maxRSize);
+
 }
 
+/**********************************************/
+void outputPairedEnd()
+{
+
+	char *curGen;
+	char *curGenName;
+	int tmpOut;
+
+	loadRefGenome(&_msf_refGen, &_msf_refGenName, &tmpOut);
+
+	FILE* in1[_msf_openFiles];
+	FILE* in2[_msf_openFiles];
+
+	char fname1[_msf_openFiles][FILE_NAME_LENGTH];	
+	char fname2[_msf_openFiles][FILE_NAME_LENGTH];	
+
+	// discordant
+	FILE *out, *out1, *out2;
+
+	char fname3[FILE_NAME_LENGTH];
+	char fname4[FILE_NAME_LENGTH];
+	char fname5[FILE_NAME_LENGTH];
+
+	if (pairedEndDiscordantMode)
+	{
+		sprintf(fname3, "__%s__disc", mappingOutput);
+		sprintf(fname4, "__%s__oea1", mappingOutput);
+		sprintf(fname5, "__%s__oea2", mappingOutput);
+		out = fileOpen(fname3, "a");
+		out1 = fileOpen(fname4, "a");
+		out2 = fileOpen(fname5, "a");
+	}
+
+
+
+	int i;
+
+	FullMappingInfo *mi1 = getMem(sizeof(FullMappingInfo) * _msf_maxLSize);
+	FullMappingInfo *mi2 = getMem(sizeof(FullMappingInfo) * _msf_maxRSize);
+
+
+	for (i=0; i<_msf_openFiles; i++)
+	{
+		sprintf(fname1[i], "__%s__%d__1", mappingOutput, i);
+		sprintf(fname2[i], "__%s__%d__2", mappingOutput, i);
+		in1[i] = fileOpen(fname1[i], "r");
+		in2[i] = fileOpen(fname2[i], "r");
+	}
+
+
+	int size;
+	int j, k;
+	int size1, size2;
+
+	for (i=0; i<_msf_seqListSize/2; i++)
+	{
+		size1 = size2 = 0;
+		for (j=0; j<_msf_openFiles; j++)
+		{
+			tmpOut = fread(&size, sizeof(int), 1, in1[j]);
+			if ( size > 0 )
+			{
+				for (k=0; k<size; k++)
+				{
+
+					mi1[size1+k].dir = 1;
+					tmpOut = fread (&(mi1[size1+k].loc), sizeof(int), 1, in1[j]);
+					if (mi1[size1+k].loc<1)
+					{	
+						mi1[size1+k].loc *= -1;
+						mi1[size1+k].dir = -1;
+					}
+				}
+				qsort(mi1+size1, size, sizeof(FullMappingInfo), compareOut);
+				size1+=size;
+			}
+		}
+
+		for (j=0; j<_msf_openFiles; j++)
+		{
+			tmpOut = fread(&size, sizeof(int), 1, in2[j]);
+			if ( size > 0 )
+			{
+				for (k=0; k<size; k++)
+				{
+
+					mi2[size2+k].dir = 1;
+					tmpOut = fread (&(mi2[size2+k].loc), sizeof(int), 1, in2[j]);
+
+					if (mi2[size2+k].loc<1)
+					{	
+						mi2[size2+k].loc *= -1;
+						mi2[size2+k].dir = -1;
+					}
+				}
+				qsort(mi2+size2, size, sizeof(FullMappingInfo), compareOut);
+				size2+=size;
+			}
+		}
+
+		//if (i == 6615)
+		//	fprintf(stdout, "%d: %s %d %d ",i, _msf_seqList[i*2].name, size1, size2);	
+
+		int lm, ll, rl, rm;
+		int pos = 0;
+
+		if (pairedEndDiscordantMode)
+		{
+
+			for (j=0; j<size1; j++)
+			{
+				lm = mi1[j].loc - maxPairEndedDiscordantDistance + 1;
+				ll = mi1[j].loc - minPairEndedDiscordantDistance + 1;
+				rl = mi1[j].loc + minPairEndedDiscordantDistance - 1;
+				rm = mi1[j].loc + maxPairEndedDiscordantDistance - 1;
+
+				while (pos<size2 && mi2[pos].loc < lm)
+				{
+					pos++;
+				}
+
+				k = pos;
+				while (k<size2 && mi2[k].loc<=rm)
+				{
+					if ( mi2[k].loc <= ll || mi2[k].loc >= rl)
+					{
+						if ( (mi1[j].loc < mi2[k].loc && mi1[j].dir==1 && mi2[k].dir == -1)  ||  
+								(mi1[j].loc > mi2[k].loc && mi1[j].dir==-1 && mi2[k].dir == 1) )
+						{
+							_msf_seqList[i*2].hits[0]=1;
+							_msf_seqList[i*2+1].hits[0]=1;
+							size1=0;
+							size2=0;
+							break;
+						}
+					}
+					k++;
+				}
+			}
+
+			_msf_seqHits[i]+= size1*size2;
+			if (_msf_seqHits[i]> DISCORDANT_CUT_OFF)
+			{
+				_msf_seqList[i*2].hits[0]=1;
+				_msf_seqList[i*2+1].hits[0]=1;
+				size1=0;
+				size2=0;
+			}
+		}
+		//if (i == 6615)
+		//	fprintf(stdout, "%d %d\n", size1, size2);	
+
+		char *seq1, *seq2, *rseq1, *rseq2, *qual1, *qual2;
+		char rqual1[SEQ_LENGTH+1], rqual2[SEQ_LENGTH+1];
+		rqual1[SEQ_LENGTH] = rqual2[SEQ_LENGTH] = '\0';
+		seq1 = _msf_seqList[i*2].seq;
+		rseq1 = _msf_seqList[i*2].rseq;
+		qual1 = _msf_seqList[i*2].qual;
+		reverse(_msf_seqList[i*2].qual, rqual1, SEQ_LENGTH);
+
+		seq2 = _msf_seqList[i*2+1].seq;
+		rseq2 = _msf_seqList[i*2+1].rseq;
+		qual2 = _msf_seqList[i*2+1].qual;
+		reverse(_msf_seqList[i*2+1].qual, rqual2, SEQ_LENGTH);
+
+
+		if (pairedEndDiscordantMode)
+		{
+			for (k=0; k<size1; k++)
+			{
+				int tm = -1;
+				mi1[k].score = calculateScore(mi1[k].loc, (mi1[k].dir==-1)?rseq1:seq1, (mi1[k].dir==-1)?rqual1:qual1, &tm);
+				mi1[k].err = tm;
+			}
+
+			for (k=0; k<size2; k++)
+			{
+				int tm = -1;
+				mi2[k].score = calculateScore(mi2[k].loc, (mi2[k].dir==-1)?rseq2:seq2, (mi2[k].dir==-1)?rqual2:qual2, &tm);
+				mi2[k].err = tm;
+			}
+
+		}
+		else
+		{
+			for (k=0; k<size1; k++)
+			{
+				mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?rseq1:seq1, -1, &_msf_op);
+				sprintf(mi1[k].md, "%s", _msf_op);
+			}
+
+			for (k=0; k<size2; k++)
+			{
+				mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?rseq2:seq2, -1, &_msf_op);
+				sprintf(mi2[k].md, "%s", _msf_op);
+			}
+		}
+		pos = 0;
+
+		for (j=0; j<size1; j++)
+		{
+			lm = mi1[j].loc - maxPairEndedDistance + 1;
+			ll = mi1[j].loc - minPairEndedDistance + 1;
+			rl = mi1[j].loc + minPairEndedDistance - 1;
+			rm = mi1[j].loc + maxPairEndedDistance - 1;
+
+			//fprintf(stdout, "%d %d %d %d %d\n",lm, ll,mi1[j].loc ,rl, rm); 
+
+			while (pos<size2 && mi2[pos].loc < lm)
+			{
+				pos++;
+			}
+
+			//fprintf(stdout, "POS: %d %d \n", pos, mi2[pos].loc);
+
+			k = pos;
+			while (k<size2 && mi2[k].loc <= rm)
+			{
+				if (mi2[k].loc <= ll || mi2[k].loc >= rl)
+				{
+					if (pairedEndDiscordantMode)
+					{
+						int tmp;
+						int rNo = i;
+						int loc = mi1[j].loc*mi1[j].dir;
+						int err = mi1[j].err;
+						float sc = mi1[j].score;
+
+						char l = strlen(_msf_refGenName);
+
+						tmp = fwrite(&rNo, sizeof(int), 1, out);
+
+						tmp = fwrite(&l, sizeof(char), 1, out);
+						tmp = fwrite(_msf_refGenName, sizeof(char), l, out);
+
+						tmp = fwrite(&loc, sizeof(int), 1, out);
+						tmp = fwrite(&err, sizeof(char), 1, out);
+						tmp = fwrite(&sc, sizeof(float), 1, out);
+
+						//if (i == 6615)
+						//	fprintf(stdout, "%d %s: %d %d %0.20f ", rNo, _msf_refGenName, loc, err, sc);
+
+						loc = mi2[k].loc*mi2[k].dir;
+						err = mi2[k].err;
+						sc = mi2[k].score;
+
+						tmp = fwrite(&loc, sizeof(int), 1, out);
+						tmp = fwrite(&err, sizeof(char), 1, out);
+						tmp = fwrite(&sc, sizeof(float), 1, out);
+						//if (i==6615)
+						//	fprintf(stdout, " - %d %d %0.20f\n", loc, err, sc);
+					} // end discordant
+					else
+					{ //start sampe
+
+						int isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH-1;
+						if (mi1[j].loc - mi2[k].loc > 0)
+							isize*=-1;
+
+						char *seq, *qual;
+						char d1, d2;
+						d1 = (mi1[j].dir == -1)?1:0;
+						d2 = (mi2[k].dir == -1)?1:0;
+
+						if ( d1 )
+						{
+							seq = rseq1;
+							qual = rqual1;
+						}
+						else
+						{
+							seq = seq1;
+							qual = qual1;
+						}
+
+						_msf_output.POS			= mi1[j].loc;
+						_msf_output.MPOS		= mi2[k].loc;
+						_msf_output.FLAG		= 1+2+16*d1+32*d2+64;
+						_msf_output.ISIZE		= isize;
+						_msf_output.SEQ			= seq,
+							_msf_output.QUAL		= qual;
+						_msf_output.QNAME		= _msf_seqList[i*2].name;
+						_msf_output.RNAME		= _msf_refGenName;
+						_msf_output.MAPQ		= 255;
+						_msf_output.CIGAR		= _msf_cigar;
+						_msf_output.MRNAME		= "=";
+
+						_msf_output.optSize	= 2;
+						_msf_output.optFields	= _msf_optionalFields;
+
+						_msf_optionalFields[0].tag = "NM";
+						_msf_optionalFields[0].type = 'i';
+						_msf_optionalFields[0].iVal = mi1[j].err;
+
+						_msf_optionalFields[1].tag = "MD";
+						_msf_optionalFields[1].type = 'Z';
+						_msf_optionalFields[1].sVal = mi1[j].md;
+
+
+						output(_msf_output);
+
+						if ( d2 )
+						{
+							seq = rseq2;
+							qual = rqual2;
+						}
+						else
+						{
+							seq = seq2;
+							qual = qual2;
+						}
+
+						_msf_output.POS			= mi2[k].loc;
+						_msf_output.MPOS		= mi1[j].loc;
+						_msf_output.FLAG		= 1+2+16*d2+32*d1+128;
+						_msf_output.ISIZE		= -isize;
+						_msf_output.SEQ			= seq,
+							_msf_output.QUAL		= qual;
+						_msf_output.QNAME		= _msf_seqList[i*2].name;
+						_msf_output.RNAME		= _msf_refGenName;
+						_msf_output.MAPQ		= 255;
+						_msf_output.CIGAR		= _msf_cigar;
+						_msf_output.MRNAME		= "=";
+
+						_msf_output.optSize	= 2;
+						_msf_output.optFields	= _msf_optionalFields;
+
+						_msf_optionalFields[0].tag = "NM";
+						_msf_optionalFields[0].type = 'i';
+						_msf_optionalFields[0].iVal = mi2[k].err;;
+
+						_msf_optionalFields[1].tag = "MD";
+						_msf_optionalFields[1].type = 'Z';
+						_msf_optionalFields[1].sVal = mi2[k].md;
+
+						output(_msf_output);
+					} //end sampe
+				}
+				k++;
+			}
+		}
+	}
+
+	if (pairedEndDiscordantMode)
+	{
+		fclose(out);
+	}
+
+
+	freeMem(mi1, sizeof(FullMappingInfo)*_msf_maxLSize);
+	freeMem(mi2, sizeof(FullMappingInfo)*_msf_maxRSize);
+
+	for (i=0; i<_msf_openFiles; i++)
+	{
+		//fprintf(stdout, "%s %s \n", fname1[i], fname2[i]);
+		unlink(fname1[i]);
+		unlink(fname2[i]);
+	}
+	_msf_openFiles = 0;
+
+}
 
 /**********************************************/
-int verifyBS(int index, char *seq, char **opSeq, int type, int *met, int *reg)
+/**********************************************/
+/**********************************************/
+/**********************************************/
+float calculateScore(int index, char *seq, char *qual, int *err)
 {
 	int i;
-	int errCnt, err;
 	char *ref;
 	char *ver;
-	short matchCnt=0;
 
-	verificationCnt ++;
-	errCnt = 0;
-	ref = _msf_refGen +index - 1;
+	ref = _msf_refGen + index-1;
 	ver = seq;
+	float score = 1;
 
-	*met = 0;
-	*reg = 0;
-
-	int pp = 0;
-	char *op=*opSeq;
-
-	for (i=0; i < SEQ_LENGTH; i++)
+	if (*err > 0 || *err == -1)
 	{
-		err = 0;
-	    if (!type && *ver == 'T' && *ref == 'C')
-        {
-            (*met)++;
-        }
-        else if (!type && *ver == 'C' && *ref == 'C')
-        {
-            (*reg)++;
-        }
-        else if (type && *ver == 'A' && *ref == 'G')
-        {
-            (*met)++;
-        }
-        else if (type && *ver == 'A' && *ref == 'A')
-        {
-            (*reg)++;
-        }
-        else
+		*err = 0;
+
+		for (i=0; i < SEQ_LENGTH; i++)
 		{
-            err =(*ref != *ver);
+			if (*ref != *ver)
+			{
+				//fprintf(stdout, "%c %c %d", *ref, *ver, *err);
+				(*err)++;
+				score *= 0.001 + 1/pow( 10, ((qual[i]-33)/10.0) );
+			}
+			ref++;
+			ver++;
 		}
 
-		errCnt += err;
+	}
+	return score;
+}
 
-		if (errCnt > errThreshold)
+/**********************************************/
+void outputPairedEndDiscPP()
+{
+	char genName[SEQ_LENGTH];
+	char fname1[FILE_NAME_LENGTH];
+	char fname2[FILE_NAME_LENGTH];
+	char fname3[FILE_NAME_LENGTH];
+	char fname4[FILE_NAME_LENGTH];
+	char fname5[FILE_NAME_LENGTH];
+	char fname6[FILE_NAME_LENGTH];
+	char l;
+	int loc1, loc2;
+	char err1, err2;
+	char dir1, dir2;
+	float sc1, sc2, lsc=0;
+	int flag = 0;
+	int rNo,lrNo = -1;
+	int tmp;
+	FILE *in, *in1, *in2, *out, *out1, *out2;
+
+	sprintf(fname1, "__%s__disc", mappingOutput);
+	sprintf(fname2, "__%s__oea1", mappingOutput);
+	sprintf(fname3, "__%s__oea2", mappingOutput);
+	sprintf(fname4, "%s_DIVET.vh", mappingOutput);
+	sprintf(fname5, "%s_OEA1.vh", mappingOutput);
+	sprintf(fname6, "%s_OEA2.vh", mappingOutput);
+
+	in   = fileOpen(fname1, "r");
+	in1  = fileOpen(fname2, "r");
+	in2  = fileOpen(fname3, "r");
+	out  = fileOpen(fname4, "w");
+	out1 = fileOpen(fname5, "w");
+	out2 = fileOpen(fname6, "w");
+	if (in != NULL)
+	{
+		flag = fread(&rNo, sizeof(int), 1, in);
+	}
+	else
+	{
+		flag  = 0;
+	}
+
+
+	while (flag)
+	{
+
+		tmp = fread(&l, sizeof(char), 1, in);
+		tmp = fread(genName, sizeof(char), l, in);
+		genName[l]='\0';
+		tmp = fread(&loc1, sizeof(int), 1, in);
+		tmp = fread(&err1, sizeof(char), 1, in);
+		tmp = fread(&sc1, sizeof(float), 1, in);
+		tmp = fread(&loc2, sizeof(int), 1, in);
+		tmp = fread(&err2, sizeof(char), 1, in);
+		tmp = fread(&sc2, sizeof(float), 1, in);
+
+		//if (rNo ==6615)
+		//	fprintf(stdout, "%s %d: %d %0.20f %d %d %0.20f\n", genName, loc1, err1, sc1, loc2, err2, sc2);
+
+		if (_msf_seqList[rNo*2].hits[0] % 2 == 0 && _msf_seqHits[rNo] < DISCORDANT_CUT_OFF)
 		{
-			errCnt = -1;
-			break;
+			dir1 = dir2 = 'F';
+
+			if (loc1 < 0)
+			{
+				dir1 = 'R';
+				loc1 = -loc1;
+			}
+
+			if (loc2 < 0)
+			{
+				dir2 = 'R';
+				loc2 = -loc2;
+			}
+
+			if (rNo != lrNo)
+			{
+				int j;
+				for (j=0; j<SEQ_LENGTH; j++)
+				{
+					lsc += _msf_seqList[rNo*2].qual[j]+_msf_seqList[rNo*2+1].qual[j];
+				}
+				lsc /= 2*SEQ_LENGTH;
+				lsc -= 33;
+				lrNo = rNo;
+			}
+
+			int inv = 0;
+			int eve = 0;
+			int dist = 0;
+			char event;
+
+			//fprintf(stdout, "%c %c ", dir1, dir2);
+
+			if ( dir1 == dir2 )
+			{
+				event = 'V';
+				//fprintf(stdout, "Inverstion \n");
+			}
+			else
+			{
+				if (loc1 < loc2)
+				{
+
+					//fprintf(stdout, "< %d ", loc2-loc1-SEQ_LENGTH);
+
+					if (dir1 == 'R' && dir2 == 'F')
+					{
+						event = 'E';
+
+						//fprintf(stdout, "Everted \n");
+					}
+					else if ( loc2 - loc1 >= maxPairEndedDiscordantDistance )
+					{
+						event = 'D';
+						//fprintf(stdout, "Deletion \n");
+					}
+					else
+					{
+						event = 'I';
+						//fprintf(stdout, "Insertion \n");
+					}
+				}
+				else if (loc2 < loc1)
+				{
+					//fprintf(stdout, "> %d ", loc1-loc2-SEQ_LENGTH);
+					if (dir2 == 'R' && dir1 == 'F')
+					{
+						event = 'E';
+						//fprintf(stdout, "Everted \n");
+					}
+					else if ( loc1 - loc2 >= maxPairEndedDiscordantDistance )
+					{
+						event = 'D';
+						//fprintf(stdout, "Deletion \n");
+					}
+					else
+					{
+						event = 'I';
+						//fprintf(stdout, "Insertion \n");
+					}
+				}
+			}
+			_msf_seqList[rNo*2].hits[0] = 2;
+			fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%0.20f\n",
+					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
 		}
-		else
+		flag = fread(&rNo, sizeof(int), 1, in);
+
+	}
+
+	/*
+	   MappingInfoNode *lr[_msf_seqListSize/2];
+	   MappingInfoNode *rr[_msf_seqListSize/2];
+	   MappingInfoNode *cur, *tmpDel, *cur2;
+
+
+	   int ls[_msf_seqListSize/2];
+	   int rs[_msf_seqListSize/2];
+
+
+	   int i=0;
+
+	   for (i = 0; i<_msf_seqListSize/2; i++)
+	   {
+	   lr[i] = rr[i] = NULL;
+	   ls[i] = rs[i] = 0;
+	   }
+
+
+
+	   if (in1 != NULL)
+	   {
+	   flag = fread(&rNo, sizeof(int), 1, in1);
+	   }
+	   else
+	   {
+	   flag  = 0;
+	   }
+
+
+	   while (flag)
+	   {
+	   tmp = fread(&loc1, sizeof(int), 1, in1);
+	   tmp = fread(&err1, sizeof(char), 1, in1);
+	   tmp = fread(&sc1, sizeof(float), 1, in1);
+	   tmp = fread(&l, sizeof(char), 1, in1);
+	   tmp = fread(genName, sizeof(char), l, in1);
+	   genName[l]='\0';
+
+	   if (_msf_seqList[rNo*2].hits[0] == 0)
+	   {
+
+	   if ( ls[rNo] < DISCORDANT_CUT_OFF )
+	   {
+	   ls[rNo]++;
+
+	   cur = lr[rNo];
+
+	   if (cur !=NULL)
+	   {
+	   if (err1 == cur->err)
+	   {
+	   MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+	   nr->loc = loc1;
+	   nr->err = err1;
+	   nr->score = sc1;
+	   nr->next = lr[rNo];
+	   sprintf(nr->chr,"%s", genName);
+	   lr[rNo] = nr;
+	   }
+	   else if (err1 < cur->err)
+	   {
+	   MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+	   nr->loc = loc1;
+	   nr->err = err1;
+	   nr->score = sc1;
+	   sprintf(nr->chr,"%s", genName);
+	   nr->next = NULL;
+	   lr[rNo] = nr;
+	while (cur!=NULL)
+	{
+		tmpDel = cur;
+		cur = cur->next;
+		freeMem(tmpDel, sizeof(MappingInfoNode));
+	}
+}
+}
+else
+{
+
+	MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+	nr->loc = loc1;
+	nr->err = err1;
+	nr->score = sc1;
+	sprintf(nr->chr,"%s", genName);
+	nr->next = NULL;
+	lr[rNo] = nr;
+}
+
+if (ls[rNo] > DISCORDANT_CUT_OFF)
+{
+	cur = lr[rNo];
+	while (cur!=NULL)
+	{
+		tmpDel = cur;
+		cur = cur->next;
+		freeMem(tmpDel, sizeof(MappingInfoNode));
+	}
+}
+}
+
+}
+flag = fread(&rNo, sizeof(int), 1, in1);
+
+}
+
+
+if (in2 != NULL)
+{
+	flag = fread(&rNo, sizeof(int), 1, in2);
+}
+else
+{
+	flag  = 0;
+}
+
+
+while (flag)
+{
+	tmp = fread(&loc1, sizeof(int), 1, in2);
+	tmp = fread(&err1, sizeof(char), 1, in2);
+	tmp = fread(&sc1, sizeof(float), 1, in2);
+	tmp = fread(&l, sizeof(char), 1, in2);
+	tmp = fread(genName, sizeof(char), l, in2);
+	genName[l]='\0';
+
+	if (_msf_seqList[rNo*2].hits[0] == 0)
+	{
+
+		if ( rs[rNo] < DISCORDANT_CUT_OFF )
 		{
-			if (err && matchCnt)
+			rs[rNo]++;
+
+			cur = rr[rNo];
+
+			if (cur !=NULL)
+			{
+				if (err1 == cur->err)
+				{
+					MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+					nr->loc = loc1;
+					nr->err = err1;
+					nr->score = sc1;
+					nr->next = rr[rNo];
+					sprintf(nr->chr,"%s", genName);
+					rr[rNo] = nr;
+				}
+				else if (err1 < cur->err)
+				{
+					MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+					nr->loc = loc1;
+					nr->err = err1;
+					nr->score = sc1;
+					sprintf(nr->chr,"%s", genName);
+					nr->next = NULL;
+					rr[rNo] = nr;
+					while (cur!=NULL)
+					{
+						tmpDel = cur;
+						cur = cur->next;
+						freeMem(tmpDel, sizeof(MappingInfoNode));
+					}
+				}
+			}
+			else
 			{
 
-				if (matchCnt < 10)
+				MappingInfoNode *nr = getMem(sizeof(MappingInfoNode));
+
+				nr->loc = loc1;
+				nr->err = err1;
+				nr->score = sc1;
+				sprintf(nr->chr,"%s", genName);
+				nr->next = NULL;
+				rr[rNo] = nr;
+			}
+
+			if (rs[rNo] > DISCORDANT_CUT_OFF)
+			{
+				cur = rr[rNo];
+				while (cur!=NULL)
 				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=*ref;
+					tmpDel = cur;
+					cur = cur->next;
+					freeMem(tmpDel, sizeof(MappingInfoNode));
 				}
-				else if (matchCnt < 100)
+			}
+		}
+	}
+	flag = fread(&rNo, sizeof(int), 1, in2);
+
+}
+
+
+for (i=0; i<_msf_seqListSize/2; i++)
+{
+	int j;
+	for (j=0; j<SEQ_LENGTH; j++)
+	{
+		lsc += _msf_seqList[i*2].qual[j]+_msf_seqList[i*2+1].qual[j];
+	}
+	lsc /= 2*SEQ_LENGTH;
+	lsc -= 33;
+	if (ls[i] * rs[i] < DISCORDANT_CUT_OFF && ls[i] & rs[i] > 0)
+	{
+		cur = lr[i];
+		while (cur != NULL)
+		{
+			cur2 = rr[i];
+			if (cur->loc < 0)
+			{
+				dir1 = 'R';
+				loc1 = -cur->loc;
+			}
+			else
+			{
+				dir1 = 'F';
+				loc1 = cur->loc;
+			}
+			while (cur2 != NULL)
+			{
+
+				if (cur2->loc < 0)
 				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=_msf_numbers[matchCnt][1];
-					op[pp++] = *ref;
+					dir2 = 'R';
+					loc2 = -cur2->loc;
 				}
 				else
 				{
-					op[pp++]=_msf_numbers[matchCnt][0];
-					op[pp++]=_msf_numbers[matchCnt][1];
-					op[pp++]=_msf_numbers[matchCnt][2];
-					op[pp++] = *ref;
+					dir2 = 'F';
+					loc2 = cur2->loc;
 				}
 
-				matchCnt = 0;
+				fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%0.20f\n",
+						_msf_seqList[i*2].name, cur->chr, loc1, (loc1+SEQ_LENGTH-1), dir1, cur2->chr, loc2, (loc2+SEQ_LENGTH-1), dir2, 'T', (cur->err+cur2->err), lsc, cur->score*cur2->score);
+				cur2 = cur2->next;
 			}
-			else if (err && matchCnt == 0)
-			{
-				op[pp++]=*ref;
-			}
-			else
-			{
-				matchCnt++;
-			}
-		}
-		ref++;
-		ver++;
-	}
-	if (matchCnt)
-	{
-		if (matchCnt < 10)
-		{
-			op[pp++]=_msf_numbers[matchCnt][0];
-		}
-		else if (matchCnt < 100)
-		{
-			op[pp++]=_msf_numbers[matchCnt][0];
-			op[pp++]=_msf_numbers[matchCnt][1];
-		}
-		else
-		{
-			op[pp++]=_msf_numbers[matchCnt][0];
-			op[pp++]=_msf_numbers[matchCnt][1];
-			op[pp++]=_msf_numbers[matchCnt][2];
+			cur = cur->next;
 		}
 	}
-	op[pp]='\0';
 
-	return errCnt;
-}
-/**********************************************/
-int mapSingleEndSeqBS( char *seqName, char *seq, char* seqQual, unsigned int seqHits, int seqNo, short mappingDirection, int type)
-{
-
-	if (maxHits !=0 && maxHits == seqHits)
-	{
-		return 0;
-	}
+}*/
 
 
-	int i = 0;
-	int j = 0;
-	int flag = 1;
-	int offset;
-	int genLoc;
-	int err;
-	int size;
-	int hv;
-	int hits = 0;
-	int reg = 0;
-	int met = 0;
-	int *locs;
-	char cigar[5];
+fclose(in);
+fclose(in1);
+fclose(in2);
+fclose(out);
+fclose(out1);
+fclose(out2);
 
-	sprintf(cigar, "%dM", SEQ_LENGTH);
-
-	while (flag && i <  _msf_samplingLocsSize )
-	{
-		offset = _msf_samplingLocs[i];
-		hv = hashValBS(seq + offset, type);
-		j = 1;
-		locs = (int *) getCandidatesBS(hv, type);
-		if (locs != NULL)
-		{
-			size = locs[0];
-		}
-		else
-		{
-			size = 0;
-		}
-
-		while (j <= size)
-		{
-			genLoc = locs[j] - offset;
-			if ( genLoc <  _msf_refGenBeg || genLoc > _msf_refGenEnd ||
-				 _msf_verifiedLocs[genLoc] ==  seqNo ||
-				 _msf_verifiedLocs[genLoc] == -seqNo )
-			{
-				j++;
-			}
-			else
-			{
-				err = verifyBS(genLoc, seq, &_msf_op, type, &met, &reg);
-				if ( err != -1 )
-				{
-
-					metTotal += met;
-					regTotal += reg;
-					mappingCnt++;
-
-					_msf_verifiedLocs[genLoc] = seqNo;
-
-					_msf_output.QNAME		= seqName;
-					_msf_output.FLAG		= 16 * mappingDirection;
-					_msf_output.RNAME		= _msf_refGenName;
-					_msf_output.POS			= genLoc + _msf_refGenOffset;
-					_msf_output.MAPQ		= 255;
-					_msf_output.CIGAR		= cigar;
-					_msf_output.MRNAME		= "*";
-					_msf_output.MPOS		= 0;
-					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= seq;
-					_msf_output.QUAL		= seqQual;
-
-					_msf_output.optSize		= 2;
-					_msf_output.optFields	= _msf_optionalFields;
-
-					_msf_optionalFields[0].tag = "NM";
-					_msf_optionalFields[0].type = 'i';
-					_msf_optionalFields[0].iVal = err;
-
-
-					_msf_optionalFields[1].tag = "MD";
-					_msf_optionalFields[1].type = 'Z';
-					_msf_optionalFields[1].sVal = _msf_op;
-
-					output(_msf_output);
-
-
-
-					if (hits+seqHits == 0)
-					{
-						mappedSeqCnt ++;
-					}
-
-					if ( maxHits == 0 && hits+seqHits == 0)
-					{
-						hits=1;
-					}
-					else if (maxHits != 0 )
-					{
-						hits++;
-						if (hits+seqHits == maxHits)
-						{
-							completedSeqCnt++;
-							flag =0;
-							break;
-						}
-					}
-				}
-				else
-				{
-					_msf_verifiedLocs[genLoc] = -seqNo;
-				}
-				j++;
-
-			}
-		}
-		i++;
-	}
-	return hits;
-}
-/**********************************************/
-int mapPairedEndSeqBS(	char *seqName, char *seq1, char* seq1Qual, unsigned int seq1Hits, int seq1No, short mappingDirection1, int type1,
-						char *seq2Name, char *seq2, char* seq2Qual, unsigned int seq2Hits, int seq2No, short mappingDirection2, int type2)
-{
-	char tmp1[2*SEQ_LENGTH+2];
-	char tmp2[2*SEQ_LENGTH+2];
-	tmp1[2*SEQ_LENGTH+2]=tmp2[2*SEQ_LENGTH+2] = '\0';
-
-	if (maxHits !=0 && maxHits == seq1Hits)
-	{
-		return 0;
-	}
-
-
-	int i = 0;
-	int j = 0;
-
-	int flag = 1;
-	int offset1;
-	int offset2;
-	int genLoc1;
-	int genLoc2;
-	int size1;
-	int size2;
-	int hv1;
-	int hv2;
-	int *locs1;
-	int *locs2;
-
-	int p1, p2, p3;
-
-	int err1, err2;
-	int hits = 0;
-
-	int nv = 0;
-	int k;
-
-	int lm, ll, rl, rm; // leftmost, leftleast, rightleast, rightmost;
-
-	int reg1=0, met1=0, reg2=0, met2=0;
-
-	char cigar[5];
-
-	sprintf(cigar, "%dM", SEQ_LENGTH);
-
-	while (flag && i < _msf_samplingLocsSize)
-	{
-		offset1 = _msf_samplingLocs[i];
-		hv1 = hashValBS(seq1 + offset1, type1);
-		locs1 = (int*)getCandidatesBS(hv1, type1);
-		if (locs1 != NULL)
-		{
-			size1 = locs1[0];
-		}
-		else
-		{
-			size1 = 0;
-		}
-        j = 0;
-        while (flag && j < _msf_samplingLocsSize)
-        {
-            offset2 = _msf_samplingLocs[j];
-            hv2 = hashValBS(seq2 + offset2, type2);
-			locs2 = (int*)getCandidatesBS(hv2, type2);
-			if (locs2 != NULL)
-			{
-				size2 = locs2[0];
-			}
-			else
-			{
-				size2 = 0;
-			}
-			if (size2>0)
-            {
-                p1=1;
-                p2=1;
-                p3=1;
-				// Main Loop
-                while (flag && p1<=size1 && p2 <=size2)
-                {
-					genLoc1 = locs1[p1] - offset1;
-                    nv = 0;
-                    if ( genLoc1 <  _msf_refGenBeg || genLoc1 > _msf_refGenEnd ||
-                         _msf_verifiedLocs[genLoc1] == -seq1No )
-                    {
-                        p1++;
-                        continue;
-                    }
-                    else
-                    {
-                        if (_msf_verifiedLocs[genLoc1] == seq1No)
-                        {
-                            err1 = verifyBS(genLoc1, seq1, &_msf_op, type1, &met1, &reg1);
-                        }
-                        else
-                        {
-                            err1 = verifyBS(genLoc1, seq1, &_msf_op, type1, &met1, &reg1);
-
-                            if ( err1 != -1 )
-                            {
-                                _msf_verifiedLocs[genLoc1] = seq1No;
-                                nv = 1;
-                            }
-                            else
-                            {
-                                _msf_verifiedLocs[genLoc1] = -seq1No;
-                                p1++;
-                                continue;
-                            }
-                        }
-
-                    }
-
-					lm = genLoc1-maxPairEndedDistance+1;
-					ll = genLoc1-minPairEndedDistance+1;
-					rl = genLoc1+minPairEndedDistance-1;
-					rm = genLoc1+maxPairEndedDistance-1;
-
-					//fprintf(stderr, "%d %d [%d] %d %d\n", lm, ll,genLoc1, rl, rm);
-
-                    while (p2<=size2 && (locs2[p2]-offset2) < lm)
-                    {
-                        p2++;
-                    }
-                    while (p3<=size2 && (locs2[p3]-offset2) <= rm)
-                    {
-                        p3++;
-                    }
-
-                    k=p2;
-                    while (flag && k<=p3 && p2<=size2)
-                    {
-						genLoc2 = locs2[k] - offset2;
-                        if ( ( genLoc2 >  ll && genLoc2 < rl ) || (genLoc2>rm) )
-                        {
-                            k++;
-                            continue;
-                        }
-
-                        if (genLoc2 < _msf_refGenBeg || genLoc2 > _msf_refGenEnd ||
-                            _msf_verifiedLocsP[genLoc2] == -seq2No)
-                        {
-                            k++;
-                        }
-                        else
-                        {
-
-                            err2 = -1;
-                            if (_msf_verifiedLocsP[genLoc2] == seq2No)
-                            {
-                                err2=verifyBS(genLoc2, seq2, &_msf_opP, type2, &met2, &reg2);
-                            }
-                            else if (_msf_verifiedLocsP[genLoc2] != -seq2No)
-                            {
-                                err2 = verifyBS(genLoc2, seq2, &_msf_opP, type2, &met2, &reg2);
-                            }
-
-                            if ( (err2 != -1 && _msf_verifiedLocsP[genLoc2] != seq2No) ||
-								 (_msf_verifiedLocsP[genLoc2] == seq2No && nv) )
-                            {
-
-								metTotal += met1+met2;
-								regTotal += reg1+reg2;
-                                mappingCnt++;
-
-                                _msf_verifiedLocsP[genLoc2] = seq2No;
-
-								int isize = abs(genLoc1 - genLoc2)+SEQ_LENGTH-1;
-								if (genLoc1 - genLoc2 > 0)
-									isize*=-1;
-
-								_msf_output.POS			= genLoc1 + _msf_refGenOffset;
-								_msf_output.MPOS		= genLoc2 + _msf_refGenOffset;
-								_msf_output.FLAG		= 1+2+16*mappingDirection1+32*mappingDirection2+64;
-								_msf_output.ISIZE		= isize;
-								_msf_output.SEQ			= seq1,
-								_msf_output.QUAL		= seq1Qual;
-								_msf_output.QNAME		= seqName;
-								_msf_output.RNAME		= _msf_refGenName;
-								_msf_output.MAPQ		= 255;
-								_msf_output.CIGAR		= cigar;
-								_msf_output.MRNAME		= "=";
-
-								_msf_output.optSize	= 2;
-								_msf_output.optFields	= _msf_optionalFields;
-
-								_msf_optionalFields[0].tag = "NM";
-								_msf_optionalFields[0].type = 'i';
-								_msf_optionalFields[0].iVal = err1;
-
-								_msf_optionalFields[1].tag = "MD";
-								_msf_optionalFields[1].type = 'Z';
-								_msf_optionalFields[1].sVal = _msf_op;
-
-
-								output(_msf_output);
-
-								_msf_output.POS			= genLoc2 + _msf_refGenOffset;
-								_msf_output.MPOS		= genLoc1 + _msf_refGenOffset;
-								_msf_output.FLAG		= 1+2+16*mappingDirection2+32*mappingDirection1+128;
-								_msf_output.ISIZE		= -isize;
-								_msf_output.SEQ			= seq2,
-								_msf_output.QUAL		= seq2Qual;
-								_msf_output.QNAME		= seqName;
-								_msf_output.RNAME		= _msf_refGenName;
-								_msf_output.MAPQ		= 255;
-								_msf_output.CIGAR		= cigar;
-								_msf_output.MRNAME		= "=";
-
-								_msf_output.optSize	= 2;
-								_msf_output.optFields	= _msf_optionalFields;
-
-								_msf_optionalFields[0].tag = "NM";
-								_msf_optionalFields[0].type = 'i';
-								_msf_optionalFields[0].iVal = err2;
-
-								_msf_optionalFields[1].tag = "MD";
-								_msf_optionalFields[1].type = 'Z';
-								_msf_optionalFields[1].sVal = _msf_opP;
-
-								output(_msf_output);
-
-								if (hits+seq1Hits == 0)
-								{
-									mappedSeqCnt ++;
-								}
-
-								if ( maxHits == 0 && hits+seq1Hits == 0)
-								{
-									hits=1;
-								}
-								else if (maxHits != 0 )
-								{
-									hits++;
-									if (hits+seq1Hits == maxHits)
-									{
-										completedSeqCnt++;
-										flag =0;
-										break;
-									}
-								}
-                            }
-                            else if (err2 == -1)
-                            {
-                                _msf_verifiedLocsP[genLoc2] = -seq2No;
-                            }
-                            k++;
-                        }
-                    }
-                    p1++;
-                }// END of Mail Loop;
-            }
-            j++;
-		}
-		i++;
-	}
-
-	return hits;
+unlink(fname1);
+unlink(fname2);
+unlink(fname3);
+unlink(fname5);
+unlink(fname6);
 }

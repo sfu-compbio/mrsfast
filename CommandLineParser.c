@@ -40,41 +40,54 @@ int						indexingMode;
 int						searchingMode;
 int						bisulfiteMode;
 int						pairedEndMode;
+int						pairedEndDiscordantMode;
+int						pairedEndProfilingMode;
 int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
 int						progressRep = 0;
+int						minPairEndedDistance=-1;
+int						maxPairEndedDistance=-1;
+int						minPairEndedDiscordantDistance=-1;
+int						maxPairEndedDiscordantDistance=-1;
 char					*seqFile1;
 char					*seqFile2;
 char					*mappingOutput = "output";
 char					*unmappedOutput = "unmapped";
-short					minPairEndedDistance=-1;
-short					maxPairEndedDistance=-1;
 char					fileName[1000][2][FILE_NAME_LENGTH];
 int						fileCnt;
+unsigned char			errThreshold=2;
+unsigned char			maxHits=0;
+unsigned char			WINDOW_SIZE = 12;
+unsigned int			CONTIG_SIZE;
+unsigned int			CONTIG_MAX_SIZE;
+
 void printHelp();
 
 int parseCommandLine (int argc, char *argv[])
 {
-	
+
 	int o;
 	int index;
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
 	char *batchFile = NULL ;
-
+	int  batchMode = 0;
 	static struct option longOptions[] = 
 	{
-		{"index",			no_argument,		&indexingMode,		1},
-		{"search",			no_argument, 		&searchingMode,		1},
-		{"bs",				no_argument,		&bisulfiteMode,		1},
+
+		//		{"bs",				no_argument,		&bisulfiteMode,		1},
 		{"pe",				no_argument,		&pairedEndMode,		1},
+		{"discordant-vh",	no_argument,		&pairedEndDiscordantMode,	1},
+		{"profile",			no_argument, 		&pairedEndProfilingMode,	1},
 		{"seqcomp",			no_argument,		&seqCompressed,		1},
 		{"outcomp",			no_argument,		&outCompressed,		1},
 		{"progress",		no_argument,		&progressRep,		1},
+		{"index",			required_argument,	0, 					'i'},
+		{"search",			required_argument,	0,					's'},
 		{"help",			no_argument,		0,					'h'},
-		{"version",			no_argument,		0,					'V'},
+		{"version",			no_argument,		0,					'v'},
 		{"seq",				required_argument,	0,					'x'},
 		{"seq1",			required_argument,	0,					'x'},
 		{"seq2",			required_argument,	0,					'y'},
@@ -82,64 +95,64 @@ int parseCommandLine (int argc, char *argv[])
 		{"min",				required_argument,  0,					'l'},
 		{"max",				required_argument,  0,					'm'},
 		{"crop",			required_argument,  0,					'c'}
+
 	};
 
-		
 
-	while ( (o = getopt_long ( argc, argv, "f:b:i:u:o:s:e:n:hV", longOptions, &index))!= -1 )
+
+	while ( (o = getopt_long ( argc, argv, "f:i:u:o:s:e:n:bhv", longOptions, &index))!= -1 )
 	{
 		switch (o)
 		{
-			case 'c': 
-					cropSize = atoi(optarg);
-					break;
-			case 'w':
-					WINDOW_SIZE = atoi(optarg);
-					break;
-			case 'x':
-					seqFile1 = optarg;
-					break;
-			case 'y':
-					seqFile2 = optarg;
-					break;
-			case 'f':
-					fastaFile = optarg;
-					break;
 			case 'i':
-					indexFile = optarg;
-					break;
-			case 'b':
-					batchFile = optarg;
-					break;
-			case 'u':
-					unmappedOutput = optarg;
-					break;
+				indexingMode = 1;
+				fastaFile = optarg;
+				break;
 			case 's':
-					fastaOutputFile = optarg;
-					break;
+				searchingMode = 1;
+				fastaFile = optarg;
+				break;
+			case 'b':
+				batchMode = 1;
+				break;
+			case 'c': 
+				cropSize = atoi(optarg);
+				break;
+			case 'w':
+				WINDOW_SIZE = atoi(optarg);
+				break;
+			case 'x':
+				seqFile1 = optarg;
+				break;
+			case 'y':
+				seqFile2 = optarg;
+				break;
+			case 'u':
+				unmappedOutput = optarg;
+				break;
 			case 'o':
-					mappingOutput = optarg;
-					break;
+				mappingOutput = optarg;
+				break;
 			case 'n':
-					maxHits = atoi(optarg);
-					break;
+				maxHits = atoi(optarg);
+				break;
 			case 'e':
-					errThreshold = atoi(optarg);
-					break;
+				errThreshold = atoi(optarg);
+				break;
 			case 'l':
-					minPairEndedDistance = atoi(optarg);
-					break;
+				minPairEndedDistance = atoi(optarg);
+				break;
 			case 'm':
-					maxPairEndedDistance = atoi(optarg);
-					break;					
+				maxPairEndedDistance = atoi(optarg);
+				break;					
 			case 'h':
-					printHelp();
-					return 0;
-					break;
-			case 'V':
-					fprintf(stdout, "%s.%s\n", versionNumber, versionNumberF);
-					return 0;
-					break;
+				printHelp();
+				return 0;
+				break;
+			case 'v':
+				fprintf(stdout, "%s.%s\n", versionNumber, versionNumberF);
+				return 0;
+				break;
 		}
 
 	}
@@ -159,37 +172,45 @@ int parseCommandLine (int argc, char *argv[])
 
 	if ( indexingMode )
 	{
+		CONTIG_SIZE		= 15000000;
+		CONTIG_MAX_SIZE	= 40000000;
+
+		if (batchMode)
+		{
+			batchFile = fastaFile;
+			fastaFile = NULL;
+		}
+
 		if (batchFile == NULL && fastaFile == NULL)
 		{
 			fprintf(stdout, "ERROR: Reference(s) should be indicated for indexing\n");
 			return 0;
 		}
 
-		if (batchFile != NULL && fastaFile != NULL)
+		if (pairedEndDiscordantMode)
 		{
-			fprintf(stdout, "ERROR: -b cannot be used with -f. \n");
+			fprintf(stdout, "ERROR: --discordant cannot be used in indexing mode. \n");
 			return 0;
 		}
 
-		if (batchFile != NULL && fastaOutputFile != NULL)
-		{
-			fprintf(stdout, "ERROR: -s cannot be used with -b. \n");
-			return 0;
-		}
 	}
 
 
 	if ( searchingMode )
 	{
-		if (batchFile == NULL && indexFile == NULL)
+		CONTIG_SIZE		= 300000000;
+		CONTIG_MAX_SIZE	= 300000000;
+
+
+		if (batchMode)
 		{
-			fprintf(stdout, "ERROR: Index File(s) should be indiciated for searching\n");
-			return 0;
+			batchFile = fastaFile;
+			fastaFile = NULL;
 		}
 
-		if (batchFile != NULL && indexFile != NULL)
+		if (batchFile == NULL && fastaFile == NULL)
 		{
-			fprintf(stdout, "ERROR: -b cannot be used with -i.\n");
+			fprintf(stdout, "ERROR: Index File(s) should be indiciated for searching\n");
 			return 0;
 		}
 
@@ -217,12 +238,24 @@ int parseCommandLine (int argc, char *argv[])
 			fprintf(stdout, "ERROR: Please indicate the first file for pairedend search.\n");
 			return 0;
 		}
+
+		if (!pairedEndMode && pairedEndDiscordantMode)
+		{
+			fprintf(stdout, "ERROR: --discordant should be used with --pe");
+			return 0;
+		}
+
+		if (!pairedEndMode && pairedEndProfilingMode)
+		{
+			fprintf(stdout, "ERROR: --profile should be used with --pe");
+			return 0;
+		}
 	}
 
 	int i = 0;
 
 
-	if (batchFile != NULL)
+	if (batchMode)
 	{
 		FILE *fp = fileOpen(batchFile, "r");
 
@@ -240,38 +273,40 @@ int parseCommandLine (int argc, char *argv[])
 
 			if (strcmp(fileName[fileCnt][0], "") != 0)
 			{
+				if (bisulfiteMode)
+					sprintf(fileName[fileCnt][1], "%s.bsindex", fileName[fileCnt][0]); 
+				else
+					sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
 				fileCnt++;
 			}
 		}
 	}
 	else
 	{
-		if (indexingMode)
-		{
-			sprintf(fileName[fileCnt][0], "%s", fastaFile);
-		}
+		sprintf(fileName[fileCnt][0], "%s", fastaFile);
+		if (bisulfiteMode)
+			sprintf(fileName[fileCnt][1], "%s.bsindex", fileName[fileCnt][0]); 
 		else
-		{
-			sprintf(fileName[fileCnt][0], "%s", indexFile);
-		}
+			sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
 		fileCnt++;
 	}
 
 
-	if (indexingMode)
+	if (pairedEndProfilingMode)
 	{
-		for (i = 0;  i <fileCnt; i++)
-		{
-			if (bisulfiteMode)
-				sprintf(fileName[i][1], "%s.bsindex", fileName[i][0]); 
-			else
-				sprintf(fileName[i][1], "%s.index", fileName[i][0]); 
-		}
+
+		minPairEndedDistance = 0;
+		maxPairEndedDistance = 300000000;
+
 	}
 
-	if (fastaOutputFile)
+	if (pairedEndDiscordantMode)
 	{
-		sprintf(fileName[0][1],"%s",fastaOutputFile);
+		minPairEndedDiscordantDistance = minPairEndedDistance;
+		maxPairEndedDiscordantDistance = maxPairEndedDistance;
+
+		minPairEndedDistance = 0;
+		maxPairEndedDistance = 300000000;
 	}
 
 	return 1;
@@ -290,34 +325,40 @@ void printHelp()
 	else
 	{
 		fprintf(stdout,"mrsFAST : Micro-Read Substitutions (only) Fast Alignment Search Tool.\n\n");
+		fprintf(stdout,"mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of mapping\n");
+		fprintf(stdout,"single and paired end reads to the reference genome. Bisulfite treated \n");
+		fprintf(stdout,"sequences are not supported in this version. By default mrsFAST reports  \n");
+		fprintf(stdout,"the output in SAM format.\n\n");
 		fprintf(stdout,"Usage: mrsFAST [options]\n\n");
 		errorType="hamming distance";
 	}
-	
-	fprintf(stdout,"Indexing Options:\n");
-	fprintf(stdout," --index\t\tMake index from a fasta file. \n");
-	fprintf(stdout," -f [fastafile]\t\tInput fasta file for indexing. The output will be saved into '[fastafile].index' unless it is specified with -f. \n");
-	fprintf(stdout," -b [file]\t\tIndex a set of fasta files listed in [file].\n");
-	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-max:14).\n");
-	fprintf(stdout," -s [file]\t\tSave index in the specified file.\n");
-	fprintf(stdout," -bs \t\t\tBisulfite mode.");
+
+	fprintf(stdout,"General Options:\n");
+	fprintf(stdout," -v|--version\t\tCurrent Version.\n");
+	fprintf(stdout," -h\t\t\tShows the help file.\n");
 	fprintf(stdout,"\n\n");
+
+	fprintf(stdout,"Indexing Options:\n");
+	fprintf(stdout," --index [file]\t\tGenerate an index from the specified fasta file. \n");
+	fprintf(stdout," -b\t\t\tIndicates the indexing will be done in batch mode.\n\t\t\tThe file specified in --index should contain the \n\t\t\tlist of fasta files.\n");
+	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-max:14).\n");
+	//	fprintf(stdout," -bs \t\t\tBisulfite mode.");
+	fprintf(stdout,"\n\n");
+
 	fprintf(stdout,"Searching Options:\n");
-	fprintf(stdout," --search\t\tSearch an index file\n");
-	fprintf(stdout," --pe \t\t\tSearch will be done in paired-end mode.\n");
-	fprintf(stdout," --bs \t\t\tSearch will be done in bisulfite mode.\n");
-	fprintf(stdout," -i [indexfile]\t\tIndex file for search.\n");
-	fprintf(stdout," -b [file]\t\tSearch a set of index files listed in [file].\n");
-	fprintf(stdout," --seq [file]\t\tInput sequences in fasta/fastq format [file]. If paired-end sequences are interleaved, use this option.\n");
-	fprintf(stdout," --seq1 [file]\t\tInput sequences in fasta/fastq format [file] (First file). Use this option to indicate the first file of pair-end sequences. You can use this option alone in bisulfite mode. \n");
-	fprintf(stdout," --seq2 [file]\t\tInput sequences in fasta/fastq format [file] (Second file). Use this option to indicate the second file of pair-end sequences. You can use this option alone in bisulfite mode. \n");
-	fprintf(stdout," -o [file]\t\tOutput of the mapped sequences. The default is output\n");
+	fprintf(stdout," --search [file]\tSearch the specified genome. Index file should be \n\t\t\tin same directory as the fasta file.\n");
+	fprintf(stdout," -b\t\t\tIndicates the mapping will be done in batch mode. \n\t\t\tThe file specified in --search should contain the \n\t\t\tlist of fasta files.\n");
+	fprintf(stdout," --pe \t\t\tSearch will be done in Pairedend mode.\n");
+	//	fprintf(stdout," --bs \t\t\tSearch will be done in Bisulfite mode.\n");
+	fprintf(stdout," --seq [file]\t\tInput sequences in fasta/fastq format [file]. If \n\t\t\tpairend reads are interleaved, use this option.\n");
+	fprintf(stdout," --seq1 [file]\t\tInput sequences in fasta/fastq format [file] (First \n\t\t\tfile). Use this option to indicate the first file of \n\t\t\tpair-end reads. You can use this option alone in \n\t\t\tbisulfite mode. \n");
+	fprintf(stdout," --seq2 [file]\t\tInput sequences in fasta/fastq format [file] (Second \n\t\t\tfile). Use this option to indicate the second file of \n\t\t\tpair-end reads. You can use this option alone in \n\t\t\tbisulfite mode. \n");
+	fprintf(stdout," -o [file]\t\tOutput of the mapped sequences. The default is output.\n");
 	fprintf(stdout," --seqcomp \t\tIndicates that the input sequences are compressed(gz).\n");
 	fprintf(stdout," --outcomp \t\tIndicates that output file should be compressed(gz).\n");
-	fprintf(stdout," -u [file]\t\tSave unmapped sequences to the [file] in fasta format.\n");
-	fprintf(stdout," -n [int]\t\tMaximum number of locations a sequence can map to (default 1). To report all use 0.\n");
+	//	fprintf(stdout," -u [file]\t\tSave unmapped sequences to the [file] in fasta format.\n");
+	fprintf(stdout," -n [int]\t\tMaximum number of locations reported for a sequence \n\t\t\t(default 0, all mappings). \n");
 	fprintf(stdout," -e [int]\t\t%s (default 2).\n", errorType);
-	fprintf(stdout," --min [int]\t\tMin distance allowed between two pairend sequences.(Should be used with --pe)\n");
-	fprintf(stdout," --max [int]\t\tMax distance allowed between two pairend sequences.(Should be used with --pe)\n");
-	fprintf(stdout," --crop [int]\t\tCrops the input sequences after the specified number of base pairs.\n");
+	fprintf(stdout," --min [int]\t\tMin distance allowed between two pairend sequences.\n");
+	fprintf(stdout," --max [int]\t\tMax distance allowed between two pairend sequences.\n");
 }

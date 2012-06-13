@@ -1,3 +1,9 @@
+2009-12-08  Faraz Hach  <fhach@cs.sfu.ca>
+	* Cache oblivious algorithm is implemented (2x speed up)
+	* Bugs related to PE mode are fixed.
+	* Bisulfite support is dropped.
+	* VariationHunter mode is added.
+
 2009-09-11  Faraz Hach  <fhach@cs.sfu.ca>
 	* Bug related to reporting same location multiple times is fixed.
 

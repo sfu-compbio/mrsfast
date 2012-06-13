@@ -110,7 +110,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 			{
 				actualSize++;
 			}
-			if (actualSize == CONTIG__SIZE || size == CONTIG_MAX_SIZE)
+			if (actualSize == CONTIG_SIZE || size == CONTIG_MAX_SIZE)
 			{
 				_rg_contGen = 1;
 				returnVal=1;
@@ -138,6 +138,8 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 	{
 		_rg_offset = 0;
 	}
+	
+	
 	return returnVal;
 }
 /**********************************************/

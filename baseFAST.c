@@ -2,9 +2,9 @@
  * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without modification, 
+ * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- *   
+ *
  * Redistributions of source code must retain the above copyright notice, this list
  * of conditions and the following disclaimer.
  * - Redistributions in binary form must reproduce the above copyright notice, this
@@ -13,7 +13,7 @@
  * - Neither the name of the <ORGANIZATION> nor the names of its contributors may be
  *   used to endorse or promote products derived from this software without specific
  *   prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -37,11 +37,9 @@
 #include "Reads.h"
 #include "Output.h"
 #include "HashTable.h"
-#include "HashTableBS.h"
 #include "MrsFAST.h"
 
-
-char 				*versionNumber = "1.2";			// Current Version
+char 				*versionNumber = "2.0";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -49,6 +47,7 @@ int main(int argc, char *argv[])
 	if (!parseCommandLine(argc, argv))
 		return 1;
 
+	configHashTable();
 	/****************************************************
 	 * INDEXING
 	 ***************************************************/
@@ -70,12 +69,7 @@ int main(int argc, char *argv[])
 		/********************************
 		 * Bisulfite Mode
 		 ********************************/
-		{
-			for (i = 0; i < fileCnt; i++)
-			{
-				configHashTableBS();
-				generateHashTableBS(fileName[i][0], fileName[i][1]);
-			}
+		{ // TODO
 		}
 	}
 	/****************************************************
@@ -85,7 +79,7 @@ int main(int argc, char *argv[])
 	{
 		Read *seqList;
 		unsigned int seqListSize;
-		int fc, sc;
+		int fc;
 		int samplingLocsSize;
 		int *samplingLocs;
 		double totalLoadingTime = 0;
@@ -94,40 +88,57 @@ int main(int argc, char *argv[])
 		double loadingTime;
 		double mappingTime;
 		double lstartTime;
+		double ppTime;
 		double tmpTime;;
 		char *prevGen = getMem(CONTIG_NAME_SIZE);
 		prevGen[0]='\0';
 		char *curGen;
 		int	flag;
 		double maxMem=0;
-
+		char fname1[FILE_NAME_LENGTH];
+		char fname2[FILE_NAME_LENGTH];
+		char fname3[FILE_NAME_LENGTH];
+		char fname4[FILE_NAME_LENGTH];
+		char fname5[FILE_NAME_LENGTH];
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
 		if (bisulfiteMode && !pairedEndMode && seqFile1 == NULL)
 		{
-			if (!readAllReads(seqFile2, seqFile1, seqCompressed, &seqFastq, pairedEndMode, &seqList, &seqListSize))
-			{
-				return 1;
-			}
+		    //TODO
 		}
 		else
 		{
 			if (!readAllReads(seqFile1, seqFile2, seqCompressed, &seqFastq, pairedEndMode, &seqList, &seqListSize))
 			{
-				return 1;			
+				return 1;
 			}
 		}
-
-			
 
 		loadSamplingLocations(&samplingLocs, &samplingLocsSize);
 		totalLoadingTime += getTime()-startTime;
 
 
+
+
 		if (pairedEndMode)
 		{
-				minPairEndedDistance = minPairEndedDistance + SEQ_LENGTH + 1;
-				maxPairEndedDistance = maxPairEndedDistance + SEQ_LENGTH + 1;
+			minPairEndedDistance = minPairEndedDistance + SEQ_LENGTH + 1;
+			maxPairEndedDistance = maxPairEndedDistance + SEQ_LENGTH + 1;
+			if (pairedEndDiscordantMode)
+			{
+				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance + SEQ_LENGTH + 1;
+				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance + SEQ_LENGTH + 1;
+			}
+			sprintf(fname1, "__%s__1", mappingOutput);
+			sprintf(fname2, "__%s__2", mappingOutput);
+			sprintf(fname3, "__%s__disc", mappingOutput);
+			sprintf(fname4, "__%s__oea1", mappingOutput);
+			sprintf(fname5, "__%s__oea2", mappingOutput);
+			unlink(fname1);
+			unlink(fname2);
+			unlink(fname3);
+			unlink(fname4);
+			unlink(fname5);
 		}
 
 		// Preparing output
@@ -142,16 +153,11 @@ int main(int argc, char *argv[])
 		 ********************************/
 		if (!bisulfiteMode)
 		{
-			Read *cseq, *cseqP;
-			char rq1[SEQ_LENGTH+1];
-			char rq2[SEQ_LENGTH+1];
-			rq1[SEQ_LENGTH] = rq2[SEQ_LENGTH] = '\0';
 			if (!pairedEndMode)
 			{
 				for (fc = 0; fc <fileCnt; fc++)
 				{
-
-					if (!initLoadingHashTable(fileName[fc][0]))
+					if (!initLoadingHashTable(fileName[fc][1]))
 					{
 						return 1;
 					}
@@ -159,23 +165,22 @@ int main(int argc, char *argv[])
 					loadingTime = 0;
 					prevGen[0] = '\0';
 					flag = 1;
-					int seqNo = 0;
 
-					do 
+					do
 					{
 						flag = loadHashTable ( &tmpTime );  			// Reading a fragment
 						curGen = getRefGenomeName();
-						
+
 						// First Time
 						if (flag && prevGen[0]== '\0')
 						{
 							sprintf(prevGen, "%s", curGen);
 						}
 
-						if ( !flag || strcmp(prevGen, curGen)!=0)						
+						if ( !flag || strcmp(prevGen, curGen)!=0)
 						{
 
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
@@ -193,7 +198,7 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
@@ -203,32 +208,29 @@ int main(int argc, char *argv[])
 						loadingTime += tmpTime;
 						lstartTime = getTime();
 
-						initFAST(samplingLocs, samplingLocsSize);
-						seqNo = 1;
-						for (sc= 0; sc < seqListSize; sc++)
-						{
-							cseq = &(seqList[sc]);
-							reverse(cseq->qual, rq1, SEQ_LENGTH);
-							cseq->hits += mapSingleEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo++, FORWARD);
-							cseq->hits += mapSingleEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo++, REVERSE);
-						}
+						initFAST(seqList, seqListSize, samplingLocs, samplingLocsSize, fileName[fc][0]);
+
+						mapSingleEndSeq();
+
 						mappingTime += getTime() - lstartTime;
 						if (maxMem < getMemUsage())
 						{
 							maxMem = getMemUsage();
 						}
-					} while (flag); 
+					} while (flag);
 
 				} // end for;
 				finalizeFAST();
 				finalizeLoadingHashTable();
-			}			
+
+			}
 			// Pairedend Mapping Mode
 			else
 			{
+
 				for (fc = 0; fc <fileCnt; fc++)
 				{
-					if (!initLoadingHashTable(fileName[fc][0]))
+					if (!initLoadingHashTable(fileName[fc][1]))
 					{
 						return 1;
 					}
@@ -236,22 +238,28 @@ int main(int argc, char *argv[])
 					loadingTime = 0;
 					prevGen[0] = '\0';
 					flag = 1;
-					int seqNo = 1;
-					do 
+
+					do
 					{
 						flag = loadHashTable ( &tmpTime );  			// Reading a fragment
-						
 						curGen = getRefGenomeName();
-						
+
 						// First Time
 						if (flag && prevGen[0]== '\0')
 						{
 							sprintf(prevGen, "%s", curGen);
 						}
 
-						if ( !flag || strcmp(prevGen, curGen)!=0)						
+						if ( !flag || strcmp(prevGen, curGen)!=0)
 						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+
+							// DISCORDANT
+							lstartTime = getTime();					
+							outputPairedEnd();
+							mappingTime += getTime() - lstartTime;
+							//DISCORDANT			
+
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 
@@ -269,7 +277,7 @@ int main(int argc, char *argv[])
 						}
 						else if (progressRep && mappingTime != 0)
 						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
+							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
 							fflush(stdout);
 						}
@@ -278,255 +286,48 @@ int main(int argc, char *argv[])
 
 						loadingTime += tmpTime;
 						lstartTime = getTime();
-
-						initFAST(samplingLocs, samplingLocsSize);
-						seqNo = 1;
-						for (sc= 0; sc < seqListSize; sc++)
-						{
-							cseq = &(seqList[sc*2]);
-							cseqP = &(seqList[sc*2+1]);
+						
+						initFAST(seqList, seqListSize, samplingLocs, samplingLocsSize, fileName[fc][0]);
+						
+						mapPairedEndSeq();
 							
-							reverse(cseq->qual, rq1, SEQ_LENGTH);
-							reverse(cseqP->qual, rq2, SEQ_LENGTH);
-	
-                            cseq->hits += mapPairedEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD,
-															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD);
-
-							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, 
-															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE);
-
-							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE,
-															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE);
-
-							cseq->hits += mapPairedEndSeq ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE,
-															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD);
-
-							seqNo += 4; 
-						}
 						mappingTime += getTime() - lstartTime;
 						if (maxMem < getMemUsage())
 						{
 							maxMem = getMemUsage();
 						}
-					} while (flag); 
+					} while (flag);
+
 				} // end for;
-				finalizeFAST();
+
 				finalizeLoadingHashTable();
+				if (pairedEndDiscordantMode)
+				{
+					lstartTime = getTime();							
+					outputPairedEndDiscPP();
+					ppTime = getTime() - lstartTime;
+				}
+				finalizeFAST();
 			}
 		}
 		/********************************
 		 * Bisulfite Mode
 		 ********************************/
-		else {
-			int BSTableType;
-			if (seqFile1!=NULL)
-			{
-				BSTableType = 0;
-			}
-			else
-			{
-				BSTableType = 1;
-			}
-			Read *cseq;
-			Read *cseqP;
-			char rq1[SEQ_LENGTH+1];
-			char rq2[SEQ_LENGTH+1];
-			rq1[SEQ_LENGTH] = rq2[SEQ_LENGTH] = '\0';
-			/********************************
-			 * Single End
-			 ********************************/
-			if (!pairedEndMode)
-			{
-				for (fc = 0; fc <fileCnt; fc++)
-				{
-					if (!initLoadingHashTableBS(fileName[fc][0]))
-					{
-						return 1;
-					}
-					mappingTime = 0;
-					loadingTime = 0;
-					prevGen[0] = '\0';
-					flag = 1;
-					int seqNo = 0;
-					do 
-					{
-						flag = loadHashTableBS ( &tmpTime );  			// Reading a fragment
-						
-						curGen = getRefGenomeNameBS();
-						
-						// First Time
-						if (flag && prevGen[0]== '\0')
-						{
-							sprintf(prevGen, "%s", curGen);
-						}
-
-						if ( !flag || strcmp(prevGen, curGen)!=0)						
-						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
-									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-							fflush(stdout);
-
-							totalMappingTime += mappingTime;
-							totalLoadingTime += loadingTime;
-
-							loadingTime = 0;
-							mappingTime = 0;
-							maxMem = 0;
-
-							if (!flag)
-							{
-								break;
-							}
-						}
-						else if (progressRep && mappingTime != 0)
-						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
-									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-							fflush(stdout);
-						}
-
-						sprintf(prevGen, "%s", curGen);
-
-						loadingTime += tmpTime;
-						lstartTime = getTime();
-
-						initFAST(samplingLocs, samplingLocsSize);
-						seqNo = 1;
-						for (sc= 0; sc < seqListSize; sc++)
-						{
-							cseq = &(seqList[sc]);
-							//reverse(cseq->qual, rq1, SEQ_LENGTH);
-							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo++, FORWARD, BSTableType);
-							cseq->hits += mapSingleEndSeqBS( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo++, REVERSE, !BSTableType);
-						}
-						mappingTime += getTime() - lstartTime;
-						if (maxMem < getMemUsage())
-						{
-							maxMem = getMemUsage();
-						}
-					} while (flag); 
-
-				} // end for;
-				finalizeFAST();
-				finalizeLoadingHashTableBS();
-			}
-			/********************************
-			 * Paired End
-			 ********************************/
-			else
-			{
-
-
-
-				for (fc = 0; fc <fileCnt; fc++)
-				{
-					if (!initLoadingHashTableBS(fileName[fc][0]))
-					{
-						return 1;
-					}
-					mappingTime = 0;
-					loadingTime = 0;
-					prevGen[0] = '\0';
-					flag = 1;
-					int seqNo = 1;
-					do 
-					{
-						flag = loadHashTableBS ( &tmpTime );  			// Reading a fragment
-						
-						curGen = getRefGenomeNameBS();
-						
-						// First Time
-						if (flag && prevGen[0]== '\0')
-						{
-							sprintf(prevGen, "%s", curGen);
-						}
-
-						if ( !flag || strcmp(prevGen, curGen)!=0)						
-						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
-									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-							fflush(stdout);
-
-							totalMappingTime += mappingTime;
-							totalLoadingTime += loadingTime;
-
-							loadingTime = 0;
-							mappingTime = 0;
-							maxMem = 0;
-
-							if (!flag)
-							{
-								break;
-							}
-						}
-						else if (progressRep && mappingTime != 0)
-						{
-							fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n", 
-									prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-							fflush(stdout);
-						}
-
-						sprintf(prevGen, "%s", curGen);
-
-						loadingTime += tmpTime;
-						lstartTime = getTime();
-
-						initFAST(samplingLocs, samplingLocsSize);
-						seqNo = 1;
-						for (sc= 0; sc < seqListSize; sc++)
-						{
-							cseq = &(seqList[sc*2]);
-							cseqP = &(seqList[sc*2+1]);
-	
-							reverse(cseq->qual, rq1, SEQ_LENGTH);
-							reverse(cseqP->qual, rq2, SEQ_LENGTH);
-
-                            cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, BSTableType,
-															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD, !BSTableType);
-							cseqP->hits = cseq->hits;
-
-							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->seq, cseq->qual, cseq->hits, seqNo, FORWARD, BSTableType,
-															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE, BSTableType);
-							cseqP->hits = cseq->hits;
-
-							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE, !BSTableType,
-															  cseqP->name, cseqP->rseq, rq2, cseqP->hits, seqNo+3, REVERSE, BSTableType);
-							cseqP->hits = cseq->hits;
-
-							cseq->hits += mapPairedEndSeqBS ( cseq->name, cseq->rseq, rq1, cseq->hits, seqNo+1, REVERSE, !BSTableType,
-															  cseqP->name, cseqP->seq, cseqP->qual, cseqP->hits, seqNo+2, FORWARD, !BSTableType);
-							cseqP->hits = cseq->hits;
-
-							seqNo += 4; 
-						}
-						mappingTime += getTime() - lstartTime;
-						if (maxMem < getMemUsage())
-						{
-							maxMem = getMemUsage();
-						}
-					} while (flag); 
-
-				} // end for;
-				finalizeFAST();
-				finalizeLoadingHashTableBS();
-
-
-			}
+		{
+			//TODO
 		}
-		////////////////////////
+
+
 		finalizeOutput();
 
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
+		if (pairedEndDiscordantMode)
+			fprintf(stdout, "Post Processing Time: %18.2f \n", ppTime);
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", seqListSize);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/seqListSize));
-		
-		if (bisulfiteMode)
-		{
-			fprintf(stdout, "%-30s%10.2f\n\n","Bisulfite Conversion Rate:", (float)regTotal/(regTotal+metTotal)*100);			
-		}
 
 		int cof = (pairedEndMode)?2:1;
 
@@ -542,7 +343,7 @@ int main(int argc, char *argv[])
 
 			for (fc = 0; fc < seqListSize; fc++)
 			{
-				frequency[seqList[fc*cof].hits]++;
+				frequency[*(seqList[fc*cof].hits)]++;
 			}
 			frequency[maxHits] = completedSeqCnt;
 			for ( i=0 ; i <= maxHits; i++)
@@ -551,7 +352,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		
+
 		finalizeReads(unmappedOutput);
 		freeMem(prevGen, CONTIG_NAME_SIZE);
 	}

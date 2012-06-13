@@ -37,7 +37,7 @@ typedef struct
 	char *seq;
 	char *rseq;
 	char *qual;
-	unsigned char hits;
+	char *hits;
 } Read;
 
 int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);

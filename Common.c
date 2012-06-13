@@ -34,10 +34,8 @@
 #include <zlib.h>
 #include "Common.h"
 
-unsigned char			WINDOW_SIZE = 12;
+
 unsigned short 			SEQ_LENGTH = 0;
-unsigned char			errThreshold=2;
-unsigned char			maxHits=1;
 long long				memUsage = 0;
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
