@@ -203,6 +203,15 @@ int readAllReads(char *fileName1,
 		err2 = 0;
 		readFirstSeq(seq1);
 		name1[strlen(name1)-1] = '\0';
+		for (i=0; i<strlen(name1);i++)
+		{
+			if (name1[i] == ' ')
+			{
+				name1[i] = '\0';
+				break;
+			}
+
+		}
 
 		if ( *fastq )
 		{
@@ -252,6 +261,15 @@ int readAllReads(char *fileName1,
 			readSecondSeq(name2);
 			readSecondSeq(seq2);
 			name2[strlen(name2)-1] = '\0';
+			for (i=0; i<strlen(name2);i++)
+			{
+				if (name2[i] == ' ')
+				{
+					name2[i] = '\0';
+					break;
+				}
+
+			}
 
 			if ( *fastq )
 			{
@@ -399,7 +417,12 @@ int readAllReads(char *fileName1,
 
 	if (seqCnt > 0)
 	{
-		SEQ_LENGTH = strlen(list[0].seq);
+		QUAL_LENGTH = SEQ_LENGTH = strlen(list[0].seq);
+		if (! *fastq)
+		{
+			QUAL_LENGTH = 1;
+		}
+		//fprintf(stderr, "%d %d\n", SEQ_LENGTH, QUAL_LENGTH);
 	}
 	else
 	{

@@ -1,3 +1,9 @@
+2010-05-03  Faraz Hach  <fhach@cs.sfu.ca>
+	* SAM field quality for fasta files is fixed.
+	* Window size issues are fixed.
+	* Path issues are fixed.
+	* Comments in fastq/fasta files are ignored.
+
 2010-02-08  Faraz Hach  <fhach@cs.sfu.ca>
 	* SAM field flag is fixed.
 	* Paths in discordant-vh mode is fixed.

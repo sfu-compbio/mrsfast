@@ -60,7 +60,7 @@ char					*seqFile1;
 char					*seqFile2;
 char					*mappingOutput = "output";
 char					*mappingOutputPath = "";
-char					*unmappedOutput = "unmapped";
+char					*unmappedOutput = "";
 char					fileName[1000][2][FILE_NAME_LENGTH];
 int						fileCnt;
 unsigned char			errThreshold=2;
@@ -172,9 +172,9 @@ int parseCommandLine (int argc, char *argv[])
 		return 0;
 	}
 
-	if (WINDOW_SIZE > 14 || WINDOW_SIZE < 11)
+	if (WINDOW_SIZE > 14 || WINDOW_SIZE < 8)
 	{
-		fprintf(stdout, "ERROR: Window size should be in [12..14]\n");
+		fprintf(stdout, "ERROR: Window size should be in [8..14]\n");
 		return 0;
 	}
 
@@ -350,7 +350,7 @@ void printHelp()
 	fprintf(stdout,"Indexing Options:\n");
 	fprintf(stdout," --index [file]\t\tGenerate an index from the specified fasta file. \n");
 	fprintf(stdout," -b\t\t\tIndicates the indexing will be done in batch mode.\n\t\t\tThe file specified in --index should contain the \n\t\t\tlist of fasta files.\n");
-	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-max:14).\n");
+	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-min:8 max:14).\n");
 	//	fprintf(stdout," -bs \t\t\tBisulfite mode.");
 	fprintf(stdout,"\n\n");
 

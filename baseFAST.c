@@ -45,7 +45,7 @@
 #include "HashTable.h"
 #include "MrsFAST.h"
 
-char 				*versionNumber = "2.2";			// Current Version
+char 				*versionNumber = "2.3";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+		//loadSamplingLocations(&samplingLocs, &samplingLocsSize);
 		totalLoadingTime += getTime()-startTime;
 
 
@@ -145,11 +145,11 @@ int main(int argc, char *argv[])
 				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance + SEQ_LENGTH + 1;
 				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance + SEQ_LENGTH + 1;
 			}*/
-			sprintf(fname1, "__%s__1", mappingOutput);
-			sprintf(fname2, "__%s__2", mappingOutput);
-			sprintf(fname3, "__%s__disc", mappingOutput);
-			sprintf(fname4, "__%s__oea1", mappingOutput);
-			sprintf(fname5, "__%s__oea2", mappingOutput);
+			sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
+			sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);
+			sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
+			sprintf(fname4, "%s__%s__oea1", mappingOutputPath, mappingOutput);
+			sprintf(fname5, "%s__%s__oea2", mappingOutputPath, mappingOutput);
 			unlink(fname1);
 			unlink(fname2);
 			unlink(fname3);
@@ -177,11 +177,14 @@ int main(int argc, char *argv[])
 					{
 						return 1;
 					}
+
+					loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+
 					mappingTime = 0;
 					loadingTime = 0;
 					prevGen[0] = '\0';
 					flag = 1;
-
+					
 					do
 					{
 						flag = loadHashTable ( &tmpTime );  			// Reading a fragment
@@ -250,6 +253,10 @@ int main(int argc, char *argv[])
 					{
 						return 1;
 					}
+					
+
+					loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+					
 					mappingTime = 0;
 					loadingTime = 0;
 					prevGen[0] = '\0';
@@ -369,7 +376,19 @@ int main(int argc, char *argv[])
 		}
 
 
-		finalizeReads(unmappedOutput);
+		if (strcmp(unmappedOutput, "") == 0)
+		{
+			char fn[strlen(mappingOutputPath) + strlen(mappingOutput) + 6 ];
+			sprintf(fn, "%s%s.nohit", mappingOutputPath, mappingOutput );
+			finalizeReads(fn);
+		}
+		else
+		{
+			finalizeReads(unmappedOutput);
+		}
+
+
+
 		freeMem(prevGen, CONTIG_NAME_SIZE);
 	}
 

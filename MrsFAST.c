@@ -46,7 +46,7 @@
 
 float calculateScore(int index, char *seq, char *qual, int *err);
 unsigned char		mrFAST = 0;
-char				*versionNumberF="0.1";
+char				*versionNumberF="0.2";
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
@@ -423,8 +423,8 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 		int *locs;
 		int *seqInfo;
 		char *_tmpSeq, *_tmpQual;
-		char rqual[SEQ_LENGTH+1];
-		rqual[SEQ_LENGTH]='\0';
+		char rqual[QUAL_LENGTH+1];
+		rqual[QUAL_LENGTH]='\0';
 
 		if (dir > 0)
 		{
@@ -454,7 +454,7 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 
 			if (d)
 			{
-				reverse(_msf_seqList[r].qual, rqual, SEQ_LENGTH);
+				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
 				_tmpQual = rqual;
 				_tmpSeq = _msf_seqList[r].rseq;
 			}
@@ -578,8 +578,8 @@ void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 		int *locs = (int *) l1;
 		int *seqInfo = (int *) l2;
 		char *_tmpSeq, *_tmpQual;
-		char rqual[SEQ_LENGTH+1];
-		rqual[SEQ_LENGTH]='\0';
+		char rqual[QUAL_LENGTH+1];
+		rqual[QUAL_LENGTH]='\0';
 
 		for (j=0; j<s2; j++)
 		{
@@ -597,7 +597,7 @@ void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 
 			if (d)
 			{
-				reverse(_msf_seqList[r].qual, rqual, SEQ_LENGTH);
+				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
 				_tmpQual = rqual;
 				_tmpSeq = _msf_seqList[r].rseq;
 			}
@@ -744,8 +744,8 @@ void mapPairedEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 		int *locs = (int *) l1;
 		int *seqInfo = (int *) l2;
 		char *_tmpSeq, *_tmpQual;
-		char rqual[SEQ_LENGTH+1];
-		rqual[SEQ_LENGTH]='\0';
+		char rqual[QUAL_LENGTH+1];
+		rqual[QUAL_LENGTH]='\0';
 
 		for (j=0; j<s2; j++)
 		{
@@ -1083,17 +1083,17 @@ void outputPairedEnd()
 		//	fprintf(stdout, "%d %d\n", size1, size2);	
 
 		char *seq1, *seq2, *rseq1, *rseq2, *qual1, *qual2;
-		char rqual1[SEQ_LENGTH+1], rqual2[SEQ_LENGTH+1];
-		rqual1[SEQ_LENGTH] = rqual2[SEQ_LENGTH] = '\0';
+		char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
+		rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
 		seq1 = _msf_seqList[i*2].seq;
 		rseq1 = _msf_seqList[i*2].rseq;
 		qual1 = _msf_seqList[i*2].qual;
-		reverse(_msf_seqList[i*2].qual, rqual1, SEQ_LENGTH);
+		reverse(_msf_seqList[i*2].qual, rqual1, QUAL_LENGTH);
 
 		seq2 = _msf_seqList[i*2+1].seq;
 		rseq2 = _msf_seqList[i*2+1].rseq;
 		qual2 = _msf_seqList[i*2+1].qual;
-		reverse(_msf_seqList[i*2+1].qual, rqual2, SEQ_LENGTH);
+		reverse(_msf_seqList[i*2+1].qual, rqual2, QUAL_LENGTH);
 
 
 		if (pairedEndDiscordantMode)
@@ -1298,6 +1298,8 @@ void outputPairedEnd()
 
 	for (i=0; i<_msf_openFiles; i++)
 	{
+		fclose(in1[i]);
+		fclose(in2[i]);
 		//fprintf(stdout, "%s %s \n", fname1[i], fname2[i]);
 		unlink(fname1[i]);
 		unlink(fname2[i]);

@@ -51,6 +51,7 @@ extern unsigned int		CONTIG_MAX_SIZE;
 
 extern unsigned char	WINDOW_SIZE				;		// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
+extern unsigned short	QUAL_LENGTH;
 
 extern char				*versionNumber;
 extern char				*versionNumberF;

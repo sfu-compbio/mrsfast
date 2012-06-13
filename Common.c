@@ -43,6 +43,7 @@
 
 
 unsigned short 			SEQ_LENGTH = 0;
+unsigned short 			QUAL_LENGTH = 0;
 long long				memUsage = 0;
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
@@ -134,7 +135,7 @@ void reverse (char *seq, char *rcSeq , int length)
 	int i;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=seq[length-1-i] ;
+		rcSeq[i]=seq[length-1-i];
 	}
 }
 /**********************************************/

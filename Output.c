@@ -142,8 +142,8 @@ int initOutput ( char *fileName, int compressed)
 {
 	if (compressed)
 	{
-		char newFileName[strlen(fileName)+4];
-		sprintf(newFileName, "%s.gz", fileName);
+		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+4];
+		sprintf(newFileName, "%s%s.gz", mappingOutputPath, fileName);
 		_out_gzfp = fileOpenGZ(newFileName, "w1f");
 		if (_out_gzfp == Z_NULL)
 		{
@@ -156,7 +156,11 @@ int initOutput ( char *fileName, int compressed)
 	}
 	else
 	{
-		_out_fp = fileOpen(fileName, "w");
+	
+		char newFileName[strlen(mappingOutputPath)+strlen(fileName)];
+		sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+
+		_out_fp = fileOpen(newFileName, "w");
 		if (_out_fp == NULL)
 		{
 			return 0;
