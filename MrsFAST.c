@@ -33,6 +33,7 @@
  * Last Update    : 2009-01-29
  */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +45,13 @@
 #include "MrsFAST.h"
 #include "RefGenome.h"
 #include <stdint.h>
-//#include <smmintrin.h>
-//#include <nmmintrin.h>
+
+
+
+#ifdef MRSFAST_SSE4
+#include <smmintrin.h>
+#include <nmmintrin.h>
+#endif
 
 
 float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
@@ -336,8 +342,12 @@ inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int s
 
 		*errSamp |= (tmpseq & NMASK);
 
-//		err += _mm_popcnt_u64(((diff >> 1) | (diff >> 2) | diff ) &  0x9249249249249249);
+#ifdef MRSFAST_SSE4
+		err += _mm_popcnt_u64(((diff >> 1) | (diff >> 2) | diff ) &  0x9249249249249249);
+#else
 		err += errCnt[diff & 0xffffff] + errCnt[(diff>>24)&0xffffff] + errCnt[(diff>>48)&0xfffff];
+#endif
+
 		if (err > errThreshold)
 			return errThreshold+1;
 		len -= 21;
@@ -354,8 +364,12 @@ inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int s
 		
 		*errSamp |= (tmpseq & NMASK);
 
+#ifdef MRSFAST_SSE4
+		err += _mm_popcnt_u64(((diff >> 1) | (diff >> 2) | diff ) &  0x9249249249249249);
+#else
 		err += errCnt[diff & 0xffffff] + errCnt[(diff>>24)&0xffffff] + errCnt[(diff>>48)&0xfffff];
-		//err += _mm_popcnt_u64(((diff >> 1) | (diff >> 2) | diff ) &  0x9249249249249249);
+#endif
+
 		
 		if (err > errThreshold)
 			return errThreshold+1;

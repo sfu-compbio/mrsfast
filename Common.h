@@ -34,8 +34,14 @@
  */
 
 
+
+
 #ifndef __COMMON__
 #define __COMMON__
+
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >=4 
+#define MRSFAST_SSE4
+#endif
 
 #include <zlib.h>
 #include <stdint.h>

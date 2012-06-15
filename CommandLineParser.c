@@ -166,6 +166,10 @@ int parseCommandLine (int argc, char *argv[])
 
 	}
 
+#ifndef MRSFAST_SSE4
+	fprintf(stdout, "==> This version is compiled without SSE4 instructions set. To obtain better performance, please upgrade your GCC version to >4.4 <==\n");
+#endif
+
 	if (indexingMode + searchingMode != 1)
 	{
 		fprintf(stdout, "ERROR: Indexing / Searching mode should be selected\n");
