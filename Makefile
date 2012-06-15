@@ -13,7 +13,7 @@ endif
 
 mrsfast: baseFAST.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o
 	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
-	rm *.o
+	rm -rf *.o
 
 clean:
-	rm *.o
+	rm -rf *.o
