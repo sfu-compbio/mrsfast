@@ -60,7 +60,7 @@ int				getCmpRefGenLen();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
 
-void 			(*generateHashTable)(char *fileName, char *indexName);
+int 			(*generateHashTable)(char *fileName, char *indexName);
 int				(*loadHashTable)(double *loadTime);
 void			(*finalizeLoadingHashTable)();
 unsigned int	*(*getCandidates)(int hv);

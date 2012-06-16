@@ -45,29 +45,22 @@ FILE *_rg_fp;
 char *_rg_gen;
 char *_rg_name;
 int _rg_offset;
-int _rg_contGen;
+int _rg_contGen;		// false if this segment is the first contig
 
 
 /**********************************************/
 int initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize)
 {
+	_rg_fp = fileOpen (fileName, "r");
 	if (!getGenomeInfo(fileName, genomeInfo, genomeInfoSize))
 		return 0;
-
 	char ch;
-	_rg_fp = fileOpen (fileName, "r");
-	if (fscanf(_rg_fp, "%c", &ch))
-	{
-		if (ch == '>')
-		{
-			_rg_contGen = 0;
-			_rg_offset = 0;
-			_rg_gen = getMem(CONTIG_MAX_SIZE + 1);
-			_rg_name = getMem(CONTIG_NAME_SIZE);
-			return 1;
-		}
-	}
-	return 0;
+	fscanf(_rg_fp, "%c", &ch);		// '>'
+	_rg_contGen = 0;
+	_rg_offset = 0;
+	_rg_gen = getMem(CONTIG_MAX_SIZE + 1);
+	_rg_name = getMem(CONTIG_NAME_SIZE);
+	return 1;
 }
 /**********************************************/
 void finalizeLoadingRefGenome()
@@ -168,11 +161,13 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 	int *nameLen, *genSize, *num = (int *)genomeInfo;
 	*num = 0;
 	int i = sizeof(int);
-	_rg_fp = fileOpen (fileName, "r");
 	if ( fscanf(_rg_fp, "%c", &ch) > 0 )
 	{
 		if (ch != '>')
+		{
+			fprintf(stdout, "Error: Wrong fasta format file\n");
 			return 0;
+		}
 	}
 	else
 		return 0;
@@ -207,10 +202,9 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 				(*genSize)++;
 			}
 		}
-
 	}
 	*genomeInfoSize = i;
 	fprintf(stdout, "\n");
-	fclose(_rg_fp);
+	rewind(_rg_fp);
 	return 1;
 }

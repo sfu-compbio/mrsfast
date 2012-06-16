@@ -257,7 +257,7 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 		_msf_seqList = seqList;
 		_msf_seqListSize = seqListSize;
 
-		initializeMasksErrCntShrink();		// IMAN
+		initializeMasksErrCntShrink();		// TODO: ifdef
 		preProcessReads();
 	}
 	if (_msf_refGenName == NULL)
@@ -277,7 +277,7 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 		int i=0;
 		for (i=0; i<seqListSize; i++)
 		{
-			//_msf_mappingInfo[i].next = getMem(sizeof(MappingLocations));
+			//_msf_mappingInfo[i].next = getMem(sizeof(MappingLocations));	DEL
 			_msf_mappingInfo[i].next = NULL;
 			_msf_mappingInfo[i].size = 0;
 		}
@@ -290,7 +290,7 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 			_msf_seqHits[i] = 0;
 		}
 
-//		initLoadingRefGenome(genFileName, NULL, &i);
+//		initLoadingRefGenome(genFileName, NULL, &i);						DEL
 	}
 
 	if (_msf_refGenOffset == 0)
@@ -330,7 +330,7 @@ inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int s
 	int refARS = typeSize - refALS;
 	int segARS = typeSize - segALS;	
 	
-	CompressedSeq tmpref, tmpseq, diff;		// k for ref, and k for seg
+	CompressedSeq tmpref, tmpseq, diff;		// k for ref, and k for seg		DEL comment
 	int err = 0;
 
 
@@ -560,7 +560,7 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 		char *_tmpQual, *_tmpSeq;
 		char rqual[QUAL_LENGTH+1];
 		rqual[QUAL_LENGTH]='\0';
-		char rseq[SEQ_LENGTH+21];		// 20 more bytes should be allocated because the decompress function needs extra space for decompressing
+		char rseq[SEQ_LENGTH+21];		// 20 more bytes should be allocated because the decompress function needs extra space for decompressing			DEL +21 and comment
 		rseq[SEQ_LENGTH]='\0';
 
 		if (dir > 0)
@@ -594,7 +594,7 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
 				_tmpQual = rqual;
 				_tmpSeq = _msf_seqList[r].rseq;
-			//	decompressSequence(_msf_seqList[r].crseq, rseq);
+			//	decompressSequence(_msf_seqList[r].crseq, rseq);		DEL
 			//	reverseComplete(_msf_seqList[r].seq, rseq, SEQ_LENGTH);
 			//	_tmpSeq = rseq;
 				_tmpCmpSeq = _msf_seqList[r].crseq;
@@ -1054,7 +1054,7 @@ int	 mapPairedEndSeq()
 				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
 			}
 			_msf_mappingInfo[i].size = 0;
-			//	_msf_mappingInfo[i].next = NULL;
+			//	_msf_mappingInfo[i].next = NULL;			DEL
 		}
 	}
 
@@ -1064,7 +1064,7 @@ int	 mapPairedEndSeq()
 	fclose(out1);
 	fclose(out2);
 
-	//fprintf(stdout, "%d %d\n", _msf_maxLSize, _msf_maxRSize);
+	//fprintf(stdout, "%d %d\n", _msf_maxLSize, _msf_maxRSize);		DEL
 
 }
 
@@ -1076,8 +1076,8 @@ void outputPairedEnd()
 	char *curGenName;
 	int tmpOut;
 
-	//	loadRefGenome(&_msf_refGen, &_msf_refGenName, &tmpOut);
-	CompressedSeq * tmpCrefgen = _msf_crefGen;		/////////////
+	//	loadRefGenome(&_msf_refGen, &_msf_refGenName, &tmpOut);		DEL
+	CompressedSeq * tmpCrefgen = _msf_crefGen;		//				DEL
 	_msf_crefGen = getCmpRefGenOrigin();
 
 	FILE* in1[_msf_openFiles];
@@ -1216,7 +1216,7 @@ void outputPairedEnd()
 				size2=0;
 			}
 		}
-		//if (i == 6615)
+		//if (i == 6615)										DEL
 		//	fprintf(stdout, "%d %d\n", size1, size2);	
 
 		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
@@ -1279,14 +1279,14 @@ void outputPairedEnd()
 			rl = mi1[j].loc + minPairEndedDistance - 1;
 			rm = mi1[j].loc + maxPairEndedDistance - 1;
 
-			//fprintf(stdout, "%d %d %d %d %d\n",lm, ll,mi1[j].loc ,rl, rm); 
+			//fprintf(stdout, "%d %d %d %d %d\n",lm, ll,mi1[j].loc ,rl, rm); 		DEL
 
 			while (pos<size2 && mi2[pos].loc < lm)
 			{
 				pos++;
 			}
 
-			//fprintf(stdout, "POS: %d %d \n", pos, mi2[pos].loc);
+			//fprintf(stdout, "POS: %d %d \n", pos, mi2[pos].loc);					DEL
 
 			k = pos;
 			while (k<size2 && mi2[k].loc <= rm)
@@ -1466,10 +1466,10 @@ float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err)
 	int refALS = mod * 3;
 	int refARS = typeSize - refALS;
 	CompressedSeq tmpref, *refPos = _msf_crefGen + index/21;
-	CompressedSeq *ref = refPos;
+	CompressedSeq *ref = refPos;								// DEL refPos
 
 	CompressedSeq diffMask = 7;
-	int shifts = (20 - mod) * 3;
+	int shifts = (20 - mod) * 3;								// DEL shifts
 	CompressedSeq diff;
 
 	*err = 0;
@@ -1551,7 +1551,7 @@ void outputPairedEndDiscPP()
 		tmp = fread(&err2, sizeof(char), 1, in);
 		tmp = fread(&sc2, sizeof(float), 1, in);
 
-		//if (rNo ==6615)
+		//if (rNo ==6615)								DEL
 		//	fprintf(stdout, "%s %d: %d %0.20f %d %d %0.20f\n", genName, loc1, err1, sc1, loc2, err2, sc2);
 
 		if (_msf_seqList[rNo*2].hits[0] % 2 == 0 && _msf_seqHits[rNo] < DISCORDANT_CUT_OFF)

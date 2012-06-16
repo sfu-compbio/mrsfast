@@ -58,22 +58,11 @@ int main(int argc, char *argv[])
 	if (indexingMode)
 	{
 		int i;
-		/********************************
-		 * Regulard Mode
-		 ********************************/
-		if (!bisulfiteMode)
+		configHashTable();
+		for (i = 0; i < fileCnt; i++)
 		{
-			configHashTable();
-			for (i = 0; i < fileCnt; i++)
-			{
-				generateHashTable(fileName[i][0], fileName[i][1]);
-			}
-		}
-		else
-		/********************************
-		 * Bisulfite Mode
-		 ********************************/
-		{ // TODO
+			if (!generateHashTable(fileName[i][0], fileName[i][1]))
+				return 1;
 		}
 	}
 	/****************************************************
@@ -388,5 +377,5 @@ int main(int argc, char *argv[])
 
 
 
-	return 1;
+	return 0;
 }

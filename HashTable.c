@@ -210,12 +210,12 @@ void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int ma
 	}
 }
 /**********************************************/
-void generateIHashTable(char *fileName, char *indexName)
+int generateIHashTable(char *fileName, char *indexName)
 {
 	double          startTime           = getTime();
 	unsigned int	hashTableSize		= 0;
 	unsigned int 	hashTableMaxSize	= (1 << 2*WINDOW_SIZE);//pow(4, WINDOW_SIZE);
-	//IHashTable		*hashTable			= getMem(sizeof(IHashTable)*hashTableMaxSize);
+	//IHashTable		*hashTable			= getMem(sizeof(IHashTable)*hashTableMaxSize);	DEL
 	unsigned int	*hashTable			= getMem(hashTableMaxSize * sizeof(unsigned int));
 	char 			*refGenName;
 	char			*refGen;
@@ -232,7 +232,7 @@ void generateIHashTable(char *fileName, char *indexName)
 	char *genomeInfo = getMem(MAX_GENOME_INFO_SIZE);
 	int genomeInfoSize;
 	if (!initLoadingRefGenome(fileName, genomeInfo, &genomeInfoSize))
-		return;		
+		return 0;		
 	initSavingIHashTable(indexName, genomeInfo, genomeInfoSize);
 	freeMem(genomeInfo, MAX_GENOME_INFO_SIZE);
 	fprintf(stdout, "Generating Index from %s", fileName);
@@ -308,6 +308,7 @@ void generateIHashTable(char *fileName, char *indexName)
 	finalizeSavingIHashTable();
 
 	fprintf(stdout, "\nDONE in %0.2fs!\n", (getTime()-startTime));
+	return 1;
 }
 
 /**********************************************/
