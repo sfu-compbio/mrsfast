@@ -29,11 +29,10 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-12-08
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>

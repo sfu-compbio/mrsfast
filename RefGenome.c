@@ -28,9 +28,9 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-12-08
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
 
 
@@ -52,8 +52,10 @@ int _rg_contGen;		// false if this segment is the first contig
 int initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize)
 {
 	_rg_fp = fileOpen (fileName, "r");
+	
 	if (!getGenomeInfo(fileName, genomeInfo, genomeInfoSize))
 		return 0;
+
 	char ch;
 	fscanf(_rg_fp, "%c", &ch);		// '>'
 	_rg_contGen = 0;
@@ -78,7 +80,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 	int actualSize=0;
 	int size;
 	char *tmp;
-	
+
 	// New Conting 
 	if (!_rg_contGen)
 	{
@@ -93,20 +95,20 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 				break;
 			}
 		}
-			
+
 	}
 	else
 	{
 		size=strlen(_rg_gen);
 		for( i = 0 ; i < CONTIG_OVERLAP ; i++ )
 		{
-			
 			_rg_gen[i] = _rg_gen[size-CONTIG_OVERLAP+i];
 			if (_rg_gen[i] != 'N')
 				actualSize++;
 		}
 		size = CONTIG_OVERLAP;
 	}
+
 	while( fscanf(_rg_fp, "%c", &ch) > 0 )
 	{
 		if (ch == '>')
@@ -151,7 +153,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 	{
 		_rg_offset = 0;
 	}
-	
+
 	return returnVal;
 }
 /**********************************************/
@@ -161,6 +163,7 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 	int *nameLen, *genSize, *num = (int *)genomeInfo;
 	*num = 0;
 	int i = sizeof(int);
+
 	if ( fscanf(_rg_fp, "%c", &ch) > 0 )
 	{
 		if (ch != '>')
@@ -171,10 +174,10 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 	}
 	else
 		return 0;
-	rewind(_rg_fp);
-	
-	fprintf(stdout, "Scanning the fasta file: ");
 
+	rewind(_rg_fp);
+
+	fprintf(stdout, "Scanning the fasta file: ");
 	while( fscanf(_rg_fp, "%c", &ch) > 0 )
 	{
 		if (!isspace(ch))
@@ -203,8 +206,9 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 			}
 		}
 	}
-	*genomeInfoSize = i;
 	fprintf(stdout, "\n");
+	*genomeInfoSize = i;
+
 	rewind(_rg_fp);
 	return 1;
 }
