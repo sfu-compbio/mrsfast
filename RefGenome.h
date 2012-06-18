@@ -39,6 +39,6 @@
 
 int		initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize);
 void	finalizeLoadingRefGenome();
-int		loadRefGenome(char **refGen, char **refGenName, int *refGenOff);
+int		loadRefGenome(char **refGen, char **refGenName, int *refGenOff, int *refGenLen);
 
 #endif

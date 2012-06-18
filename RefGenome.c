@@ -49,30 +49,30 @@ int _rg_contGen;		// false if this segment is the first contig
 
 
 /**********************************************/
-int initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize)
+int initLoadingRefGenome(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoLength)
 {
 	_rg_fp = fileOpen (fileName, "r");
 	
-	if (!getGenomeInfo(fileName, genomeInfo, genomeInfoSize))
+	if (!getGenomeMetaInfo(fileName, genomeMetaInfo, genomeMetaInfoLength))
 		return 0;
 
 	char ch;
 	fscanf(_rg_fp, "%c", &ch);		// '>'
 	_rg_contGen = 0;
 	_rg_offset = 0;
-	_rg_gen = getMem(CONTIG_MAX_SIZE + 1);
+	_rg_gen = getMem(CONTIG_MAX_SIZE + 21);
 	_rg_name = getMem(CONTIG_NAME_SIZE);
 	return 1;
 }
 /**********************************************/
 void finalizeLoadingRefGenome()
 {
-	freeMem(_rg_gen, CONTIG_MAX_SIZE + 1);
+	freeMem(_rg_gen, CONTIG_MAX_SIZE + 21);
 	freeMem(_rg_name, CONTIG_NAME_SIZE); 
 	fclose(_rg_fp);
 }
 /**********************************************/
-int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
+int loadRefGenome(char **refGen, char **refGenName, int *refGenOff, int *refGenLen)
 {
 	char ch;
 	int i;
@@ -125,7 +125,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 			{
 				actualSize++;
 			}
-			if ((actualSize > CONTIG_SIZE || size == CONTIG_MAX_SIZE) && size%21 == 0)
+			if ((actualSize > CONTIG_SIZE || size >= CONTIG_MAX_SIZE) && size%21 == 0)
 			{
 				_rg_contGen = 1;
 				returnVal=1;
@@ -154,14 +154,22 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff)
 		_rg_offset = 0;
 	}
 
+	*refGenLen = size;
 	return returnVal;
 }
 /**********************************************/
-int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
+int getGenomeMetaInfo(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoLength)
 {
+	// genomeMetaInfo structure:
+	// 4 bytes (numOfChrs): number of chromosomes in file
+	// for each chromosome we have the following
+	// 4 bytes (nameLen): length of the chromosome name
+	// n bytes (name): chromosome name
+	// 4 bytes (genSize): length of the chromosome in characters
+	
 	char ch, *tmp;
-	int *nameLen, *genSize, *num = (int *)genomeInfo;
-	*num = 0;
+	int *nameLen, *genSize, *numOfChrs = (int *)genomeMetaInfo;
+	*numOfChrs = 0;
 	int i = sizeof(int);
 
 	if ( fscanf(_rg_fp, "%c", &ch) > 0 )
@@ -184,17 +192,17 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 		{
 			if (ch == '>')
 			{
-				(*num)++;
-				nameLen = (int *)(genomeInfo + i);
+				(*numOfChrs)++;
+				nameLen = (int *)(genomeMetaInfo + i);
 				*nameLen = 0;
 				i += sizeof(int);
-				tmp = fgets(genomeInfo + i, SEQ_MAX_LENGTH, _rg_fp);
-				while(!isspace(*(genomeInfo+i)))
+				tmp = fgets(genomeMetaInfo + i, SEQ_MAX_LENGTH, _rg_fp);
+				while(!isspace(*(genomeMetaInfo+i)))
 				{
 					i++;
 					(*nameLen)++;
 				}
-				genSize = (int *)(genomeInfo + i);
+				genSize = (int *)(genomeMetaInfo + i);
 				i += sizeof(int);
 				*genSize = 0;
 				fprintf(stdout, ".");
@@ -207,7 +215,7 @@ int getGenomeInfo(char *fileName, char *genomeInfo, int *genomeInfoSize)
 		}
 	}
 	fprintf(stdout, "\n");
-	*genomeInfoSize = i;
+	*genomeMetaInfoLength = i;
 
 	rewind(_rg_fp);
 	return 1;

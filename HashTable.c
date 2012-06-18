@@ -56,7 +56,7 @@ char			*_ih_refGenName			= NULL;
 long long		_ih_memUsage			= 0;
 int				_ih_refGenOff			= 0;
 unsigned char	*_ih_IOBuffer			= NULL;
-int				_ih_IOBufferSize		= (1 << 24);
+unsigned int	_ih_IOBufferSize		= (1 << 24);
 int				MAX_GENOME_INFO_SIZE	= 10000000;
 int				_ih_maxChrLength		= 0;
 CompressedSeq	*_ih_crefGenOrigin		= NULL;		// only used in pairedEndMode
@@ -88,44 +88,6 @@ int hashVal(char *seq)
 	return val;
 }
 /**********************************************/
-void freeIHashTableContent(IHashTable *hashTable, unsigned int maxSize)
-{
-	int i=0;
-	for (i=0; i<maxSize; i++)
-	{
-		if (hashTable[i].locs != NULL)
-		{
-			freeMem(hashTable[i].locs, (hashTable[i].locs[0]+1)*(sizeof(unsigned int)));
-			hashTable[i].locs = NULL;
-		}
-	}
-}
-/**********************************************/
-void initSavingIHashTable(char *fileName, char *genomeInfo, int genomeInfoSize)
-{
-	_ih_fp = fileOpen(fileName, "w");
-	unsigned char bIndex = 2;				// Bisulfite Index
-
-	int tmp;
-	tmp = fwrite(&bIndex, sizeof(bIndex), 1, _ih_fp);
-	tmp = fwrite(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
-
-	tmp = fwrite(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
-	tmp = fwrite(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
-	tmp = fwrite(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
-	_ih_IOBuffer = getMem(_ih_IOBufferSize);
-
-	tmp = fwrite(genomeInfo, sizeof(char), genomeInfoSize, _ih_fp);
-}
-/**********************************************/
-void finalizeSavingIHashTable()
-{
-	fseek(_ih_fp, 2, SEEK_SET);
-	fwrite(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
-	fclose(_ih_fp);
-	freeMem(_ih_IOBuffer,_ih_IOBufferSize);
-}
-/**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
 {
 	int t = 0;
@@ -150,11 +112,53 @@ inline unsigned int decodeVariableByte(unsigned char *buffer, unsigned int *resu
 	return i;
 }
 /**********************************************/
+void initSavingIHashTable(char *fileName, char *genomeMetaInfo, int genomeMetaInfoLength)
+{
+	// file header:
+	// 1 byte (magicNumber): Magic number of HashTable (0: <v3, 1: bisulfite <v1.26.4, 2: >v3)
+	// 1 byte (WINDOW_SIZE): Windows Size of indexing
+	// 4 bytes (_ih_hsahTableMemSize): HashTbleMemSize: maximum number of elements that can be saved.
+	// 4 bytes (_ih_IOBufferSize): memory required for reading hash table. In case the value is changed for loading.
+	// 4 bytes (CONTIG_MAX_SIZE): maximum number of characters that can be in a contig. In case the value is changed for loading
+	// n bytes (genomeMetaInfo): number of chromosomes, their names and lengths
+
+	_ih_fp = fileOpen(fileName, "w");
+	unsigned char magicNumber = 2;
+
+	int tmp;
+	tmp = fwrite(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
+	tmp = fwrite(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
+	tmp = fwrite(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
+	tmp = fwrite(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
+	tmp = fwrite(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
+	tmp = fwrite(genomeMetaInfo, sizeof(char), genomeMetaInfoLength, _ih_fp);
+
+	_ih_IOBuffer = getMem(_ih_IOBufferSize);
+}
+/**********************************************/
+void finalizeSavingIHashTable()
+{
+	// seeking back to hashTableMemSize to update the value
+	fseek(_ih_fp, 2, SEEK_SET);
+	fwrite(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
+
+	freeMem(_ih_IOBuffer,_ih_IOBufferSize);
+	fclose(_ih_fp);
+}
+/**********************************************/
 void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int maxSize, char *refGen, char *refGenName, int refGenOffset)
 {
+	// 1 byte (extraInfo): Reserved; in case the contig has extra information
+	// 2 bytes (len): Length of the reference genome name
+	// n bytes (refGenName): Reference genome name
+	// 4 bytes (refGenOfsset): Offset of the contig from the beginning of the chromosome
+	// 4 bytes (refGenLength): Length of reference genome
+	// n bytes (crefGen): compressed reference genome
+	// 4 bytes (size): number of hashValues in hashTable with more than 0 locations
+	// n bytes (bufferSize and buffer): array of bufferSize/buffer which includes encoded values of hashValue, count of locations 
+
 	int tmp, i;
 
-	// Every Chunk starts with a byte indicating whether it has extra info;
 	unsigned char extraInfo = 0;
 	tmp = fwrite (&extraInfo, sizeof(extraInfo), 1, _ih_fp);
 
@@ -211,34 +215,45 @@ void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int ma
 /**********************************************/
 int generateIHashTable(char *fileName, char *indexName)
 {
+	fprintf(stderr, "1 mem %lld\n", memUsage);
 	double          startTime           = getTime();
 	unsigned int	hashTableSize		= 0;
+	int				refGenOff			= 0;
 	unsigned int 	hashTableMaxSize	= (1 << 2*WINDOW_SIZE);		// 4^WINDOW_SIZE
 	unsigned int	*hashTable			= getMem(hashTableMaxSize * sizeof(unsigned int));
-	char 			*refGenName;
-	char			*refGen;
-	int				refGenOff			= 0;
-	int i, hv, l, flag;
+	char			*genomeMetaInfo		= getMem(MAX_GENOME_INFO_SIZE);
+	int				genomeMetaInfoLength;
+	char 			*refGenName			= NULL;
+	char			*refGen				= NULL;
+	char			*c					= NULL;
+	char			*prev = getMem (CONTIG_NAME_SIZE);
+	int				i, hv, l, flag, stack , val, loc;
+	char			lookup[128];
+	unsigned int	windowMask			= 0xffffffff >> (sizeof(unsigned int)*8 - WINDOW_SIZE*2);
 
+	memset(lookup, 4, 128);
+	lookup['A'] = 0;
+	lookup['C'] = 1;
+	lookup['G'] = 2;
+	lookup['T'] = 3;
+	lookup['N'] = 4;
 
-	memset(hashTable, 0, hashTableMaxSize * sizeof(unsigned int));
 
 	//Loading Fasta File
-	char *prev = getMem (CONTIG_NAME_SIZE);
 	prev[0]='\0';
-	
-	char *genomeInfo = getMem(MAX_GENOME_INFO_SIZE);
-	int genomeInfoSize;
-	if (!initLoadingRefGenome(fileName, genomeInfo, &genomeInfoSize))
+
+	if (!initLoadingRefGenome(fileName, genomeMetaInfo, &genomeMetaInfoLength))
 		return 0;		
-	initSavingIHashTable(indexName, genomeInfo, genomeInfoSize);
-	freeMem(genomeInfo, MAX_GENOME_INFO_SIZE);
+	initSavingIHashTable(indexName, genomeMetaInfo, genomeMetaInfoLength);
 	fprintf(stdout, "Generating Index from %s", fileName);
 	fflush(stdout);
 
 	do
 	{
-		flag = 	 loadRefGenome (&refGen, &refGenName, &refGenOff);	
+		flag = 	 loadRefGenome (&refGen, &refGenName, &refGenOff, &_ih_refGenLen);
+
+		memset(hashTable, 0, hashTableMaxSize * sizeof(unsigned int));
+		hashTableSize = 0;
 
 		if ( strcmp(prev, refGenName) != 0)
 		{
@@ -252,21 +267,12 @@ int generateIHashTable(char *fileName, char *indexName)
 			fflush(stdout);
 		}
 		
+		c = refGen;
+		i = hv = val = 0;
+		stack = 1;
+		loc = -WINDOW_SIZE+1;
 
-		char lookup[127];
-		memset(lookup, 4, 127);
-		lookup['A'] = 0;
-		lookup['C'] = 1;
-		lookup['G'] = 2;
-		lookup['T'] = 3;
-		lookup['N'] = 4;
-		unsigned int windowMask = 0xffffffff >> (32 - WINDOW_SIZE*2);
-		char *c = refGen;
-		int i = 0, hv = 0, val=0, stack=1;
-		int loc = -WINDOW_SIZE+1;
-		_ih_refGenLen = strlen(refGen);
-
-		while (i++ < _ih_refGenLen) // BORDER LINE CHECK
+		while (i++ < _ih_refGenLen)
 		{
 			loc++;
 			val = lookup[*(c++)];
@@ -294,23 +300,127 @@ int generateIHashTable(char *fileName, char *indexName)
 		}
 
 		saveIHashTable(hashTable, hashTableSize, hashTableMaxSize, refGen, refGenName, refGenOff);
-		memset(hashTable, 0, hashTableMaxSize * sizeof(unsigned int));
-		hashTableSize = 0;
 	} while (flag);
 
 	freeMem(prev, CONTIG_NAME_SIZE);
 	freeMem(hashTable, sizeof(unsigned int)*hashTableMaxSize);
+	freeMem(genomeMetaInfo, MAX_GENOME_INFO_SIZE);
 
 	finalizeLoadingRefGenome();
 	finalizeSavingIHashTable();
 
 	fprintf(stdout, "\nDONE in %0.2fs!\n", (getTime()-startTime));
+	fprintf(stderr, "2 mem %lld\n", memUsage);
 	return 1;
 }
 
 /**********************************************/
+int initLoadingHashTable(char *fileName)
+{
+	// file header:
+	// 1 byte (magicNumber): Magic number of HashTable (0: <v3, 1: bisulfite <v1.26.4, 2: >v3)
+	// 1 byte (WINDOW_SIZE): Windows Size of indexing
+	// 4 bytes (_ih_hsahTableMemSize): HashTbleMemSize: maximum number of elements that can be saved.
+	// 4 bytes (_ih_IOBufferSize): memory required for reading hash table
+	// 4 bytes (CONTIG_MAX_SIZE): maximum number of characters that can be in a contig
+	// n bytes (genomeMetaInfo): number of chromosomes, their names and lengths
+
+	_ih_fp = fileOpen(fileName, "r");	
+
+	int i, numOfChrs, nameLen;
+	unsigned char magicNumber;
+	int tmp;
+
+	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
+	if (magicNumber == 1)
+	{
+		fprintf(stdout, "Error: Please use version 1.2.6.4 in bisulfite mode.\n");
+		return 0;
+	}
+	else if (magicNumber == 0)
+	{
+		fprintf(stdout, "Error: Please use version 2.x.x.x or upgrade your index.\n");
+		return 0;
+	}
+
+	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
+	
+	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
+	_ih_hashTableMem = getMem(_ih_hashTableMemSize*sizeof(unsigned int));
+
+	tmp = fread(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
+	_ih_IOBuffer = getMem(_ih_IOBufferSize);
+
+	tmp = fread(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
+
+	// Reading Meta
+	char *strtmp = getMem(2*CONTIG_NAME_SIZE);
+	char *nametmp = getMem(CONTIG_NAME_SIZE);
+	tmp = fread(&numOfChrs, sizeof(int), 1, _ih_fp);
+	for (i = 0; i < numOfChrs; i++)
+	{
+		tmp = fread(&nameLen, sizeof(int), 1, _ih_fp);
+		tmp = fread(nametmp, sizeof(char), nameLen, _ih_fp);
+		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
+		
+		nametmp[nameLen] = '\0';
+		sprintf(strtmp,"@SQ SN:%s LN:%d\0", nametmp, _ih_refGenLen);
+		outputMeta(strtmp);
+		
+		if (_ih_refGenLen > _ih_maxChrLength)
+			_ih_maxChrLength = _ih_refGenLen;
+	}
+	freeMem(strtmp, 2*CONTIG_NAME_SIZE);
+	freeMem(nametmp, CONTIG_NAME_SIZE);
+	// Reading Meta End
+
+	configHashTable();
+
+	if (pairedEndMode)
+	{
+		int len = (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq);
+		_ih_crefGenOrigin = getMem(len);
+		_ih_crefGen = _ih_crefGenOrigin; 
+	}
+	else
+	{
+		_ih_crefGen = getMem((calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
+	}
+
+	_ih_maxHashTableSize = pow(4, WINDOW_SIZE);
+
+	_ih_hashTable = getMem (sizeof(IHashTable) * _ih_maxHashTableSize);
+	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
+	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
+	_ih_refGenName[0] = '\0';
+
+	return 1;
+}
+/**********************************************/
+void finalizeLoadingIHashTable()
+{
+	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
+	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
+	freeMem(_ih_refGenName, CONTIG_NAME_SIZE);	
+	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
+	if (pairedEndMode)
+		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
+	else
+		freeMem(_ih_crefGen, (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
+	fclose(_ih_fp);
+}
+/**********************************************/
 int  loadIHashTable(double *loadTime)
 {
+	// 1 byte (extraInfo): Reserved; in case the contig has extra information
+	// 2 bytes (len): Length of the reference genome name
+	// n bytes (refGenName): Reference genome name
+	// 4 bytes (refGenOfsset): Offset of the contig from the beginning of the chromosome
+	// 4 bytes (refGenLength): Length of reference genome
+	// n bytes (crefGen): compressed reference genome
+	// 4 bytes (size): number of hashValues in hashTable with more than 0 locations
+	// n bytes (bufferSize and buffer): array of bufferSize/buffer which includes encoded values of hashValue, count of locations 
+
 	int tmp;
 	double startTime = getTime();
 	unsigned char extraInfo = 0;
@@ -324,14 +434,10 @@ int  loadIHashTable(double *loadTime)
 
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
 
-	freeMem(_ih_refGenName, strlen(_ih_refGenName)+1);
-
 	// Reading Chr Name
 	tmp = fread(&len, sizeof(len), 1, _ih_fp);
-	_ih_refGenName = getMem(sizeof(char)* (len+1));
 	tmp = fread(_ih_refGenName, sizeof(char), len, _ih_fp);
 	_ih_refGenName [len] ='\0';
-
 
 	tmp = fread(&_ih_refGenOff, sizeof (_ih_refGenOff), 1, _ih_fp);
 
@@ -371,7 +477,9 @@ int  loadIHashTable(double *loadTime)
 			i++;
 		}
 	}
-	unsigned int windowMask = 0xffffffff >> (32 - WINDOW_SIZE*2);
+
+	// creating hash table
+	unsigned int windowMask = 0xffffffff >> (sizeof(unsigned int)*8 - WINDOW_SIZE*2);
 	CompressedSeq *cnext = _ih_crefGen;
 	CompressedSeq cdata;
 	cdata = *(cnext++);
@@ -437,103 +545,6 @@ void configHashTable()
 		finalizeLoadingHashTable = &finalizeLoadingIHashTable;
 		getCandidates = &getIHashTableCandidates;
 	}
-}
-/**********************************************/
-int initLoadingHashTable(char *fileName)
-{
-	int i, numOfChrs, nameLen;
-	unsigned char magicNumber;
-	int tmp;
-
-	_ih_fp = fileOpen(fileName, "r");	
-
-	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
-	if (magicNumber == 1)
-	{
-		fprintf(stdout, "Error: Wrong Type of Index indicated");
-		return 0;
-	}
-	else if (magicNumber == 0)
-	{
-		fprintf(stdout, "Error: Please use version 2.x.x.x or upgrade your index.\n");
-		return 0;
-	}
-
-	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
-	
-	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
-	_ih_hashTableMem = getMem(_ih_hashTableMemSize*sizeof(unsigned int));
-
-	// in case some idiot decides to change the buffer size for loading
-	tmp = fread(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
-	_ih_IOBuffer = getMem(_ih_IOBufferSize);
-
-	tmp = fread(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
-
-	_ih_refGenName = getMem(50);
-	tmp = fread(&numOfChrs, sizeof(int), 1, _ih_fp);
-	char *strtmp = getMem(1000);
-	for (i = 0; i < numOfChrs; i++)
-	{
-		tmp = fread(&nameLen, sizeof(int), 1, _ih_fp);
-		tmp = fread(_ih_refGenName, sizeof(char), nameLen, _ih_fp);
-		_ih_refGenName[nameLen] = '\0';
-		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
-		if (_ih_refGenLen > _ih_maxChrLength)
-			_ih_maxChrLength = _ih_refGenLen;
-		sprintf(strtmp,"@SQ SN:%s LN:%d\0", _ih_refGenName, _ih_refGenLen);
-		outputMeta(strtmp);
-	}
-	freeMem(strtmp, 1000);
-	freeMem(_ih_refGenName, 50);
-	configHashTable();
-
-	if (pairedEndMode)
-	{
-		int len = (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq);
-		_ih_crefGenOrigin = getMem(len);
-		_ih_crefGen = _ih_crefGenOrigin; 
-	}
-	else
-	{
-		_ih_crefGen = getMem((CONTIG_MAX_SIZE*3)/8 + 1);
-	}
-
-	if (_ih_maxHashTableSize != pow(4, WINDOW_SIZE))
-	{
-
-	/*	if (_ih_hashTable != NULL)
-		{
-			//freeIHashTableContent(_ih_hashTable, _ih_maxHashTableSize);
-			freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
-			freeMem(_ih_crefGen, _ih_crefGenLen * sizeof(CompressedSeq));
-			_ih_crefGenLen = 0;
-			freeMem(_ih_refGenName, strlen(_ih_refGenName)+1);
-		}*/
-
-		_ih_maxHashTableSize = pow(4, WINDOW_SIZE);
-
-		_ih_hashTable = getMem (sizeof(IHashTable) * _ih_maxHashTableSize);
-		memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
-		//for (i=0; i<_ih_maxHashTableSize; i++)
-		//	_ih_hashTable[i].locs = NULL;
-		_ih_refGenName = getMem(1);
-		_ih_refGenName[0] = '\0';
-	}
-	return 1;
-}
-/**********************************************/
-void finalizeLoadingIHashTable()
-{
-	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
-	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
-	freeMem(_ih_refGenName, strlen(_ih_refGenName)+1);	
-	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
-	if (pairedEndMode)
-		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
-	else
-		freeMem(_ih_crefGen, (CONTIG_MAX_SIZE*3)/8 + 1);
-	fclose(_ih_fp);
 }
 /**********************************************/
 char *getRefGenomeName()
