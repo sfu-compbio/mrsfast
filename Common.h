@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,13 +28,10 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
- * Last Update    : 2009-12-08
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
-
-
 
 #ifndef __COMMON__
 #define __COMMON__
@@ -110,4 +107,5 @@ inline void 	reverse (char *seq, char *rcSeq , int length);
 void 	stripPath(char *full, char **path, char **fileName);
 void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
 inline int 	calculateCompressedLen(int normalLen);
+int	hashVal(char *seq);
 #endif

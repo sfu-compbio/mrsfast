@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -60,33 +59,6 @@ unsigned int	_ih_IOBufferSize		= (1 << 24);
 int				MAX_GENOME_INFO_SIZE	= 10000000;
 int				_ih_maxChrLength		= 0;
 CompressedSeq	*_ih_crefGenOrigin		= NULL;		// only used in pairedEndMode
-/**********************************************/
-int hashVal(char *seq)
-{
-	int i=0;
-	int val=0, numericVal=0;
-
-	while(i<WINDOW_SIZE)
-	{
-		switch (seq[i])
-		{
-			case 'A':
-				numericVal = 0; break;
-			case 'C':
-				numericVal = 1; break;
-			case 'G' :
-				numericVal = 2; break;
-			case 'T':
-				numericVal = 3; break;
-			default:
-				return -1;
-				break;
-		}
-		val = (val << 2)|numericVal;
-		i++;
-	}
-	return val;
-}
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
 {
@@ -215,7 +187,6 @@ void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int ma
 /**********************************************/
 int generateIHashTable(char *fileName, char *indexName)
 {
-	fprintf(stderr, "1 mem %lld\n", memUsage);
 	double          startTime           = getTime();
 	unsigned int	hashTableSize		= 0;
 	int				refGenOff			= 0;
@@ -310,7 +281,6 @@ int generateIHashTable(char *fileName, char *indexName)
 	finalizeSavingIHashTable();
 
 	fprintf(stdout, "\nDONE in %0.2fs!\n", (getTime()-startTime));
-	fprintf(stderr, "2 mem %lld\n", memUsage);
 	return 1;
 }
 
@@ -321,8 +291,8 @@ int initLoadingHashTable(char *fileName)
 	// 1 byte (magicNumber): Magic number of HashTable (0: <v3, 1: bisulfite <v1.26.4, 2: >v3)
 	// 1 byte (WINDOW_SIZE): Windows Size of indexing
 	// 4 bytes (_ih_hsahTableMemSize): HashTbleMemSize: maximum number of elements that can be saved.
-	// 4 bytes (_ih_IOBufferSize): memory required for reading hash table
-	// 4 bytes (CONTIG_MAX_SIZE): maximum number of characters that can be in a contig
+	// 4 bytes (_ih_IOBufferSize): memory required for reading hash table. In case the value is changed for loading.
+	// 4 bytes (CONTIG_MAX_SIZE): maximum number of characters that can be in a contig. In case the value is changed for loading
 	// n bytes (genomeMetaInfo): number of chromosomes, their names and lengths
 
 	_ih_fp = fileOpen(fileName, "r");	
@@ -550,13 +520,11 @@ void configHashTable()
 char *getRefGenomeName()
 {
 	return _ih_refGenName;
-
 }
 /**********************************************/
 int getRefGenomeOffset()
 {
 	return _ih_refGenOff;
-
 }
 /**********************************************/
 HashTable *getHashTable()
