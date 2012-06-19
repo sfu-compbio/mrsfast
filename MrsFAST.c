@@ -273,7 +273,6 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 		int i=0;
 		for (i=0; i<seqListSize; i++)
 		{
-			//_msf_mappingInfo[i].next = getMem(sizeof(MappingLocations));	DEL
 			_msf_mappingInfo[i].next = NULL;
 			_msf_mappingInfo[i].size = 0;
 		}
@@ -285,8 +284,6 @@ void initFAST(Read *seqList, int seqListSize, int *samplingLocs, int samplingLoc
 		{
 			_msf_seqHits[i] = 0;
 		}
-
-//		initLoadingRefGenome(genFileName, NULL, &i);						DEL
 	}
 
 	if (_msf_refGenOffset == 0)
@@ -374,7 +371,7 @@ inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int s
 	*errSamp |= err;
 	return err;
 }
-/**********************IMAN************************/
+/**********************************************/
 inline int verifySingleEnd(int index, CompressedSeq *seq, int offset)
 {
 	int segLen, cmpSegLen, curOff, sampleErrors=0, err = 0, refLoc, segLoc;
@@ -540,7 +537,6 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 /**********************************************/
 void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
 {
-
 	if (s1 == 0 || s2 == 0)
 	{
 		return;
@@ -556,7 +552,7 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 		char *_tmpQual, *_tmpSeq;
 		char rqual[QUAL_LENGTH+1];
 		rqual[QUAL_LENGTH]='\0';
-		char rseq[SEQ_LENGTH+21];		// 20 more bytes should be allocated because the decompress function needs extra space for decompressing			DEL +21 and comment
+		char rseq[SEQ_LENGTH+1];
 		rseq[SEQ_LENGTH]='\0';
 
 		if (dir > 0)
@@ -590,9 +586,6 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
 				_tmpQual = rqual;
 				_tmpSeq = _msf_seqList[r].rseq;
-			//	decompressSequence(_msf_seqList[r].crseq, rseq);		DEL
-			//	reverseComplete(_msf_seqList[r].seq, rseq, SEQ_LENGTH);
-			//	_tmpSeq = rseq;
 				_tmpCmpSeq = _msf_seqList[r].crseq;
 			}
 			else
@@ -685,156 +678,21 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 
 
 /**********************************************/
-void mapSingleEndSeqListTOP(unsigned int *l1, int s1, unsigned int *l2, int s2)
+void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 {
 	if (s1 < s2)
 	{
 		mapSingleEndSeqListBal(l1, s1, l2, s1,1);
-		mapSingleEndSeqListTOP(l1, s1, l2+s1, s2-s1);		
+		mapSingleEndSeqList(l1, s1, l2+s1, s2-s1);		
 	}
 	else if (s1 > s2)
 	{
 		mapSingleEndSeqListBal(l1, s2, l2, s2,1);
-		mapSingleEndSeqListTOP(l1+s2, s1-s2, l2, s2);
+		mapSingleEndSeqList(l1+s2, s1-s2, l2, s2);
 	}
 	else
 	{
 		mapSingleEndSeqListBal(l1, s1, l2, s2,1);
-	}
-}
-
-
-/**********************************************/
-void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
-{
-	if ( s2/s1 <= 2)
-	{
-		int j = 0;
-		int z = 0;
-		int *locs = (int *) l1;
-		int *seqInfo = (int *) l2;
-		CompressedSeq *_tmpCmpSeq;
-		char *_tmpQual, *_tmpSeq;
-		char rqual[QUAL_LENGTH+1];
-		rqual[QUAL_LENGTH]='\0';
-
-		for (j=0; j<s2; j++)
-		{
-			int re = _msf_samplingLocsSize * 2;
-			int r = seqInfo[j]/re;
-			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
-			{
-				continue;
-			}
-
-			int x = seqInfo[j] % re;
-			int o = x % _msf_samplingLocsSize;
-			char d = (x/_msf_samplingLocsSize)?1:0;
-
-
-			if (d)
-			{
-				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
-				_tmpQual = rqual;
-				_tmpCmpSeq = _msf_seqList[r].crseq;
-				_tmpSeq = _msf_seqList[r].seq;
-			}
-			else
-			{
-				_tmpQual = _msf_seqList[r].qual;
-				_tmpSeq = _msf_seqList[r].seq;
-				_tmpCmpSeq = _msf_seqList[r].cseq;
-			}
-
-
-			for (z=0; z<s1; z++)
-			{
-				int genLoc = locs[z]-_msf_samplingLocs[o];
-
-
-				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
-					continue;
-
-				int err = -1;
-
-
-
-				err = verifySingleEnd(genLoc, _tmpCmpSeq, o);
-
-
-
-				if (err != -1)
-				{
-					calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op);
-					mappingCnt++;
-					_msf_seqList[r].hits[0]++;
-
-					_msf_output.QNAME		= _msf_seqList[r].name;
-					_msf_output.FLAG		= 16 * d;
-					_msf_output.RNAME		= _msf_refGenName;
-					_msf_output.POS			= genLoc + _msf_refGenOffset;
-					_msf_output.MAPQ		= 255;
-					_msf_output.CIGAR		= _msf_cigar;
-					_msf_output.MRNAME		= "*";
-					_msf_output.MPOS		= 0;
-					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= _tmpSeq;
-					_msf_output.QUAL		= _tmpQual;
-
-					_msf_output.optSize		= 2;
-					_msf_output.optFields	= _msf_optionalFields;
-
-					_msf_optionalFields[0].tag = "NM";
-					_msf_optionalFields[0].type = 'i';
-					_msf_optionalFields[0].iVal = err;
-
-					_msf_optionalFields[1].tag = "MD";
-					_msf_optionalFields[1].type = 'Z';
-					_msf_optionalFields[1].sVal = _msf_op;
-
-					output(_msf_output);
-
-
-					if (_msf_seqList[r].hits[0] == 1)
-					{
-						mappedSeqCnt++;
-					}
-
-					if ( maxHits == 0 )
-					{
-						_msf_seqList[r].hits[0] = 2;
-					}
-
-
-					if ( maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
-					{
-						completedSeqCnt++;
-						break;
-					}
-				}
-
-			}
-		}
-	}
-	else if (s1 == 1)
-	{
-		int tmp = s2/2;
-		mapSingleEndSeqList(l1, s1, l2, tmp);
-		mapSingleEndSeqList(l1, s1, l2+tmp, s2-tmp);
-	}
-	else if (s2 == 1)
-	{
-		int tmp = s1/2;
-		mapSingleEndSeqList(l1, tmp, l2, s2);
-		mapSingleEndSeqList(l1+tmp, s1-tmp, l2, s2);
-	}
-	else
-	{
-		int tmp1=s1/2, tmp2= s2/2;
-		mapSingleEndSeqList(l1, tmp1, l2, tmp2);
-		mapSingleEndSeqList(l1+tmp1, s1-tmp1, l2, tmp2);
-		mapSingleEndSeqList(l1+tmp1, s1-tmp1, l2+tmp2, s2-tmp2);
-		mapSingleEndSeqList(l1, tmp1, l2+tmp2, s2-tmp2);
 	}
 }
 /**********************************************/
@@ -849,7 +707,7 @@ int	 mapSingleEndSeq()
 		if ( locs != NULL)
 		{
 			seqInfo  = _msf_rIndex[i].seqInfo;
-			mapSingleEndSeqListTOP (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
+			mapSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
 		}
 		i++;
 	}
@@ -1050,7 +908,6 @@ int	 mapPairedEndSeq()
 				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
 			}
 			_msf_mappingInfo[i].size = 0;
-			//	_msf_mappingInfo[i].next = NULL;			DEL
 		}
 	}
 
@@ -1059,8 +916,6 @@ int	 mapPairedEndSeq()
 
 	fclose(out1);
 	fclose(out2);
-
-	//fprintf(stdout, "%d %d\n", _msf_maxLSize, _msf_maxRSize);		DEL
 
 }
 
@@ -1072,8 +927,6 @@ void outputPairedEnd()
 	char *curGenName;
 	int tmpOut;
 
-	//	loadRefGenome(&_msf_refGen, &_msf_refGenName, &tmpOut);		DEL
-	CompressedSeq * tmpCrefgen = _msf_crefGen;		//				DEL
 	_msf_crefGen = getCmpRefGenOrigin();
 
 	FILE* in1[_msf_openFiles];
@@ -1212,8 +1065,6 @@ void outputPairedEnd()
 				size2=0;
 			}
 		}
-		//if (i == 6615)										DEL
-		//	fprintf(stdout, "%d %d\n", size1, size2);	
 
 		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
 		char *seq1, *seq2, *qual1, *qual2, *rseq1, *rseq2;
@@ -1275,14 +1126,10 @@ void outputPairedEnd()
 			rl = mi1[j].loc + minPairEndedDistance - 1;
 			rm = mi1[j].loc + maxPairEndedDistance - 1;
 
-			//fprintf(stdout, "%d %d %d %d %d\n",lm, ll,mi1[j].loc ,rl, rm); 		DEL
-
 			while (pos<size2 && mi2[pos].loc < lm)
 			{
 				pos++;
 			}
-
-			//fprintf(stdout, "POS: %d %d \n", pos, mi2[pos].loc);					DEL
 
 			k = pos;
 			while (k<size2 && mi2[k].loc <= rm)
@@ -1440,13 +1287,10 @@ void outputPairedEnd()
 	{
 		fclose(in1[i]);
 		fclose(in2[i]);
-		//fprintf(stdout, "%s %s \n", fname1[i], fname2[i]);
 		unlink(fname1[i]);
 		unlink(fname2[i]);
 	}
 	_msf_openFiles = 0;
-
-	_msf_crefGen = tmpCrefgen;		///////////////////
 }
 
 /**********************************************/
@@ -1461,12 +1305,8 @@ float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err)
 	int mod = index % 21;
 	int refALS = mod * 3;
 	int refARS = typeSize - refALS;
-	CompressedSeq tmpref, *refPos = _msf_crefGen + index/21;
-	CompressedSeq *ref = refPos;								// DEL refPos
-
-	CompressedSeq diffMask = 7;
-	int shifts = (20 - mod) * 3;								// DEL shifts
-	CompressedSeq diff;
+	CompressedSeq tmpref, *ref = _msf_crefGen + index/21;
+	CompressedSeq diff, diffMask = 7;
 
 	*err = 0;
 
@@ -1481,7 +1321,7 @@ float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err)
 		else
 			diffMask >>= 3;
 
-		if (diff & diffMask)		// ref[index + i - 1 ] != ver[i]
+		if (diff & diffMask)
 		{
 			(*err)++;
 			score *= 0.001 + 1/pow( 10, ((qual[i]-33)/10.0) );
