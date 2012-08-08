@@ -114,7 +114,7 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff, int *refGenL
 		if (ch == '>')
 		{
 			_rg_contGen = 0;
-			returnVal = 1;
+			returnVal = 2;
 			break;
 		}
 		else if (!isspace(ch))

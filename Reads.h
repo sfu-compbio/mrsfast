@@ -41,14 +41,16 @@ typedef struct
 	uint16_t *hits;
 	char *seq;
 	char *qual;
-	char *rseq;		// TODO: delete
+	char *rseq;
 	CompressedSeq *cseq;
 	CompressedSeq *crseq;
 	char *name;
-
+	unsigned char *alphCnt;
 } Read;
 
 int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);
 void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize);
 void finalizeReads(char *fileName);
+void preProcessReads(ReadIndexTable **rIndex, int *rIndexSize, Read *seqList, unsigned int seqListSize);//, int *samplingLocs, int samplingLocsSize);
+void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
 #endif

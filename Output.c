@@ -113,7 +113,6 @@ void outputQ(SAM map)
 
 	
 	int i;
-
 	for ( i = 0; i < map.optSize; i++)
 	{
 		switch (map.optFields[i].type)

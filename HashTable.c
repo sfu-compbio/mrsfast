@@ -59,6 +59,8 @@ unsigned int	_ih_IOBufferSize		= (1 << 24);
 int				MAX_GENOME_INFO_SIZE	= 10000000;
 int				_ih_maxChrLength		= 0;
 CompressedSeq	*_ih_crefGenOrigin		= NULL;		// only used in pairedEndMode
+unsigned char	*_ih_alphCnt			= NULL;
+
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
 {
@@ -118,7 +120,7 @@ void finalizeSavingIHashTable()
 	fclose(_ih_fp);
 }
 /**********************************************/
-void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int maxSize, char *refGen, char *refGenName, int refGenOffset)
+void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int maxSize, char *refGen, char *refGenName, int refGenOffset, unsigned char lastContig)
 {
 	// 1 byte (extraInfo): Reserved; in case the contig has extra information
 	// 2 bytes (len): Length of the reference genome name
@@ -131,7 +133,7 @@ void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int ma
 
 	int tmp, i;
 
-	unsigned char extraInfo = 0;
+	unsigned char extraInfo = lastContig;
 	tmp = fwrite (&extraInfo, sizeof(extraInfo), 1, _ih_fp);
 
 	short len = strlen(refGenName);
@@ -270,7 +272,7 @@ int generateIHashTable(char *fileName, char *indexName)
 			}
 		}
 
-		saveIHashTable(hashTable, hashTableSize, hashTableMaxSize, refGen, refGenName, refGenOff);
+		saveIHashTable(hashTable, hashTableSize, hashTableMaxSize, refGen, refGenName, refGenOff, flag);
 	} while (flag);
 
 	freeMem(prev, CONTIG_NAME_SIZE);
@@ -348,8 +350,7 @@ int initLoadingHashTable(char *fileName)
 
 	if (pairedEndMode)
 	{
-		int len = (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq);
-		_ih_crefGenOrigin = getMem(len);
+		_ih_crefGenOrigin = getMem((calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
 		_ih_crefGen = _ih_crefGenOrigin; 
 	}
 	else
@@ -363,6 +364,7 @@ int initLoadingHashTable(char *fileName)
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
 	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
 	_ih_refGenName[0] = '\0';
+	_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
 
 	return 1;
 }
@@ -376,7 +378,10 @@ void finalizeLoadingIHashTable()
 	if (pairedEndMode)
 		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
 	else
+	{
 		freeMem(_ih_crefGen, (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
+	}
+	freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
 	fclose(_ih_fp);
 }
 /**********************************************/
@@ -397,7 +402,7 @@ int  loadIHashTable(double *loadTime)
 	short len;
 	unsigned int hashTableSize;
 	unsigned int tmpSize;
-	int i=0,j=0;
+	int i = 0, j;
 
 	if ( fread(&extraInfo, sizeof(extraInfo), 1, _ih_fp) != sizeof(extraInfo) )
 		return 0;
@@ -451,13 +456,13 @@ int  loadIHashTable(double *loadTime)
 	// creating hash table
 	unsigned int windowMask = 0xffffffff >> (sizeof(unsigned int)*8 - WINDOW_SIZE*2);
 	CompressedSeq *cnext = _ih_crefGen;
-	CompressedSeq cdata;
-	cdata = *(cnext++);
+	CompressedSeq cdata = *(cnext++);
 	i = 0;
 	hv = 0;
-	int t = 0, val=0, stack=1;
+	int val, t = 0, stack=1;
 	int loc = -WINDOW_SIZE+1;
 	
+	// calculate refGen hashValues
 	while (i++ < _ih_refGenLen) // BORDER LINE CHECK
 	{
 		loc++;
@@ -494,8 +499,59 @@ int  loadIHashTable(double *loadTime)
 		}
 	}
 
+	// calculate alphabet count for each location in genome
+	cnext = _ih_crefGen;
+	cdata = *(cnext++);
+	t = 0;
+	char outgoingChar[SEQ_LENGTH];
+	unsigned int *copy = (unsigned int *)_ih_alphCnt;
+	*copy = 0;
+
+	for (i = 0; i < SEQ_LENGTH; i++)
+	{
+		val = (cdata >> 60) & 7;
+		outgoingChar[i] = val;
+
+		if (++t == 21)
+		{
+			t = 0;
+			cdata = *(cnext++);
+		}
+		else
+		{
+			cdata <<= 3;
+		}
+
+		_ih_alphCnt[val] ++;
+	}
+
+	int o = 0, endIndex = _ih_refGenLen - SEQ_LENGTH + 1;
+	unsigned char *cur;		// current loc
+	i = 0;
+
+	while (++i < endIndex) // BORDER LINE CHECK
+	{
+		cur = (char *)++copy;
+		val = (cdata >> 60) & 7;
+		if (++t == 21)
+		{
+			t = 0;
+			cdata = *(cnext++);
+		}
+		else
+		{
+			cdata <<= 3;
+		}
+		
+		*copy = *(copy-1);	// copies all 4 bytes at once
+		(*(cur + val)) ++;
+		(*(cur + outgoingChar[o])) --;
+		outgoingChar[o] = val;
+		o = (++o == SEQ_LENGTH) ?0 :o;
+	}
+
 	*loadTime = getTime()-startTime;
-	return 1;
+	return extraInfo;
 }
 /**********************************************/
 unsigned int *getIHashTableCandidates(int hv)
@@ -545,6 +601,11 @@ int getRefGenLength()
 int getCmpRefGenLen()
 {
 	return _ih_crefGenLen;
+}
+/**********************************************/
+char *getAlphabetCount()
+{
+	return _ih_alphCnt;
 }
 /**********************************************/
 CompressedSeq *getCmpRefGenOrigin()

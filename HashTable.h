@@ -63,5 +63,6 @@ int 			(*generateHashTable)(char *fileName, char *indexName);
 int				(*loadHashTable)(double *loadTime);
 void			(*finalizeLoadingHashTable)();
 unsigned int	*(*getCandidates)(int hv);
+char			*getAlphabetCount();
 
 #endif

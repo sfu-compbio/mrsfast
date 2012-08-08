@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 #include "Common.h"
 #include "CommandLineParser.h"
 
@@ -48,6 +49,7 @@ int						bisulfiteMode;
 int						pairedEndMode;
 int						pairedEndDiscordantMode;
 int						pairedEndProfilingMode;
+int						bestMappingMode = 0;
 int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
@@ -68,8 +70,20 @@ unsigned char			maxHits=0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
+unsigned int			THREAD_COUNT = 1;
+unsigned int			MAX_MEMORY = (1 << 22);		// 2^22 = 4 GB
+unsigned char			THREAD_ID[255];
+extern char 			_binary_HELP_start;
+extern char				_binary_HELP_end;
 
-void printHelp();
+
+void printHelp()
+{
+	char *c;
+	for (c = &_binary_HELP_start; c != &_binary_HELP_end; c++)
+		putchar(*c);
+	exit(0);
+}
 
 int parseCommandLine (int argc, char *argv[])
 {
@@ -91,6 +105,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"seqcomp",			no_argument,		&seqCompressed,		1},
 		{"outcomp",			no_argument,		&outCompressed,		1},
 		{"progress",		no_argument,		&progressRep,		1},
+		{"best",			no_argument,		&bestMappingMode,	1},
 		{"index",			required_argument,	0, 					'i'},
 		{"search",			required_argument,	0,					's'},
 		{"help",			no_argument,		0,					'h'},
@@ -101,7 +116,8 @@ int parseCommandLine (int argc, char *argv[])
 		{"ws",				required_argument,  0,					'w'},
 		{"min",				required_argument,  0,					'l'},
 		{"max",				required_argument,  0,					'm'},
-		{"crop",			required_argument,  0,					'c'}
+		{"crop",			required_argument,  0,					'c'},
+		{"thread",			required_argument,  0,					't'}
 
 	};
 
@@ -162,6 +178,11 @@ int parseCommandLine (int argc, char *argv[])
 				fprintf(stdout, "%s.%s\n", versionNumber, versionNumberF);
 				return 0;
 				break;
+			case 't':
+				THREAD_COUNT = atoi(optarg);
+				if (THREAD_COUNT == 0 || THREAD_COUNT > sysconf( _SC_NPROCESSORS_ONLN ))
+					THREAD_COUNT = sysconf( _SC_NPROCESSORS_ONLN );
+				break;
 		}
 
 	}
@@ -185,8 +206,8 @@ int parseCommandLine (int argc, char *argv[])
 
 	if ( indexingMode )
 	{
-		CONTIG_SIZE		= 15000000;
-		CONTIG_MAX_SIZE	= 40000000;
+		CONTIG_SIZE		= 80000000;
+		CONTIG_MAX_SIZE	= 120000000;
 
 		if (batchMode)
 		{
@@ -321,57 +342,12 @@ int parseCommandLine (int argc, char *argv[])
 		minPairEndedDistance = 0;
 		maxPairEndedDistance = 300000000;
 	}
+	
+	if (!indexingMode)
+		fprintf(stdout, "# Threads: %d\n", THREAD_COUNT);
+	for (i = 0; i < 255; i++)
+		THREAD_ID[i] = i;
 
 	return 1;
 }
 
-
-void printHelp()
-{
-	char *errorType;
-	if (mrFAST)
-	{
-		fprintf(stdout,"mrFAST : Micro-Read Fast Alignment Search Tool.\n\n");
-		fprintf(stdout,"Usage: mrFAST [options]\n\n");
-		errorType="edit distance";
-	}
-	else
-	{
-		fprintf(stdout,"mrsFAST : Micro-Read Substitutions (only) Fast Alignment Search Tool.\n\n");
-		fprintf(stdout,"mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of mapping\n");
-		fprintf(stdout,"single and paired end reads to the reference genome. Bisulfite treated \n");
-		fprintf(stdout,"sequences are not supported in this version. By default mrsFAST reports  \n");
-		fprintf(stdout,"the output in SAM format.\n\n");
-		fprintf(stdout,"Usage: mrsFAST [options]\n\n");
-		errorType="hamming distance";
-	}
-
-	fprintf(stdout,"General Options:\n");
-	fprintf(stdout," -v|--version\t\tCurrent Version.\n");
-	fprintf(stdout," -h\t\t\tShows the help file.\n");
-	fprintf(stdout,"\n\n");
-
-	fprintf(stdout,"Indexing Options:\n");
-	fprintf(stdout," --index [file]\t\tGenerate an index from the specified fasta file. \n");
-	fprintf(stdout," -b\t\t\tIndicates the indexing will be done in batch mode.\n\t\t\tThe file specified in --index should contain the \n\t\t\tlist of fasta files.\n");
-	fprintf(stdout," -ws [int]\t\tSet window size for indexing (default:12-min:8 max:14).\n");
-	//	fprintf(stdout," -bs \t\t\tBisulfite mode.");
-	fprintf(stdout,"\n\n");
-
-	fprintf(stdout,"Searching Options:\n");
-	fprintf(stdout," --search [file]\tSearch the specified genome. Index file should be \n\t\t\tin same directory as the fasta file.\n");
-	fprintf(stdout," -b\t\t\tIndicates the mapping will be done in batch mode. \n\t\t\tThe file specified in --search should contain the \n\t\t\tlist of fasta files.\n");
-	fprintf(stdout," --pe \t\t\tSearch will be done in Pairedend mode.\n");
-	//	fprintf(stdout," --bs \t\t\tSearch will be done in Bisulfite mode.\n");
-	fprintf(stdout," --seq [file]\t\tInput sequences in fasta/fastq format [file]. If \n\t\t\tpairend reads are interleaved, use this option.\n");
-	fprintf(stdout," --seq1 [file]\t\tInput sequences in fasta/fastq format [file] (First \n\t\t\tfile). Use this option to indicate the first file of \n\t\t\tpair-end reads. You can use this option alone in \n\t\t\tbisulfite mode. \n");
-	fprintf(stdout," --seq2 [file]\t\tInput sequences in fasta/fastq format [file] (Second \n\t\t\tfile). Use this option to indicate the second file of \n\t\t\tpair-end reads. You can use this option alone in \n\t\t\tbisulfite mode. \n");
-	fprintf(stdout," -o [file]\t\tOutput of the mapped sequences. The default is output.\n");
-	fprintf(stdout," --seqcomp \t\tIndicates that the input sequences are compressed(gz).\n");
-	fprintf(stdout," --outcomp \t\tIndicates that output file should be compressed(gz).\n");
-	//	fprintf(stdout," -u [file]\t\tSave unmapped sequences to the [file] in fasta format.\n");
-	fprintf(stdout," -n [int]\t\tMaximum number of locations reported for a sequence \n\t\t\t(default 0, all mappings). \n");
-	fprintf(stdout," -e [int]\t\t%s (default 2).\n", errorType);
-	fprintf(stdout," --min [int]\t\tMin inferred distance allowed between two pairend sequences.\n");
-	fprintf(stdout," --max [int]\t\tMax inferred distance allowed between two pairend sequences.\n");
-}

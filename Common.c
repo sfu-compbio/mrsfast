@@ -47,6 +47,7 @@ unsigned short 			QUAL_LENGTH = 0;
 unsigned short			CMP_SEQ_LENGTH = 0;
 long long				memUsage = 0;
 char					*alphabet = "ACGTN";
+
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
 {

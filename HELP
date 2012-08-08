@@ -1,0 +1,47 @@
+mrsFAST : Micro-Read Substitutions (only) Fast Alignment Search Tool.
+
+mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of mapping
+single and paired end reads to the reference genome. Bisulfite treated 
+sequences are not supported in this version. By default mrsFAST reports  
+the output in SAM format.
+
+Usage: mrsFAST [options]
+
+General Options:
+ -v|--version		Current Version.
+ -h			Shows the help file.
+
+
+Indexing Options:
+ --index [file]		Generate an index from the specified fasta file. 
+ -b			Indicates the indexing will be done in batch mode.
+			The file specified in --index should contain the 
+			list of fasta files.
+ -ws [int]		Set window size for indexing (default:12-min:8 max:14).
+
+
+Searching Options:
+ --search [file]	Search the specified genome. Index file should be 
+			in same directory as the fasta file.
+ -b			Indicates the mapping will be done in batch mode. 
+			The file specified in --search should contain the 
+			list of fasta files.
+ --pe 			Search will be done in Pairedend mode.
+ --seq [file]		Input sequences in fasta/fastq format [file]. If 
+			pairend reads are interleaved, use this option.
+ --seq1 [file]		Input sequences in fasta/fastq format [file] (First 
+			file). Use this option to indicate the first file of 
+			pair-end reads. You can use this option alone in 
+			bisulfite mode. 
+ --seq2 [file]		Input sequences in fasta/fastq format [file] (Second 
+			file). Use this option to indicate the second file of 
+			pair-end reads. You can use this option alone in 
+			bisulfite mode. 
+ -o [file]		Output of the mapped sequences. The default is output.
+ --seqcomp 		Indicates that the input sequences are compressed(gz).
+ --outcomp 		Indicates that output file should be compressed(gz).
+ -n [int]		Maximum number of locations reported for a sequence 
+			(default 0, all mappings). 
+ -e [int]		hamming distance (default 2).
+ --min [int]		Min inferred distance allowed between two pairend sequences.
+ --max [int]		Max inferred distance allowed between two pairend sequences.

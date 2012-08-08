@@ -75,20 +75,13 @@ int main(int argc, char *argv[])
 		int fc;
 		int samplingLocsSize;
 		int *samplingLocs;
-		int *samplingLocsOffset;
-		int *samplingLocsLen;
-		int *samplingLocsLenFull;
 		double totalLoadingTime = 0;
 		double totalMappingTime = 0;
 		double startTime;
 		double loadingTime;
 		double mappingTime;
 		double lstartTime;
-		double ppTime;
 		double tmpTime;;
-		char *prevGen = getMem(CONTIG_NAME_SIZE);
-		prevGen[0]='\0';
-		char *curGen;
 		int	flag;
 		double maxMem=0;
 		char fname1[FILE_NAME_LENGTH];
@@ -118,7 +111,7 @@ int main(int argc, char *argv[])
 				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 2;
 				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 2;
 			}
-			
+
 			sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
 			sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);
 			sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
@@ -138,169 +131,63 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 
-		if (!pairedEndMode)
+		for (fc = 0; fc <fileCnt; fc++)
 		{
-			for (fc = 0; fc <fileCnt; fc++)
+			if (!initLoadingHashTable(fileName[fc][1]))
 			{
-				if (!initLoadingHashTable(fileName[fc][1]))
-				{
-					return 1;
-				}
-
-				loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-
-				mappingTime = 0;
-				loadingTime = 0;
-				prevGen[0] = '\0';
-				flag = 1;
-				do
-				{
-					flag = loadHashTable ( &tmpTime );  			// Reading a fragment
-					curGen = getRefGenomeName();
-
-					// First Time
-					if (flag && prevGen[0]== '\0')
-					{
-						sprintf(prevGen, "%s", curGen);
-					}
-
-					if ( !flag || strcmp(prevGen, curGen)!=0)
-					{
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
-
-						totalMappingTime += mappingTime;
-						totalLoadingTime += loadingTime;
-
-						loadingTime = 0;
-						mappingTime = 0;
-						maxMem = 0;
-
-						if (!flag)
-						{
-							break;
-						}
-					}
-					else if (progressRep && mappingTime != 0)
-					{
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
-					}
-					sprintf(prevGen, "%s", curGen);
-
-					loadingTime += tmpTime;
-					lstartTime = getTime();
-
-					initFAST(seqList, seqListSize, samplingLocs, samplingLocsSize, fileName[fc][0]);
-					mapSingleEndSeq();
-
-					mappingTime += getTime() - lstartTime;
-					if (maxMem < getMemUsage())
-					{
-						maxMem = getMemUsage();
-					}
-				} while (flag);
-			} // end for;
-			finalizeFAST();
-			finalizeLoadingHashTable();
-
-		}
-		// Pairedend Mapping Mode
-		else
-		{
-
-			for (fc = 0; fc <fileCnt; fc++)
-			{
-				if (!initLoadingHashTable(fileName[fc][1]))
-				{
-					return 1;
-				}
-
-
-				loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-
-				mappingTime = 0;
-				loadingTime = 0;
-				prevGen[0] = '\0';
-				flag = 1;
-				do
-				{
-					flag = loadHashTable ( &tmpTime );  			// Reading a fragment
-					curGen = getRefGenomeName();
-
-					// First Time
-					if (flag && prevGen[0]== '\0')
-					{
-						sprintf(prevGen, "%s", curGen);
-					}
-
-					if ( !flag || strcmp(prevGen, curGen)!=0)
-					{
-
-						// DISCORDANT
-						lstartTime = getTime();					
-						outputPairedEnd();
-						mappingTime += getTime() - lstartTime;
-						//DISCORDANT			
-
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
-
-						totalMappingTime += mappingTime;
-						totalLoadingTime += loadingTime;
-
-						loadingTime = 0;
-						mappingTime = 0;
-						maxMem = 0;
-
-						if (!flag)
-						{
-							break;
-						}
-					}
-					else if (progressRep && mappingTime != 0)
-					{
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								prevGen,loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
-					}
-
-					sprintf(prevGen, "%s", curGen);
-
-					loadingTime += tmpTime;
-					lstartTime = getTime();
-
-					initFAST(seqList, seqListSize, samplingLocs, samplingLocsSize, fileName[fc][0]);
-
-					mapPairedEndSeq();
-
-					mappingTime += getTime() - lstartTime;
-					if (maxMem < getMemUsage())
-					{
-						maxMem = getMemUsage();
-					}
-				} while (flag);
-			} // end for;
-
-			finalizeLoadingHashTable();
-			if (pairedEndDiscordantMode)
-			{
-				lstartTime = getTime();							
-				outputPairedEndDiscPP();
-				ppTime = getTime() - lstartTime;
+				return 1;
 			}
-			finalizeFAST();
-		}
+
+			loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+
+			mappingTime = 0;
+			loadingTime = 0;
+			flag = 1;
+			do
+			{
+				flag = loadHashTable ( &tmpTime );  			// Reading a fragment
+
+				loadingTime += tmpTime;
+
+				lstartTime = getTime();
+				initFAST(seqList, seqListSize);
+				mapSeq(flag);
+				mappingTime += getTime() - lstartTime;
+
+				if (maxMem < getMemUsage())
+					maxMem = getMemUsage();
+
+				if (flag == 0 || flag == 2)
+				{
+					totalMappingTime += mappingTime;
+					totalLoadingTime += loadingTime;
+
+
+					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+					fflush(stdout);
+
+					loadingTime = 0;
+					mappingTime = 0;
+					maxMem = 0;
+				}
+				else if (progressRep)
+				{
+					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+					fflush(stdout);
+				}
+			} while (flag);
+		} // end for;
+
+
+		finalizeFAST();
+		finalizeLoadingHashTable();
 
 		finalizeOutput();
 
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
-		if (pairedEndDiscordantMode)
-			fprintf(stdout, "Post Processing Time: %18.2f \n", ppTime);
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", seqListSize);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
@@ -342,7 +229,6 @@ int main(int argc, char *argv[])
 		}
 
 
-		freeMem(prevGen, CONTIG_NAME_SIZE);
 	}
 
 	return 0;

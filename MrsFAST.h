@@ -40,26 +40,15 @@
 
 #define MAP_CHUNKS 15
 
-// Pair is used to pre-processing and making the read index table
-typedef struct
-{
-	int hv;
-	int seqInfo;
-} Pair;
-
-typedef struct
-{
-	int hv;
-	unsigned int *seqInfo;
-} ReadIndexTable;
-
-
 typedef struct mn
 {
 	int loc;
 	char dir;
 	char err;
 	float score;
+	int hits;
+	int secondBestHits;
+	int secondBestErrors;
 	char md[40];
 	char chr[40];
 } FullMappingInfo;
@@ -88,15 +77,9 @@ extern long long			mappedSeqCnt;
 extern long long			completedSeqCnt;
 
 void initFAST(	Read *seqList,
-				int seqListSize,
-				int *samplingLocs,
-				int samplingLocsSize, 
-				char *fileName);
+				int seqListSize);
 
 void finalizeFAST();
 
-int mapSingleEndSeq();
-int mapPaiedEndSeq();
-void outputPairedEnd();
-void outputPairedEndDiscPP();
+int (*mapSeq)(unsigned char contigFlag);
 #endif

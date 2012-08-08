@@ -55,6 +55,9 @@ typedef uint64_t CompressedSeq;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
+extern unsigned int		THREAD_COUNT;
+extern unsigned int		MAX_MEMORY;
+extern unsigned char	THREAD_ID[255];
 
 extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
@@ -73,6 +76,7 @@ extern int				bisulfiteMode;
 extern int				pairedEndMode;
 extern int				pairedEndDiscordantMode;
 extern int				pairedEndProfilingMode;
+extern int				bestMappingMode;
 extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
@@ -95,6 +99,18 @@ extern int				fileCnt;
 extern long long		memUsage;
 extern char				*alphabet;
 
+// Pair is used to pre-processing and making the read index table
+typedef struct
+{
+	int hv;
+	int seqInfo;
+} Pair;
+
+typedef struct
+{
+	int hv;
+	unsigned int *seqInfo;
+} ReadIndexTable;
 
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);

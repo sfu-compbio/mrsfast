@@ -47,7 +47,12 @@ gzFile _r_gzfp1;
 gzFile _r_gzfp2;
 Read *_r_seq;
 int _r_seqCnt;
+int _r_samplingLocsSize;
 int *_r_samplingLocs;
+int *_r_samplingLocsSeg;
+int *_r_samplingLocsOffset;
+int *_r_samplingLocsLen;
+int *_r_samplingLocsLenFull;
 
 /**********************************************/
 char *(*readFirstSeq)(char *);
@@ -75,6 +80,92 @@ char *readSecondSeqGZ( char *seq )
 	return gzgets(_r_gzfp2, seq, SEQ_MAX_LENGTH);
 }
 /**********************************************/
+int compare (const void *a, const void *b)
+{
+	return ((Pair *)a)->hv - ((Pair *)b)->hv;
+}
+/**********************************************/
+void preProcessReads(ReadIndexTable **readIndex,
+						int *rIndexSize,
+						Read *seqList,
+						unsigned int seqListSize)
+//						int *samplingLocs,
+//						int samplingLocsSize)
+{
+	int i=0;
+	int j=0;
+	int pos = 0;
+	char rseq[SEQ_LENGTH+1];
+
+//	_msf_rIndexMax = -1;
+
+	int tmpSize = seqListSize * _r_samplingLocsSize * 2;
+	Pair *tmp = getMem(sizeof(Pair)*tmpSize);
+
+	for (i=0; i<seqListSize; i++)
+	{
+		for (j=0; j< _r_samplingLocsSize; j++)
+		{
+			tmp[pos].hv = hashVal(seqList[i].seq + _r_samplingLocs[j]);
+			tmp[pos].seqInfo = pos;
+			pos++;
+		}
+		for (j=0; j< _r_samplingLocsSize; j++)
+		{
+			reverseComplete(seqList[i].seq, rseq, SEQ_LENGTH);
+			tmp[pos].hv = hashVal(rseq + _r_samplingLocs[j]);
+			tmp[pos].seqInfo = pos;
+			pos++;
+		}
+	}
+
+	qsort(tmp, tmpSize, sizeof(Pair), compare);
+
+
+	int uniq = 0;
+	int prev = -2;
+	int beg = -1;
+	int end = -1;
+
+	for (i=0; i<tmpSize; i++)
+	{
+		if (prev != tmp[i].hv)
+		{
+			uniq ++;
+			prev = tmp[i].hv;
+		}
+	}
+
+	*rIndexSize = uniq;
+	ReadIndexTable *rIndex = getMem(sizeof(ReadIndexTable) * (*rIndexSize));
+	*readIndex = rIndex;
+
+	prev = -2;
+
+	j=0;
+	beg =0;
+	while (beg < tmpSize)
+	{
+		end = beg;
+		while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
+			end++;
+
+		rIndex[j].hv = tmp[beg].hv;
+		rIndex[j].seqInfo = getMem(sizeof(int)*(end-beg+2));
+		rIndex[j].seqInfo[0] = end-beg+1;
+	//	if ((end-beg+1) > _msf_rIndexMax)
+	//		_msf_rIndexMax = end-beg+1;
+
+		for (i=1; i <= rIndex[j].seqInfo[0]; i++)
+		{
+			rIndex[j].seqInfo[i]=tmp[beg+i-1].seqInfo;
+		}
+		j++;
+		beg = end+1;
+	}
+	freeMem(tmp, sizeof(Pair)*tmpSize);
+}
+/**********************************************/
 int readAllReads(char *fileName1,
 						char *fileName2,
 						int compressed,
@@ -99,14 +190,23 @@ int readAllReads(char *fileName1,
 	CompressedSeq crseq1[CMP_SEQ_MAX_LENGTH];		// cmp of rseq1
 
 	char dummy[SEQ_MAX_LENGTH];
+	unsigned char alphCnt[5], alphCnt2[5];
 	char ch;
 	int err1, err2;
-	int nCnt;
+	//int nCnt;
+	unsigned char *nCnt;
 	int discarded = 0;
 	int seqCnt = 0;
 	int maxCnt = 0;
-	int i;
+	int i, len;
 	Read *list = NULL;
+	unsigned int *setZero;
+	char alphIndex[128];
+	alphIndex['A'] = 0;
+	alphIndex['C'] = 1;
+	alphIndex['G'] = 2;
+	alphIndex['T'] = 3;
+	alphIndex['N'] = 4;
 
 
 	if (!compressed)
@@ -221,12 +321,12 @@ int readAllReads(char *fileName1,
 			readFirstSeq(dummy);
 			readFirstSeq(qual1);
 			qual1[strlen(qual1)-1] = '\0';
+
 		}
 		else
 		{
 			sprintf(qual1, "*");
 		}
-
 
 		// Cropping
 		if (cropSize > 0)
@@ -237,23 +337,28 @@ int readAllReads(char *fileName1,
 		}
 
 
-		nCnt = 0;
-		for (i=0; i<strlen(seq1); i++)
+		nCnt = alphCnt + 4;
+		*nCnt = 0;
+		setZero = (unsigned int *)alphCnt;
+		*setZero = 0;
+		len = strlen(seq1);
+
+		for (i = 0; i < len; i++)
 		{
 			seq1[i] = toupper (seq1[i]);
-			if (seq1[i] == 'N')
+			
+			if (isspace(seq1[i]))
 			{
-				nCnt++;
-			}
-			else if (isspace(seq1[i]))
-			{
-
 				seq1[i] = '\0';
 				break;
 			}
+			else
+			{
+				alphCnt[alphIndex[seq1[i]]]++;
+			}
 		}
 
-		if (nCnt > errThreshold)
+		if (*nCnt > errThreshold)
 		{
 			err1 = 1;
 		}
@@ -295,22 +400,28 @@ int readAllReads(char *fileName1,
 					qual2[cropSize] = '\0';
 			}
 
+			nCnt = alphCnt2 + 4;
+			*nCnt = 0;
+			setZero = (unsigned int *)alphCnt2;
+			*setZero = 0;
+			len = strlen(seq2);
 
-			nCnt = 0;
-			for (i=0; i<strlen(seq2); i++)
+			for (i = 0; i < len; i++)
 			{
 				seq2[i] = toupper (seq2[i]);
-				if (seq2[i] == 'N')
-				{
-					nCnt++;
-
-				}
-				else if (isspace(seq2[i]))
+				
+				if (isspace(seq2[i]))
 				{
 					seq2[i] = '\0';
+					break;
+				}
+				else
+				{
+					alphCnt2[alphIndex[seq2[i]]]++;
 				}
 			}
-			if (nCnt > errThreshold)
+
+			if (*nCnt > errThreshold)
 			{
 				err2 = 1;
 			}
@@ -320,22 +431,18 @@ int readAllReads(char *fileName1,
 		{
 			int _mtmp = strlen(seq1);
 			int cmpLen = calculateCompressedLen(_mtmp);
-			list[seqCnt].hits	= getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + strlen(name1) + 1);
+			int namelen = strlen(name1);
+			list[seqCnt].hits	= getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + namelen + 1 + 4);
 			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
 			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
 			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
 			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
 			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
 			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
-			//
-			/*fprintf(stderr, "%d %d %d %d %d %d\n", 
-				(list[seqCnt].hits), 
-				(list[seqCnt].seq), 
-				list[seqCnt].qual, 
-				list[seqCnt].cseq, 
-				list[seqCnt].crseq, 
-				list[seqCnt].name);
-			exit (0);*/
+			list[seqCnt].alphCnt = (char *)(list[seqCnt].name + namelen + 1);
+
+			for (i = 0; i < 4; i++)
+				list[seqCnt].alphCnt[i] = alphCnt[i];
 
 			reverseComplete(seq1, rseq, _mtmp);
 			rseq[_mtmp] = '\0';
@@ -352,7 +459,7 @@ int readAllReads(char *fileName1,
 				list[seqCnt].rseq[i] = rseq[i];
 				list[seqCnt].qual[i] = qual1[i];
 			}
-			
+			list[seqCnt].qual[_mtmp] = '\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
 
 			seqCnt++;
@@ -369,13 +476,17 @@ int readAllReads(char *fileName1,
 			//first seq
 			int _mtmp = strlen(seq1);	
 			int cmpLen = calculateCompressedLen(_mtmp);
-			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1);
+			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4);
 			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
 			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
 			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
 			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
 			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
 			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
+			list[seqCnt].alphCnt = (char *)(list[seqCnt].name + tmplen + 1);
+
+			for (i = 0; i < 4; i++)
+				list[seqCnt].alphCnt[i] = alphCnt[i];
 
 			reverseComplete(seq1, rseq, _mtmp);
 			rseq[_mtmp] = '\0';
@@ -400,14 +511,18 @@ int readAllReads(char *fileName1,
 			seqCnt++;
 
 			//second seq
-			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1);
+			list[seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4);
 			list[seqCnt].seq	= (char *) (list[seqCnt].hits + 1);
 			list[seqCnt].rseq	= (char *)list[seqCnt].seq + _mtmp + 1;
 			list[seqCnt].qual	= (char *)list[seqCnt].rseq + _mtmp + 1;
 			list[seqCnt].cseq	= (CompressedSeq *)(list[seqCnt].qual + _mtmp + 1);
 			list[seqCnt].crseq	= (CompressedSeq *)(list[seqCnt].cseq + cmpLen);
 			list[seqCnt].name	= (char *)(list[seqCnt].crseq + cmpLen);
+			list[seqCnt].alphCnt = (char *)(list[seqCnt].name + tmplen + 1);
 
+			for (i = 0; i < 4; i++)
+				list[seqCnt].alphCnt[i] = alphCnt2[i];
+			
 			reverseComplete(seq2, rseq, _mtmp);
 			rseq[_mtmp] = '\0';
 			compressSequence(seq2, _mtmp, list[seqCnt].cseq);
@@ -482,7 +597,18 @@ int readAllReads(char *fileName1,
 	_r_seqCnt = seqCnt;
 
 	fprintf(stdout, "%d sequences are read in %0.2f. (%d discarded) [Mem:%0.2f M]\n", seqCnt, (getTime()-startTime), discarded, getMemUsage());
+
 	return 1;
+}
+/**********************************************/
+void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize)
+{
+	*samplingLocs = _r_samplingLocs;
+	*samplingLocsSeg = _r_samplingLocsSeg;
+	*samplingLocsOffset = _r_samplingLocsOffset;
+	*samplingLocsLen = _r_samplingLocsLen;
+	*samplingLocsLenFull = _r_samplingLocsLenFull;
+	*samplingLocsSize = _r_samplingLocsSize;
 }
 /**********************************************/
 void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize)
@@ -498,6 +624,27 @@ void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize)
 	}
 	samLocs[samLocsSize]=SEQ_LENGTH;
 	
+	int size = sizeof(int)*samLocsSize;
+	_r_samplingLocsSeg = getMem(size);
+	_r_samplingLocsOffset = getMem(size);
+	_r_samplingLocsLen = getMem(size);
+	_r_samplingLocsLenFull = getMem(size);
+	for (i=0; i<samLocsSize; i++)
+	{
+		_r_samplingLocsSeg[i]		= samLocs[i] / (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsOffset[i]	= samLocs[i] % (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsLen[i]		= samLocs[i+1] - samLocs[i];
+		_r_samplingLocsLenFull[i]	= SEQ_LENGTH - samLocs[i];
+	}
+	
+	*samplingLocs = samLocs;
+	*samplingLocsSize = samLocsSize;
+	_r_samplingLocs = samLocs;
+	_r_samplingLocsSize = samLocsSize;
+	_r_samplingLocs = samLocs;
+
+
+
 	// Outputing the sampling locations
 /*	int j;
  	for (i=0; i<SEQ_LENGTH; i++)
@@ -520,9 +667,6 @@ void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize)
 		fprintf(stdout, "-");
 	}
 	fprintf(stdout, "\n");*/
-	*samplingLocs = samLocs;
-	*samplingLocsSize = samLocsSize;
-	_r_samplingLocs = samLocs;
 }
 
 void finalizeReads(char *fileName)
@@ -569,5 +713,10 @@ void finalizeReads(char *fileName)
 
 	freeMem(_r_seq,0);
 	freeMem(_r_samplingLocs,0);
+	int size = sizeof(int)*_r_samplingLocsSize;
+	freeMem(_r_samplingLocsSeg, size);
+	freeMem(_r_samplingLocsOffset, size);
+	freeMem(_r_samplingLocsLen, size);
+	freeMem(_r_samplingLocsLenFull, size);
 }
 
