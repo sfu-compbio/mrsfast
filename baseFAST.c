@@ -51,14 +51,12 @@ int main(int argc, char *argv[])
 	if (!parseCommandLine(argc, argv))
 		return 1;
 
-	configHashTable();
 	/****************************************************
 	 * INDEXING
 	 ***************************************************/
 	if (indexingMode)
 	{
 		int i;
-		configHashTable();
 		for (i = 0; i < fileCnt; i++)
 		{
 			if (!generateHashTable(fileName[i][0], fileName[i][1]))

@@ -120,7 +120,7 @@ void finalizeSavingIHashTable()
 	fclose(_ih_fp);
 }
 /**********************************************/
-void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int maxSize, char *refGen, char *refGenName, int refGenOffset, unsigned char lastContig)
+void saveHashTable(unsigned int *hashTable,  unsigned int size, unsigned int maxSize, char *refGen, char *refGenName, int refGenOffset, unsigned char lastContig)
 {
 	// 1 byte (extraInfo): Reserved; in case the contig has extra information
 	// 2 bytes (len): Length of the reference genome name
@@ -187,7 +187,7 @@ void saveIHashTable(unsigned int *hashTable,  unsigned int size, unsigned int ma
 	}
 }
 /**********************************************/
-int generateIHashTable(char *fileName, char *indexName)
+int generateHashTable(char *fileName, char *indexName)
 {
 	double          startTime           = getTime();
 	unsigned int	hashTableSize		= 0;
@@ -272,7 +272,7 @@ int generateIHashTable(char *fileName, char *indexName)
 			}
 		}
 
-		saveIHashTable(hashTable, hashTableSize, hashTableMaxSize, refGen, refGenName, refGenOff, flag);
+		saveHashTable(hashTable, hashTableSize, hashTableMaxSize, refGen, refGenName, refGenOff, flag);
 	} while (flag);
 
 	freeMem(prev, CONTIG_NAME_SIZE);
@@ -346,8 +346,6 @@ int initLoadingHashTable(char *fileName)
 	freeMem(nametmp, CONTIG_NAME_SIZE);
 	// Reading Meta End
 
-	configHashTable();
-
 	if (pairedEndMode)
 	{
 		_ih_crefGenOrigin = getMem((calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
@@ -369,7 +367,7 @@ int initLoadingHashTable(char *fileName)
 	return 1;
 }
 /**********************************************/
-void finalizeLoadingIHashTable()
+void finalizeLoadingHashTable()
 {
 	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
 	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
@@ -385,7 +383,7 @@ void finalizeLoadingIHashTable()
 	fclose(_ih_fp);
 }
 /**********************************************/
-int  loadIHashTable(double *loadTime)
+int  loadHashTable(double *loadTime)
 {
 	// 1 byte (extraInfo): Reserved; in case the contig has extra information
 	// 2 bytes (len): Length of the reference genome name
@@ -554,23 +552,12 @@ int  loadIHashTable(double *loadTime)
 	return extraInfo;
 }
 /**********************************************/
-unsigned int *getIHashTableCandidates(int hv)
+unsigned int *getCandidates(int hv)
 {
 	if ( hv != -1 )
 		return _ih_hashTable[hv].locs;
 	else 
 		return NULL;
-}
-/**********************************************/
-void configHashTable()
-{
-	if (WINDOW_SIZE <= 14)
-	{
-		generateHashTable = &generateIHashTable;
-		loadHashTable = &loadIHashTable;
-		finalizeLoadingHashTable = &finalizeLoadingIHashTable;
-		getCandidates = &getIHashTableCandidates;
-	}
 }
 /**********************************************/
 char *getRefGenomeName()

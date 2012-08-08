@@ -48,7 +48,6 @@ typedef struct
 	unsigned int *locs;
 } IHashTable;
 
-void			configHashTable();
 char			*getRefGenome();
 char			*getRefGenomeName();
 int				getRefGenomeOffset();
@@ -58,11 +57,8 @@ int				getRefGenLength();
 int				getCmpRefGenLen();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
+unsigned int	*getCandidates(int hv);
 
-int 			(*generateHashTable)(char *fileName, char *indexName);
-int				(*loadHashTable)(double *loadTime);
-void			(*finalizeLoadingHashTable)();
-unsigned int	*(*getCandidates)(int hv);
 char			*getAlphabetCount();
 
 #endif
