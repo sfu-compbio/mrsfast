@@ -72,7 +72,6 @@ extern unsigned char	mrFAST;
 extern int				uniqueMode;
 extern int				indexingMode;
 extern int				searchingMode;
-extern int				bisulfiteMode;
 extern int				pairedEndMode;
 extern int				pairedEndDiscordantMode;
 extern int				pairedEndProfilingMode;

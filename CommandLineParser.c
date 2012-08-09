@@ -45,7 +45,6 @@
 int						uniqueMode=1;
 int						indexingMode;
 int						searchingMode;
-int						bisulfiteMode;
 int						pairedEndMode;
 int						pairedEndDiscordantMode;
 int						pairedEndProfilingMode;
@@ -98,7 +97,6 @@ int parseCommandLine (int argc, char *argv[])
 	static struct option longOptions[] = 
 	{
 
-		//		{"bs",				no_argument,		&bisulfiteMode,		1},
 		{"pe",				no_argument,		&pairedEndMode,		1},
 		{"discordant-vh",	no_argument,		&pairedEndDiscordantMode,	1},
 		{"profile",			no_argument, 		&pairedEndProfilingMode,	1},
@@ -188,7 +186,8 @@ int parseCommandLine (int argc, char *argv[])
 	}
 
 #ifndef MRSFAST_SSE4
-	fprintf(stdout, "==> This version is compiled without SSE4 instructions set. To obtain better performance, please upgrade your GCC version to >4.4 <==\n");
+	if (searchingMode)
+		fprintf(stdout, "==> This version is compiled without SSE4 instructions set. To obtain better performance, please upgrade your GCC version to >4.4 <==\n");
 #endif
 
 	if (indexingMode + searchingMode != 1)
@@ -220,13 +219,6 @@ int parseCommandLine (int argc, char *argv[])
 			fprintf(stdout, "ERROR: Reference(s) should be indicated for indexing\n");
 			return 0;
 		}
-
-		if (pairedEndDiscordantMode)
-		{
-			fprintf(stdout, "ERROR: --discordant cannot be used in indexing mode. \n");
-			return 0;
-		}
-
 	}
 
 
@@ -242,6 +234,11 @@ int parseCommandLine (int argc, char *argv[])
 			fastaFile = NULL;
 		}
 
+		if (pairedEndMode || pairedEndDiscordantMode)
+		{
+			pairedEndDiscordantMode = pairedEndMode = 1;
+		}
+		
 		if (batchFile == NULL && fastaFile == NULL)
 		{
 			fprintf(stdout, "ERROR: Index File(s) should be indiciated for searching\n");
@@ -253,11 +250,10 @@ int parseCommandLine (int argc, char *argv[])
 			fprintf(stdout, "ERROR: Please indicate a sequence file for searching.\n");
 			return 0;
 		}
-
-
-		if (!pairedEndMode && !bisulfiteMode && seqFile2 != NULL)
+		
+		if (!pairedEndMode && seqFile2 != NULL)
 		{
-			fprintf(stdout, "ERROR: Second File can be indicated in pairedend/bisulfite mode\n");
+			fprintf(stdout, "ERROR: Second File can be indicated in pairedend mode\n");
 			return 0;
 		}
 
@@ -270,18 +266,6 @@ int parseCommandLine (int argc, char *argv[])
 		if (pairedEndMode && seqFile1 == NULL)
 		{
 			fprintf(stdout, "ERROR: Please indicate the first file for pairedend search.\n");
-			return 0;
-		}
-
-		if (!pairedEndMode && pairedEndDiscordantMode)
-		{
-			fprintf(stdout, "ERROR: --discordant should be used with --pe");
-			return 0;
-		}
-
-		if (!pairedEndMode && pairedEndProfilingMode)
-		{
-			fprintf(stdout, "ERROR: --profile should be used with --pe");
 			return 0;
 		}
 	}
@@ -307,10 +291,7 @@ int parseCommandLine (int argc, char *argv[])
 
 			if (strcmp(fileName[fileCnt][0], "") != 0)
 			{
-				if (bisulfiteMode)
-					sprintf(fileName[fileCnt][1], "%s.bsindex", fileName[fileCnt][0]); 
-				else
-					sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
+				sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
 				fileCnt++;
 			}
 		}
@@ -318,10 +299,7 @@ int parseCommandLine (int argc, char *argv[])
 	else
 	{
 		sprintf(fileName[fileCnt][0], "%s", fastaFile);
-		if (bisulfiteMode)
-			sprintf(fileName[fileCnt][1], "%s.bsindex", fileName[fileCnt][0]); 
-		else
-			sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
+		sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
 		fileCnt++;
 	}
 
@@ -344,9 +322,11 @@ int parseCommandLine (int argc, char *argv[])
 	}
 	
 	if (!indexingMode)
+	{
 		fprintf(stdout, "# Threads: %d\n", THREAD_COUNT);
-	for (i = 0; i < 255; i++)
-		THREAD_ID[i] = i;
+		for (i = 0; i < 255; i++)
+			THREAD_ID[i] = i;
+	}
 
 	return 1;
 }
