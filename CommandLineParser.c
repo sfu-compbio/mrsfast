@@ -234,7 +234,7 @@ int parseCommandLine (int argc, char *argv[])
 			fastaFile = NULL;
 		}
 
-		if (pairedEndMode || pairedEndDiscordantMode)
+		if (pairedEndDiscordantMode)
 		{
 			pairedEndDiscordantMode = pairedEndMode = 1;
 		}

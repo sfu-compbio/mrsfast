@@ -108,12 +108,13 @@ int					*_msf_gLogN;
 unsigned char		*_msf_alphCnt;
 int 				_msf_maxDistance;
 
-int mapSingleEndSeq(unsigned char);
+int mapSingleEnd(unsigned char);
 int mapPairedEndSeq(unsigned char);
 void outputPairedEnd();
 void outputBestPairedEnd();
 void updateBestPairedEnd();
 void outputPairedEndDiscPP();
+int mapSingleEndBest(unsigned char);
 /**********************************************/
 void initFAST(Read *seqList, int seqListSize)
 {
@@ -146,7 +147,12 @@ void initFAST(Read *seqList, int seqListSize)
 
 
 		if (!pairedEndMode)
-			mapSeq = &mapSingleEndSeq;
+		{
+			if (bestMappingMode)
+				mapSeq = &mapSingleEndBest;
+			else
+				mapSeq = &mapSingleEnd;
+		}
 		else
 			mapSeq = &mapPairedEndSeq;
 
@@ -318,7 +324,7 @@ inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int s
 	return err;
 }
 /**********************************************/
-inline int verifySingleEnd(int index, CompressedSeq *seq, int offset)
+inline int verifySeq(int index, CompressedSeq *seq, int offset)
 {
 	int segLen, cmpSegLen, curOff, sampleErrors=0, err = 0, refLoc, segLoc;
 	index--;
@@ -562,7 +568,7 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
 				if ( abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySingleEnd(genLoc, _tmpCmpSeq, o);
+					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
 				{
@@ -687,7 +693,7 @@ void mapBestSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int 
 
 				int err = -1;
 
-				err = verifySingleEnd(genLoc, _tmpCmpSeq, o);
+				err = verifySeq(genLoc, _tmpCmpSeq, o);
 				
 				if (err != -1)
 				{
@@ -836,45 +842,47 @@ void outputBestSingleMapping()
 	}
 	freeMem(revQual, QUAL_LENGTH + 1);
 }
-/**********************************************/
-int	 mapSingleEndSeq(unsigned char contigFlag)
+/*********************************************/
+int	mapSingleEnd(unsigned char contigFlag)
 {
 	int i = 0;
 	unsigned int *locs = NULL;
 	unsigned int *seqInfo = NULL;
 	
-	if (bestMappingMode)
+	while ( i < _msf_rIndexSize )
 	{
-		while ( i < _msf_rIndexSize )
+		locs = getCandidates (_msf_rIndex[i].hv);
+		if ( locs != NULL)
 		{
-			locs = getCandidates (_msf_rIndex[i].hv);
-			if ( locs != NULL)
-			{
-				seqInfo  = _msf_rIndex[i].seqInfo;
-				mapBestSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);
-			}
-			i++;
+			seqInfo  = _msf_rIndex[i].seqInfo;
+			mapSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
 		}
-
-		if (contigFlag == 0)
-			outputBestSingleMapping();
-	}
-	else
-	{
-		while ( i < _msf_rIndexSize )
-		{
-			locs = getCandidates (_msf_rIndex[i].hv);
-			if ( locs != NULL)
-			{
-				seqInfo  = _msf_rIndex[i].seqInfo;
-				mapSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
-			}
-			i++;
-		}
+		i++;
 	}
 	return 1;
 }
 
+/*********************************************/
+int mapSingleEndBest(unsigned char contigFlag)
+{
+	int i = 0;
+	unsigned int *locs = NULL;
+	unsigned int *seqInfo = NULL;
+	
+	while ( i < _msf_rIndexSize )
+	{
+		locs = getCandidates (_msf_rIndex[i].hv);
+		if ( locs != NULL)
+		{
+			seqInfo  = _msf_rIndex[i].seqInfo;
+			mapBestSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);
+		}
+		i++;
+	}
+
+	if (contigFlag == 0)
+		outputBestSingleMapping();
+}
 
 /**********************************************/
 /**********************************************/
@@ -946,7 +954,7 @@ void mapPairedEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 				if ( abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySingleEnd(genLoc, _tmpCmpSeq, o);
+					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
 				{
