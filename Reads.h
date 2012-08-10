@@ -51,6 +51,6 @@ typedef struct
 int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);
 void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize);
 void finalizeReads(char *fileName);
-void preProcessReads(ReadIndexTable **rIndex, int *rIndexSize, Read *seqList, unsigned int seqListSize);//, int *samplingLocs, int samplingLocsSize);
+void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize);
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
 #endif

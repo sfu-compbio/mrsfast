@@ -88,18 +88,8 @@ int main(int argc, char *argv[])
 		char fname3[FILE_NAME_LENGTH];
 		char fname4[FILE_NAME_LENGTH];
 		char fname5[FILE_NAME_LENGTH];
-		// Loading Sequences & Sampling Locations
-		startTime = getTime();
 
-		if (!readAllReads(seqFile1, seqFile2, seqCompressed, &seqFastq, pairedEndMode, &seqList, &seqListSize))
-		{
-			return 1;
-		}
-
-		//loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-		totalLoadingTime += getTime()-startTime;
-
-
+		// Why is this one here?
 		if (pairedEndMode)
 		{
 			//Switching to Inferred Size 
@@ -123,6 +113,23 @@ int main(int argc, char *argv[])
 			unlink(fname5);
 		}
 
+		// Loading Sequences & Sampling Locations
+		startTime = getTime();
+
+		if (!checkHashTable(fileName[fc][1]))
+		{
+			return 1;
+		}
+
+
+		if (!readAllReads(seqFile1, seqFile2, seqCompressed, &seqFastq, pairedEndMode, &seqList, &seqListSize))
+		{
+			return 1;
+		}
+		
+		//loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+		totalLoadingTime += getTime()-startTime;
+		
 		// Preparing output
 		initOutput(mappingOutput, outCompressed);
 
@@ -192,9 +199,6 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/seqListSize));
 
-		if (progressRep)
-			printStat(seqList, seqListSize);
-
 		if (strcmp(unmappedOutput, "") == 0)
 		{
 			char fn[strlen(mappingOutputPath) + strlen(mappingOutput) + 6 ];
@@ -210,27 +214,3 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-void printStat(Read *seqList, unsigned int seqListSize)
-{
-	int fc, cof = (pairedEndMode)?2:1;
-
-	if (maxHits != 0)
-	{
-		int frequency[maxHits+1];
-		int i;
-		for ( i=0 ; i <= maxHits; i++)
-		{
-			frequency[i] = 0;
-		}
-
-		for (fc = 0; fc < seqListSize; fc++)
-		{
-			frequency[*(seqList[fc*cof].hits)]++;
-		}
-		frequency[maxHits] = completedSeqCnt;
-		for ( i=0 ; i <= maxHits; i++)
-		{
-			fprintf(stdout, "%-30s%10d%10d%10.2f%%\n","Reads Mapped to ", i, frequency[i], 100*(float)frequency[i]/(float)seqListSize);
-		}
-	}
-}

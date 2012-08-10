@@ -57,7 +57,7 @@ extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
 extern unsigned int		THREAD_COUNT;
 extern unsigned int		MAX_MEMORY;
-extern unsigned char	THREAD_ID[255];
+extern int				THREAD_ID[255];
 
 extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length

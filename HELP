@@ -45,3 +45,4 @@ Searching Options:
  -e [int]		hamming distance (default 2).
  --min [int]		Min inferred distance allowed between two pairend sequences.
  --max [int]		Max inferred distance allowed between two pairend sequences.
+ --thread [int]		Number of threads that should be used for mapping. Default is one. 0 will choose all the available cpus for threading.

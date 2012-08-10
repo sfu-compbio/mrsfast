@@ -286,6 +286,32 @@ int generateHashTable(char *fileName, char *indexName)
 	return 1;
 }
 
+
+/**********************************************/
+int checkHashTable(char *fileName)
+{
+	_ih_fp = fileOpen(fileName, "r");
+
+	unsigned char magicNumber;
+	int tmp;
+
+	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
+	if (magicNumber == 1)
+	{
+		fprintf(stdout, "Error: Please use version 1.2.6.4 in bisulfite mode.\n");
+		return 0;
+	}
+	else if (magicNumber == 0)
+	{
+		fprintf(stdout, "Error: Please use version 2.x.x.x or upgrade your index.\n");
+		return 0;
+	}
+
+	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
+	fclose(_ih_fp);
+	return 1;
+}
+
 /**********************************************/
 int initLoadingHashTable(char *fileName)
 {

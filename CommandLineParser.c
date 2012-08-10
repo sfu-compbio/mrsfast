@@ -71,7 +71,7 @@ unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
 unsigned int			THREAD_COUNT = 1;
 unsigned int			MAX_MEMORY = (1 << 22);		// 2^22 = 4 GB
-unsigned char			THREAD_ID[255];
+int						THREAD_ID[255];
 extern char 			_binary_HELP_start;
 extern char				_binary_HELP_end;
 
@@ -115,7 +115,8 @@ int parseCommandLine (int argc, char *argv[])
 		{"min",				required_argument,  0,					'l'},
 		{"max",				required_argument,  0,					'm'},
 		{"crop",			required_argument,  0,					'c'},
-		{"thread",			required_argument,  0,					't'}
+		{"threads",			required_argument,  0,					't'},
+		{0,0,0,0}
 
 	};
 

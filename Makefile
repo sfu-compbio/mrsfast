@@ -5,7 +5,7 @@ PROFILE := 0
 ALL: mrsfast
 
 LDFLAGS=-static
-LIBS=-lz -lm
+LIBS=-lz -lm -pthread -lpthread
 CFLAGS=-O2 
 
 

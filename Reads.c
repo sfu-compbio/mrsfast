@@ -53,7 +53,8 @@ int *_r_samplingLocsSeg;
 int *_r_samplingLocsOffset;
 int *_r_samplingLocsLen;
 int *_r_samplingLocsLenFull;
-
+int *_r_indexSize;
+ReadIndexTable **r_index=NULL;
 /**********************************************/
 char *(*readFirstSeq)(char *);
 char *(*readSecondSeq)(char *);
@@ -85,85 +86,94 @@ int compare (const void *a, const void *b)
 	return ((Pair *)a)->hv - ((Pair *)b)->hv;
 }
 /**********************************************/
-void preProcessReads(ReadIndexTable **readIndex,
-						int *rIndexSize,
-						Read *seqList,
-						unsigned int seqListSize)
-//						int *samplingLocs,
-//						int samplingLocsSize)
+void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize)
 {
-	int i=0;
+	int i=0; 
 	int j=0;
+	int z=0;
 	int pos = 0;
 	char rseq[SEQ_LENGTH+1];
+	int tmpSize;
 
-//	_msf_rIndexMax = -1;
+	//_msf_rIndexMax2 = getMem(sizeof(int)*THREAD_COUNT);
+	*readIndexSize = getMem(sizeof(int)*THREAD_COUNT);
+	*readIndex = getMem(sizeof(ReadIndexTable*)*THREAD_COUNT);
+	int *rIndexSize = *readIndexSize;
+	ReadIndexTable **rIndex = *readIndex;
 
-	int tmpSize = seqListSize * _r_samplingLocsSize * 2;
-	Pair *tmp = getMem(sizeof(Pair)*tmpSize);
+	int div = _r_seqCnt / THREAD_COUNT ; // Should be fixed for PE
+	div += (_r_seqCnt % THREAD_COUNT)?1:0;
+	Pair *tmp = getMem(sizeof(Pair)*(div * _r_samplingLocsSize*2));
 
-	for (i=0; i<seqListSize; i++)
+	fprintf(stdout, "DIV: %d\n", div);
+
+	for (z=0; z<THREAD_COUNT;z++)
 	{
-		for (j=0; j< _r_samplingLocsSize; j++)
+		tmpSize = 0;
+		pos = 0;
+		for (i=z*div; i<div*(z+1) && i<_r_seqCnt; i++)
 		{
-			tmp[pos].hv = hashVal(seqList[i].seq + _r_samplingLocs[j]);
-			tmp[pos].seqInfo = pos;
-			pos++;
+			for (j=0; j< _r_samplingLocsSize; j++)
+			{
+				tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
+				tmp[pos].seqInfo = pos +(div*z*2*_r_samplingLocsSize);
+				pos++;
+			}
+			for (j=0; j<_r_samplingLocsSize; j++)
+			{
+				reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
+				tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
+				tmp[pos].seqInfo = pos+(div*z*2*_r_samplingLocsSize);
+				pos++;
+			}
+			tmpSize+=2*_r_samplingLocsSize;
 		}
-		for (j=0; j< _r_samplingLocsSize; j++)
+		fprintf(stdout, "Partition %d %d\n", z*div, tmpSize);
+
+		qsort(tmp, tmpSize, sizeof(Pair), compare);
+
+		int uniq = 0;
+		int prev = -2;
+		int beg = -1;
+		int end = -1;
+
+		for (i=0; i<tmpSize; i++)
 		{
-			reverseComplete(seqList[i].seq, rseq, SEQ_LENGTH);
-			tmp[pos].hv = hashVal(rseq + _r_samplingLocs[j]);
-			tmp[pos].seqInfo = pos;
-			pos++;
+			if (prev != tmp[i].hv)
+			{
+				uniq ++;
+				prev = tmp[i].hv;
+			}
+		}
+
+		rIndexSize[z] = uniq;
+		rIndex[z] = getMem(sizeof(ReadIndexTable)*rIndexSize[z]);
+		prev = -2;
+
+		j=0;
+		beg =0;
+		while (beg < tmpSize)
+		{
+			end = beg;
+			while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
+				end++;
+
+			rIndex[z][j].hv = tmp[beg].hv;
+			rIndex[z][j].seqInfo = getMem(sizeof(int)*(end-beg+2));
+			rIndex[z][j].seqInfo[0] = end-beg+1;
+			//if ((end-beg+1) > rIndexMax[z])
+			//	rIndexMax[z] = end-beg+1;
+
+			for (i=1; i <= rIndex[z][j].seqInfo[0]; i++)
+			{
+				rIndex[z][j].seqInfo[i]=tmp[beg+i-1].seqInfo;
+			}
+			j++;
+			beg = end+1;
 		}
 	}
-
-	qsort(tmp, tmpSize, sizeof(Pair), compare);
-
-
-	int uniq = 0;
-	int prev = -2;
-	int beg = -1;
-	int end = -1;
-
-	for (i=0; i<tmpSize; i++)
-	{
-		if (prev != tmp[i].hv)
-		{
-			uniq ++;
-			prev = tmp[i].hv;
-		}
-	}
-
-	*rIndexSize = uniq;
-	ReadIndexTable *rIndex = getMem(sizeof(ReadIndexTable) * (*rIndexSize));
-	*readIndex = rIndex;
-
-	prev = -2;
-
-	j=0;
-	beg =0;
-	while (beg < tmpSize)
-	{
-		end = beg;
-		while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
-			end++;
-
-		rIndex[j].hv = tmp[beg].hv;
-		rIndex[j].seqInfo = getMem(sizeof(int)*(end-beg+2));
-		rIndex[j].seqInfo[0] = end-beg+1;
-	//	if ((end-beg+1) > _msf_rIndexMax)
-	//		_msf_rIndexMax = end-beg+1;
-
-		for (i=1; i <= rIndex[j].seqInfo[0]; i++)
-		{
-			rIndex[j].seqInfo[i]=tmp[beg+i-1].seqInfo;
-		}
-		j++;
-		beg = end+1;
-	}
-	freeMem(tmp, sizeof(Pair)*tmpSize);
+	freeMem(tmp, sizeof(Pair)*(div*_r_samplingLocsSize*2));
+	fprintf(stdout, "DONE %d\n", (div*_r_samplingLocsSize*2));
 }
 /**********************************************/
 int readAllReads(char *fileName1,
@@ -595,6 +605,10 @@ int readAllReads(char *fileName1,
 
 	_r_seq = list;
 	_r_seqCnt = seqCnt;
+
+
+//	preProcessReadsMT();
+
 
 	fprintf(stdout, "%d sequences are read in %0.2f. (%d discarded) [Mem:%0.2f M]\n", seqCnt, (getTime()-startTime), discarded, getMemUsage());
 
