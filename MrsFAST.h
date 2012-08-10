@@ -81,5 +81,5 @@ void initFAST(	Read *seqList,
 
 void finalizeFAST();
 
-int (*mapSeq)(unsigned char contigFlag);
+int mapSeq(unsigned char contigFlag);
 #endif

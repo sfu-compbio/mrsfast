@@ -115,6 +115,14 @@ void outputBestPairedEnd();
 void updateBestPairedEnd();
 void outputPairedEndDiscPP();
 int mapSingleEndBest(unsigned char);
+void mapSingleEndSeqListBalBest (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir);
+void mapSingleEndSeqListBalMultiple (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir);
+void mapPairedEndSeqListBal (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir);
+void mapSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2);
+void outputTempMapping();
+
+void (*mapSeqListBal) (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir);
+//void (*mapSeqList) (unsigned int *l1, int s1, unsigned int *l2, int s2);
 /**********************************************/
 void initFAST(Read *seqList, int seqListSize)
 {
@@ -149,12 +157,14 @@ void initFAST(Read *seqList, int seqListSize)
 		if (!pairedEndMode)
 		{
 			if (bestMappingMode)
-				mapSeq = &mapSingleEndBest;
+				mapSeqListBal = & mapSingleEndSeqListBalBest;
 			else
-				mapSeq = &mapSingleEnd;
+				mapSeqListBal = & mapSingleEndSeqListBalMultiple;
 		}
 		else
-			mapSeq = &mapPairedEndSeq;
+		{
+			mapSeqListBal = & mapPairedEndSeqListBal;
+		}
 
 		// ----------- MAPPING MODE SPECIFIC  ----------- 
 		// Required data structure for paired end mapping mode.
@@ -487,7 +497,7 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 }
 
 /**********************************************/
-void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
+void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
 {
 	if (s1 == 0 || s2 == 0)
 	{
@@ -627,17 +637,17 @@ void mapSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 	{
 		int tmp1=s1/2, tmp2= s2/2;
 		if (tmp1 != 0)
-			mapSingleEndSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
-		mapSingleEndSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
+			mapSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
+		mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
 		if (tmp2 !=0)
-			mapSingleEndSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
+			mapSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
 		if (tmp1 + tmp2 != 0)
-			mapSingleEndSeqListBal(l2, tmp2, l1, tmp1, -dir);
+			mapSeqListBal(l2, tmp2, l1, tmp1, -dir);
 	}
 }
 
 /**********************************************/
-void mapBestSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
+void mapSingleEndSeqListBalBest(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
 {
 	if (s1 == 0 || s2 == 0)
 	{
@@ -668,9 +678,6 @@ void mapBestSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int 
 		{
 			int re = _msf_samplingLocsSize * 2;
 			int r = seqInfo[j]/re;
-
-			//if ( _msf_bestMapping[r].err == 0)
-				//continue;
 
 			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 				continue;
@@ -740,49 +747,31 @@ void mapBestSingleEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int 
 	{
 		int tmp1=s1/2, tmp2= s2/2;
 		if (tmp1 != 0)
-			mapBestSingleEndSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
-		mapBestSingleEndSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
+			mapSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
+		mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
 		if (tmp2 !=0)
-			mapBestSingleEndSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
+			mapSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
 		if (tmp1 + tmp2 != 0)
-			mapBestSingleEndSeqListBal(l2, tmp2, l1, tmp1, -dir);
+			mapSeqListBal(l2, tmp2, l1, tmp1, -dir);
 	}
 }
 
 /**********************************************/
-void mapSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
+void mapSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 {
 	if (s1 < s2)
 	{
-		mapSingleEndSeqListBal(l1, s1, l2, s1,1);
-		mapSingleEndSeqList(l1, s1, l2+s1, s2-s1);		
+		mapSeqListBal(l1, s1, l2, s1,1);
+		mapSeqList(l1, s1, l2+s1, s2-s1);		
 	}
 	else if (s1 > s2)
 	{
-		mapSingleEndSeqListBal(l1, s2, l2, s2,1);
-		mapSingleEndSeqList(l1+s2, s1-s2, l2, s2);
+		mapSeqListBal(l1, s2, l2, s2,1);
+		mapSeqList(l1+s2, s1-s2, l2, s2);
 	}
 	else
 	{
-		mapSingleEndSeqListBal(l1, s1, l2, s2,1);
-	}
-}
-/**********************************************/
-void mapBestSingleEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
-{
-	if (s1 < s2)
-	{
-		mapBestSingleEndSeqListBal(l1, s1, l2, s1,1);
-		mapBestSingleEndSeqList(l1, s1, l2+s1, s2-s1);		
-	}
-	else if (s1 > s2)
-	{
-		mapBestSingleEndSeqListBal(l1, s2, l2, s2,1);
-		mapBestSingleEndSeqList(l1+s2, s1-s2, l2, s2);
-	}
-	else
-	{
-		mapBestSingleEndSeqListBal(l1, s1, l2, s2,1);
+		mapSeqListBal(l1, s1, l2, s2,1);
 	}
 }
 /**********************************************/
@@ -843,7 +832,7 @@ void outputBestSingleMapping()
 	freeMem(revQual, QUAL_LENGTH + 1);
 }
 /*********************************************/
-int	mapSingleEnd(unsigned char contigFlag)
+int	mapSeq(unsigned char contigFlag)
 {
 	int i = 0;
 	unsigned int *locs = NULL;
@@ -855,36 +844,40 @@ int	mapSingleEnd(unsigned char contigFlag)
 		if ( locs != NULL)
 		{
 			seqInfo  = _msf_rIndex[i].seqInfo;
-			mapSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
+			mapSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);			
 		}
 		i++;
 	}
+	
+	if (!pairedEndMode)
+	{
+		if (bestMappingMode && contigFlag == 0)
+			outputBestSingleMapping();
+	}
+	else
+	{
+		outputTempMapping();
+		if (contigFlag == 0 || contigFlag == 2)
+		{
+			if (bestMappingMode)
+				updateBestPairedEnd();
+			else
+				outputPairedEnd();
+		}
+
+		if (contigFlag == 0)
+		{
+			if (bestMappingMode)
+				outputBestPairedEnd();
+
+			if (pairedEndDiscordantMode)
+				outputPairedEndDiscPP();
+		}
+	}
+
 	return 1;
 }
 
-/*********************************************/
-int mapSingleEndBest(unsigned char contigFlag)
-{
-	int i = 0;
-	unsigned int *locs = NULL;
-	unsigned int *seqInfo = NULL;
-	
-	while ( i < _msf_rIndexSize )
-	{
-		locs = getCandidates (_msf_rIndex[i].hv);
-		if ( locs != NULL)
-		{
-			seqInfo  = _msf_rIndex[i].seqInfo;
-			mapBestSingleEndSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0]);
-		}
-		i++;
-	}
-
-	if (contigFlag == 0)
-		outputBestSingleMapping();
-}
-
-/**********************************************/
 /**********************************************/
 /**********************************************/
 /**********************************************/
@@ -897,20 +890,32 @@ int compareOut (const void *a, const void *b)
 }
 
 /**********************************************/
-void mapPairedEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
+void mapPairedEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir)
 {
-	if ( s2/s1 <= 2)
+	if (s1 == 0 || s2 == 0)
+	{
+		return;
+	}
+	else if (s1 == s2 && s1 <= 50)
 	{
 		int j = 0;
 		int z = 0;
-		int *locs = (int *) l1;
+		int *locs;
 		int *seqInfo = (int *) l2;
 		CompressedSeq *_tmpCmpSeq;
-		char *_tmpQual;// *_tmpSeq;
-		char rqual[QUAL_LENGTH+1];
-		rqual[QUAL_LENGTH]='\0';
 		unsigned char tmp[4];
 		unsigned char *alph, *gl;
+
+		if (dir > 0)
+		{
+			locs        = (int *) l1;
+			seqInfo     = (int *) l2;
+		}
+		else
+		{
+			locs        = (int *) l2;
+			seqInfo     = (int *) l1;
+		}
 
 		for (j=0; j<s2; j++)
 		{
@@ -993,121 +998,16 @@ void mapPairedEndSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2)
 			}
 		}
 	}
-	else if (s1 == 1)
-	{
-		int tmp = s2/2;
-		mapPairedEndSeqList(l1, s1, l2, tmp);
-		mapPairedEndSeqList(l1, s1, l2+tmp, s2-tmp);
-	}
-	else if (s2 == 1)
-	{
-		int tmp = s1/2;
-		mapPairedEndSeqList(l1, tmp, l2, s2);
-		mapPairedEndSeqList(l1+tmp, s1-tmp, l2, s2);
-	}
 	else
 	{
 		int tmp1=s1/2, tmp2= s2/2;
-		mapPairedEndSeqList(l1, tmp1, l2, tmp2);
-		mapPairedEndSeqList(l1+tmp1, s1-tmp1, l2, tmp2);
-		mapPairedEndSeqList(l1+tmp1, s1-tmp1, l2+tmp2, s2-tmp2);
-		mapPairedEndSeqList(l1, tmp1, l2+tmp2, s2-tmp2);
-	}
-}
-
-/**********************************************/
-int	 mapPairedEndSeq(unsigned char contigFlag)
-{
-	int i = 0;
-	unsigned int *locs = NULL;
-	unsigned int *seqInfo = NULL;
-	while ( i < _msf_rIndexSize )
-	{
-		locs = getCandidates (_msf_rIndex[i].hv);
-		if ( locs != NULL)
-		{
-			seqInfo  = _msf_rIndex[i].seqInfo;
-			mapPairedEndSeqList(locs+1, locs[0], seqInfo+1, seqInfo[0]);
-
-		}
-		i++;
-	}
-
-
-	char fname1[FILE_NAME_LENGTH];
-	char fname2[FILE_NAME_LENGTH];
-	MappingLocations *cur, *tmp;
-	int tmpOut;
-	int j;
-	int lmax=0, rmax=0;
-
-	sprintf(fname1, "%s__%s__%d__1",mappingOutputPath, mappingOutput, _msf_openFiles);
-	sprintf(fname2, "%s__%s__%d__2",mappingOutputPath, mappingOutput, _msf_openFiles);
-
-	FILE* out;
-	FILE* out1 = fileOpen(fname1, "w");
-	FILE* out2 = fileOpen(fname2, "w");
-
-	_msf_openFiles++;
-
-	for (i=0; i<_msf_seqListSize; i++)
-	{
-
-		if (i%2==0)
-		{
-			out = out1;
-
-			if (lmax <  _msf_mappingInfo[i].size)
-			{
-				lmax = _msf_mappingInfo[i].size;
-			}
-		}
-		else
-		{
-			out = out2;
-			if (rmax < _msf_mappingInfo[i].size)
-			{	
-				rmax = _msf_mappingInfo[i].size;
-			}
-		}
-
-		tmpOut = fwrite(&(_msf_mappingInfo[i].size), sizeof(int), 1, out);					
-		if (_msf_mappingInfo[i].size > 0)
-		{
-			cur = _msf_mappingInfo[i].next;
-			for (j=0; j < _msf_mappingInfo[i].size; j++)
-			{
-				if ( j>0  && j%MAP_CHUNKS==0)
-				{
-					cur = cur->next;
-				}
-				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
-			}
-			_msf_mappingInfo[i].size = 0;
-		}
-	}
-
-	_msf_maxLSize += lmax;
-	_msf_maxRSize += rmax;
-
-	fclose(out1);
-	fclose(out2);
-
-	if (contigFlag == 0 || contigFlag == 2)
-	{
-		if (bestMappingMode)
-			updateBestPairedEnd();
-		else
-			outputPairedEnd();
-	}
-
-	if (contigFlag == 0)
-	{
-		if (bestMappingMode)
-			outputBestPairedEnd();
-
-		if (pairedEndDiscordantMode)
-			outputPairedEndDiscPP();
+		if (tmp1 != 0)
+			mapSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir);
+		mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir);
+		if (tmp2 !=0)
+			mapSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir);
+		if (tmp1 + tmp2 != 0)
+			mapSeqListBal(l2, tmp2, l1, tmp1, -dir);
 	}
 
 }
@@ -1515,7 +1415,6 @@ void outputBestPairedEnd()
 	{
 		//output best
 		if (_msf_bestMapping[2*i].err <= errThreshold)
-	//if (_msf_seqList[i*2].hits[0] > 0)
 		{
 			rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
 			seq1 = _msf_seqList[i*2].seq;
@@ -1782,37 +1681,18 @@ void updateBestPairedEnd()
 		cseq2 = _msf_seqList[i*2+1].cseq;
 		crseq2 = _msf_seqList[i*2+1].crseq;
 
-		if (pairedEndDiscordantMode)
+		for (k=0; k<size1; k++)
 		{
-			/*for (k=0; k<size1; k++)
-			{
-				int tm = -1;
-				mi1[k].score = calculateScore(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, &tm);
-				mi1[k].err = tm;
-			}
-
-			for (k=0; k<size2; k++)
-			{
-				int tm = -1;
-				mi2[k].score = calculateScore(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi2[k].dir==-1)?rqual2:qual2, &tm);
-				mi2[k].err = tm;
-			}*/
-
+			mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op);
+			sprintf(mi1[k].md, "%s", _msf_op);
 		}
-		else
+
+		for (k=0; k<size2; k++)
 		{
-			for (k=0; k<size1; k++)
-			{
-				mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op);
-				sprintf(mi1[k].md, "%s", _msf_op);
-			}
-
-			for (k=0; k<size2; k++)
-			{
-				mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op);
-				sprintf(mi2[k].md, "%s", _msf_op);
-			}
+			mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op);
+			sprintf(mi2[k].md, "%s", _msf_op);
 		}
+
 		pos = 0;
 
 		for (j=0; j<size1; j++)
@@ -1835,68 +1715,37 @@ void updateBestPairedEnd()
 			{
 				if (mi2[k].loc <= ll || mi2[k].loc >= rl)
 				{
-					if (pairedEndDiscordantMode)
+					/*if ( bestMap[0] == NULL || (mi1[j].err + mi2[k].err < bestMap[0]->err + bestMap[1]->err) )
+					  {
+					  bestMap[0] = &mi1[j];
+					  bestMap[1] = &mi2[k];
+					  }*/
+
+					if (mi1[j].err + mi2[k].err < _msf_bestMapping[2*i].err + _msf_bestMapping[2*i+1].err)
 					{
-				/*		int tmp;
-						int rNo = i;
-						int loc = mi1[j].loc*mi1[j].dir;
-						int err = mi1[j].err;
-						float sc = mi1[j].score;
+						_msf_bestMapping[2*i].err = mi1[j].err;
+						_msf_bestMapping[2*i].loc = mi1[j].loc;
+						_msf_bestMapping[2*i].dir = mi1[j].dir;
+						strcpy(_msf_bestMapping[2*i].md, mi1[j].md);
 
-						char l = strlen(_msf_refGenName);
-
-						tmp = fwrite(&rNo, sizeof(int), 1, out);
-
-						tmp = fwrite(&l, sizeof(char), 1, out);
-						tmp = fwrite(_msf_refGenName, sizeof(char), l, out);
-
-						tmp = fwrite(&loc, sizeof(int), 1, out);
-						tmp = fwrite(&err, sizeof(char), 1, out);
-						tmp = fwrite(&sc, sizeof(float), 1, out);
+						_msf_bestMapping[2*i+1].err = mi2[k].err;
+						_msf_bestMapping[2*i+1].loc = mi2[k].loc;
+						_msf_bestMapping[2*i+1].dir = mi2[k].dir;
+						strcpy(_msf_bestMapping[2*i+1].md, mi2[k].md);
 
 
-						loc = mi2[k].loc*mi2[k].dir;
-						err = mi2[k].err;
-						sc = mi2[k].score;
+						_msf_seqList[i*2].hits[0]++;
+						_msf_seqList[i*2+1].hits[0]++;
 
-						tmp = fwrite(&loc, sizeof(int), 1, out);
-						tmp = fwrite(&err, sizeof(char), 1, out);
-						tmp = fwrite(&sc, sizeof(float), 1, out);	*/
-					} // end discordant
-					else
-					{
-						/*if ( bestMap[0] == NULL || (mi1[j].err + mi2[k].err < bestMap[0]->err + bestMap[1]->err) )
+						if (_msf_seqList[i*2].hits[0] == 1)
 						{
-							bestMap[0] = &mi1[j];
-							bestMap[1] = &mi2[k];
-						}*/
+							mappedSeqCnt++;
+							mappingCnt++;
+						}
 
-						if (mi1[j].err + mi2[k].err < _msf_bestMapping[2*i].err + _msf_bestMapping[2*i+1].err)
+						if ( maxHits == 0 )
 						{
-							_msf_bestMapping[2*i].err = mi1[j].err;
-							_msf_bestMapping[2*i].loc = mi1[j].loc;
-							_msf_bestMapping[2*i].dir = mi1[j].dir;
-							strcpy(_msf_bestMapping[2*i].md, mi1[j].md);
-
-							_msf_bestMapping[2*i+1].err = mi2[k].err;
-							_msf_bestMapping[2*i+1].loc = mi2[k].loc;
-							_msf_bestMapping[2*i+1].dir = mi2[k].dir;
-							strcpy(_msf_bestMapping[2*i+1].md, mi2[k].md);
-
-
-							_msf_seqList[i*2].hits[0]++;
-							_msf_seqList[i*2+1].hits[0]++;
-
-							if (_msf_seqList[i*2].hits[0] == 1)
-							{
-								mappedSeqCnt++;
-								mappingCnt++;
-							}
-
-							if ( maxHits == 0 )
-							{
-								_msf_seqList[i*2].hits[0] = _msf_seqList[i*2+1].hits[0] = 2;
-							}
+							_msf_seqList[i*2].hits[0] = _msf_seqList[i*2+1].hits[0] = 2;
 						}
 					}
 				}
@@ -1914,7 +1763,6 @@ void updateBestPairedEnd()
 
 	freeMem(mi1, sizeof(FullMappingInfo)*_msf_maxLSize);
 	freeMem(mi2, sizeof(FullMappingInfo)*_msf_maxRSize);
-	//freeMem(bestMap, 2 * sizeof(FullMappingInfo*));
 
 	for (i=0; i<_msf_openFiles; i++)
 	{
@@ -2019,8 +1867,6 @@ void outputPairedEndDiscPP()
 		tmp = fread(&err2, sizeof(char), 1, in);
 		tmp = fread(&sc2, sizeof(float), 1, in);
 
-		//if (rNo ==6615)								DEL
-		//	fprintf(stdout, "%s %d: %d %0.20f %d %d %0.20f\n", genName, loc1, err1, sc1, loc2, err2, sc2);
 
 		if (_msf_seqList[rNo*2].hits[0] % 2 == 0 && _msf_seqHits[rNo] < DISCORDANT_CUT_OFF)
 		{
@@ -2375,4 +2221,68 @@ unlink(fname2);
 unlink(fname3);
 unlink(fname5);
 unlink(fname6);
+}
+
+/**********************************************/
+void outputTempMapping()
+{
+	char fname1[FILE_NAME_LENGTH];
+	char fname2[FILE_NAME_LENGTH];
+	MappingLocations *cur, *tmp;
+	int tmpOut;
+	int i, j;
+	int lmax=0, rmax=0;
+
+	sprintf(fname1, "%s__%s__%d__1",mappingOutputPath, mappingOutput, _msf_openFiles);
+	sprintf(fname2, "%s__%s__%d__2",mappingOutputPath, mappingOutput, _msf_openFiles);
+
+	FILE* out;
+	FILE* out1 = fileOpen(fname1, "w");
+	FILE* out2 = fileOpen(fname2, "w");
+
+	_msf_openFiles++;
+
+	for (i=0; i<_msf_seqListSize; i++)
+	{
+
+		if (i%2==0)
+		{
+			out = out1;
+
+			if (lmax <  _msf_mappingInfo[i].size)
+			{
+				lmax = _msf_mappingInfo[i].size;
+			}
+		}
+		else
+		{
+			out = out2;
+			if (rmax < _msf_mappingInfo[i].size)
+			{	
+				rmax = _msf_mappingInfo[i].size;
+			}
+		}
+
+		tmpOut = fwrite(&(_msf_mappingInfo[i].size), sizeof(int), 1, out);					
+		if (_msf_mappingInfo[i].size > 0)
+		{
+			cur = _msf_mappingInfo[i].next;
+			for (j=0; j < _msf_mappingInfo[i].size; j++)
+			{
+				if ( j>0  && j%MAP_CHUNKS==0)
+				{
+					cur = cur->next;
+				}
+				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
+			}
+			_msf_mappingInfo[i].size = 0;
+		}
+	}
+
+	_msf_maxLSize += lmax;
+	_msf_maxRSize += rmax;
+
+	fclose(out1);
+	fclose(out2);
+
 }
