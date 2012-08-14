@@ -308,6 +308,9 @@ int checkHashTable(char *fileName)
 	}
 
 	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
+	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
+	tmp = fread(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
+	tmp = fread(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
 	fclose(_ih_fp);
 	return 1;
 }
@@ -330,19 +333,7 @@ int initLoadingHashTable(char *fileName)
 	int tmp;
 
 	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
-	if (magicNumber == 1)
-	{
-		fprintf(stdout, "Error: Please use version 1.2.6.4 in bisulfite mode.\n");
-		return 0;
-	}
-	else if (magicNumber == 0)
-	{
-		fprintf(stdout, "Error: Please use version 2.x.x.x or upgrade your index.\n");
-		return 0;
-	}
-
 	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
-	
 	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
 	_ih_hashTableMem = getMem(_ih_hashTableMemSize*sizeof(unsigned int));
 

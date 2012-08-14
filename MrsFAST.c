@@ -83,13 +83,8 @@ int					*_msf_samplingLocsLenFull;
 Read				*_msf_seqList;
 int					_msf_seqListSize;
 
-ReadIndexTable		*_msf_rIndex = NULL;
-int					_msf_rIndexSize;
-int					_msf_rIndexMax;		// TODO: delete?
-
-ReadIndexTable		**_msf_rIndex2 = NULL;
-int					*_msf_rIndexSize2;
-int					*_msf_rIndexMax2;		// TODO: delete?
+ReadIndexTable		**_msf_rIndex = NULL;
+int					*_msf_rIndexSize;
 
 SAM					_msf_output;
 
@@ -224,7 +219,9 @@ void initFAST(Read *seqList, int seqListSize)
 		}
 
 
-		preProcessReadsMT(&_msf_rIndex2, &_msf_rIndexSize2);
+		getReadIndex(&_msf_rIndex, &_msf_rIndexSize);
+		//preProcessReadsMT(&_msf_rIndex, &_msf_rIndexSize);
+
 #ifndef MRSFAST_SSE4
 		// pre loading popcount
 		int x;
@@ -275,12 +272,12 @@ void finalizeFAST()
 		}
 	}
 
-	int i;
+	/*int i;
 	for (i=0; i<_msf_rIndexSize; i++)
 	{
 		freeMem(_msf_rIndex[i].seqInfo, _msf_rIndex[i].seqInfo[0]+1);
 	}
-	freeMem(_msf_rIndex, _msf_rIndexSize);
+	freeMem(_msf_rIndex, _msf_rIndexSize);*/
 
 #ifndef MRSFAST_SSE4
 	freeMem(_msf_errCnt, 1<<24);
@@ -590,7 +587,7 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
-				if ( abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if (1 ||  abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
@@ -811,12 +808,12 @@ void *mapSeqMT(int *idp)
 	int id = *idp;
 
 
-	while ( i < _msf_rIndexSize2[id])
+	while ( i < _msf_rIndexSize[id])
 	{
-		locs = getCandidates (_msf_rIndex2[id][i].hv);
+		locs = getCandidates (_msf_rIndex[id][i].hv);
 		if ( locs != NULL)
 		{
-			seqInfo  = _msf_rIndex2[id][i].seqInfo;
+			seqInfo  = _msf_rIndex[id][i].seqInfo;
 			mapSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0], id);			
 		}
 		i++;

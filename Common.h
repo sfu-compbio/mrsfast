@@ -56,7 +56,7 @@ typedef uint64_t CompressedSeq;
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
 extern unsigned int		THREAD_COUNT;
-extern unsigned int		MAX_MEMORY;
+extern double			MAX_MEMORY;
 extern int				THREAD_ID[255];
 
 extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching

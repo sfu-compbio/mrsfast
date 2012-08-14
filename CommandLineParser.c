@@ -70,7 +70,7 @@ unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
 unsigned int			THREAD_COUNT = 1;
-unsigned int			MAX_MEMORY = (1 << 22);		// 2^22 = 4 GB
+double					MAX_MEMORY = 4;// GB
 int						THREAD_ID[255];
 extern char 			_binary_HELP_start;
 extern char				_binary_HELP_end;
@@ -116,6 +116,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"max",				required_argument,  0,					'm'},
 		{"crop",			required_argument,  0,					'c'},
 		{"threads",			required_argument,  0,					't'},
+		{"mem",				required_argument,  0,					'z'},
 		{0,0,0,0}
 
 	};
@@ -182,6 +183,9 @@ int parseCommandLine (int argc, char *argv[])
 				if (THREAD_COUNT == 0 || THREAD_COUNT > sysconf( _SC_NPROCESSORS_ONLN ))
 					THREAD_COUNT = sysconf( _SC_NPROCESSORS_ONLN );
 				break;
+			case 'z':
+				MAX_MEMORY = atoi(optarg);
+				break;
 		}
 
 	}
@@ -202,6 +206,9 @@ int parseCommandLine (int argc, char *argv[])
 		fprintf(stdout, "ERROR: Window size should be in [8..14]\n");
 		return 0;
 	}
+
+	if (MAX_MEMORY < 2)
+		fprintf(stdout, "ERROR: At least 2 GB of memory is required for running mrsFAST\n");
 
 
 	if ( indexingMode )
@@ -327,6 +334,36 @@ int parseCommandLine (int argc, char *argv[])
 		fprintf(stdout, "# Threads: %d\n", THREAD_COUNT);
 		for (i = 0; i < 255; i++)
 			THREAD_ID[i] = i;
+	}
+
+	char fname1[FILE_NAME_LENGTH];
+	char fname2[FILE_NAME_LENGTH];
+	char fname3[FILE_NAME_LENGTH];
+	char fname4[FILE_NAME_LENGTH];
+	char fname5[FILE_NAME_LENGTH];
+
+	// Why is this one here?
+	if (pairedEndMode)
+	{
+		//Switching to Inferred Size 
+		minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 2;
+		maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 2;
+		if (pairedEndDiscordantMode)
+		{
+			maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 2;
+			minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 2;
+		}
+
+		sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
+		sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);
+		sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
+		sprintf(fname4, "%s__%s__oea1", mappingOutputPath, mappingOutput);
+		sprintf(fname5, "%s__%s__oea2", mappingOutputPath, mappingOutput);
+		unlink(fname1);
+		unlink(fname2);
+		unlink(fname3);
+		unlink(fname4);
+		unlink(fname5);
 	}
 
 	return 1;

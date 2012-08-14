@@ -48,9 +48,11 @@ typedef struct
 	unsigned char *alphCnt;
 } Read;
 
-int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);
+int readAllReads(Read **seqList, unsigned int *seqListSize);
 void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize);
-void finalizeReads(char *fileName);
-void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize);
+void finalizeReads();
+//void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize);
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
+int initRead(char *seqFile1, char *seqFile2);
+void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize);
 #endif

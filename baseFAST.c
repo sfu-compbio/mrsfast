@@ -83,35 +83,6 @@ int main(int argc, char *argv[])
 		double tmpTime;;
 		int	flag;
 		double maxMem=0;
-		char fname1[FILE_NAME_LENGTH];
-		char fname2[FILE_NAME_LENGTH];
-		char fname3[FILE_NAME_LENGTH];
-		char fname4[FILE_NAME_LENGTH];
-		char fname5[FILE_NAME_LENGTH];
-
-		// Why is this one here?
-		if (pairedEndMode)
-		{
-			//Switching to Inferred Size 
-			minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 2;
-			maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 2;
-			if (pairedEndDiscordantMode)
-			{
-				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 2;
-				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 2;
-			}
-
-			sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
-			sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);
-			sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);
-			sprintf(fname4, "%s__%s__oea1", mappingOutputPath, mappingOutput);
-			sprintf(fname5, "%s__%s__oea2", mappingOutputPath, mappingOutput);
-			unlink(fname1);
-			unlink(fname2);
-			unlink(fname3);
-			unlink(fname4);
-			unlink(fname5);
-		}
 
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
@@ -121,13 +92,15 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-
-		if (!readAllReads(seqFile1, seqFile2, seqCompressed, &seqFastq, pairedEndMode, &seqList, &seqListSize))
-		{
+		if (initRead(seqFile1, seqFile2))
 			return 1;
+
+		loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+		if (!readAllReads(&seqList, &seqListSize))
+		{
+	//		return 1;
 		}
 		
-		//loadSamplingLocations(&samplingLocs, &samplingLocsSize);
 		totalLoadingTime += getTime()-startTime;
 		
 		// Preparing output
@@ -144,7 +117,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			loadSamplingLocations(&samplingLocs, &samplingLocsSize);
+		//	loadSamplingLocations(&samplingLocs, &samplingLocsSize);
 
 			mappingTime = 0;
 			loadingTime = 0;
@@ -190,6 +163,7 @@ int main(int argc, char *argv[])
 		finalizeFAST();
 		finalizeLoadingHashTable();
 
+		finalizeReads();
 		finalizeOutput();
 
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
@@ -199,16 +173,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/seqListSize));
 
-		if (strcmp(unmappedOutput, "") == 0)
-		{
-			char fn[strlen(mappingOutputPath) + strlen(mappingOutput) + 6 ];
-			sprintf(fn, "%s%s.nohit", mappingOutputPath, mappingOutput );
-			finalizeReads(fn);
-		}
-		else
-		{
-			finalizeReads(unmappedOutput);
-		}
+
 	}
 
 	return 0;
