@@ -256,7 +256,6 @@ int initRead(char *fileName1, char *fileName2)
 	else
 		_r_fastq = 1;
 	
-	//
 	readFirstSeq(dummy);
 	int nameLen = strlen(dummy);
 	readFirstSeq(dummy);
@@ -275,7 +274,7 @@ int initRead(char *fileName1, char *fileName2)
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
 	fprintf(stdout, "max num of reads %d\n", _r_maxSeqCnt);
-	//_r_maxSeqCnt = 50;
+	_r_maxSeqCnt = 80000;
 
 	if (!seqCompressed)
 	{
@@ -296,6 +295,7 @@ int initRead(char *fileName1, char *fileName2)
 		maxCnt *= 2;*/
 	
 	_r_seq = getMem(sizeof(Read)*_r_maxSeqCnt);
+	return 1;
 }
 
 

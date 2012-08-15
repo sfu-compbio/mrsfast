@@ -74,32 +74,27 @@ int main(int argc, char *argv[])
 		int fc;
 		int samplingLocsSize;
 		int *samplingLocs;
+		int totalNumOfReads = 0;
 		double totalLoadingTime = 0;
 		double totalMappingTime = 0;
 		double startTime;
 		double loadingTime;
 		double mappingTime;
 		double lstartTime;
-		double tmpTime;;
+		double tmpTime;
 		int	flag;
 		double maxMem=0;
 
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
 
-		if (!checkHashTable(fileName[fc][1]))
-		{
+		if (!checkHashTable(fileName[0][1]))
 			return 1;
-		}
 
-		if (initRead(seqFile1, seqFile2))
+		if (!initRead(seqFile1, seqFile2))
 			return 1;
 
 		loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-		if (!readAllReads(&seqList, &seqListSize))
-		{
-	//		return 1;
-		}
 		
 		totalLoadingTime += getTime()-startTime;
 		
@@ -112,51 +107,56 @@ int main(int argc, char *argv[])
 
 		for (fc = 0; fc <fileCnt; fc++)
 		{
-			if (!initLoadingHashTable(fileName[fc][1]))
-			{
-				return 1;
-			}
-
-		//	loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-
 			mappingTime = 0;
 			loadingTime = 0;
 			flag = 1;
-			do
+
+			tmpTime = getTime();
+			while (readAllReads(&seqList, &seqListSize) || seqListSize > 0)
 			{
-				flag = loadHashTable ( &tmpTime );  			// Reading a fragment
+				totalNumOfReads += seqListSize;
+				if (!initLoadingHashTable(fileName[fc][1]))
+					return 1;
+				totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
 
-				loadingTime += tmpTime;
-
-				lstartTime = getTime();
-				initFAST(seqList, seqListSize);
-				mapSeq(flag);
-				mappingTime += getTime() - lstartTime;
-
-				if (maxMem < getMemUsage())
-					maxMem = getMemUsage();
-
-				if (flag == 0 || flag == 2)
+				do
 				{
-					totalMappingTime += mappingTime;
-					totalLoadingTime += loadingTime;
+					flag = loadHashTable ( &tmpTime );  			// Reading a fragment
+					loadingTime += tmpTime;
+
+					lstartTime = getTime();
+					initFAST(seqList, seqListSize);
+					mapSeq(flag);
+					mappingTime += getTime() - lstartTime;
+
+					if (maxMem < getMemUsage())
+						maxMem = getMemUsage();
+
+					if (flag == 0 || flag == 2)
+					{
+						totalMappingTime += mappingTime;
+						totalLoadingTime += loadingTime;
 
 
-					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-					fflush(stdout);
+						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+								getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+						fflush(stdout);
 
-					loadingTime = 0;
-					mappingTime = 0;
-					maxMem = 0;
-				}
-				else if (progressRep)
-				{
-					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-					fflush(stdout);
-				}
-			} while (flag);
+						loadingTime = 0;
+						mappingTime = 0;
+						maxMem = 0;
+					}
+					else if (progressRep)
+					{
+						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+								getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+						fflush(stdout);
+					}
+				} while (flag);
+
+				tmpTime = getTime();
+			}
+			totalLoadingTime += (getTime() - tmpTime);		// for the last readAllReads call
 		} // end for;
 
 
@@ -169,9 +169,9 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
-		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", seqListSize);
+		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
-		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/seqListSize));
+		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
 
 
 	}

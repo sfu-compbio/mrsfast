@@ -312,6 +312,7 @@ int checkHashTable(char *fileName)
 	tmp = fread(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
 	tmp = fread(&CONTIG_MAX_SIZE, sizeof(CONTIG_MAX_SIZE), 1, _ih_fp);
 	fclose(_ih_fp);
+	_ih_fp = NULL;
 	return 1;
 }
 
@@ -326,7 +327,10 @@ int initLoadingHashTable(char *fileName)
 	// 4 bytes (CONTIG_MAX_SIZE): maximum number of characters that can be in a contig. In case the value is changed for loading
 	// n bytes (genomeMetaInfo): number of chromosomes, their names and lengths
 
-	_ih_fp = fileOpen(fileName, "r");	
+	if (_ih_fp == NULL)		// first time
+		_ih_fp = fileOpen(fileName, "r");
+	else
+		rewind(_ih_fp);			// rewind for mapping the next chunk of reads
 
 	int i, numOfChrs, nameLen;
 	unsigned char magicNumber;
@@ -420,7 +424,9 @@ int  loadHashTable(double *loadTime)
 	int i = 0, j;
 
 	if ( fread(&extraInfo, sizeof(extraInfo), 1, _ih_fp) != sizeof(extraInfo) )
+	{
 		return 0;
+	}
 
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
 
