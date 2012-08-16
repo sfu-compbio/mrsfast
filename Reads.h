@@ -48,11 +48,11 @@ typedef struct
 	unsigned char *alphCnt;
 } Read;
 
-int readAllReads(Read **seqList, unsigned int *seqListSize);
-void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize);
+int readChunk(Read **seqList, unsigned int *seqListSize);
 void finalizeReads();
 //void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize);
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
 int initRead(char *seqFile1, char *seqFile2);
 void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize);
+void releaseChunk();
 #endif

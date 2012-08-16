@@ -60,6 +60,7 @@ int				MAX_GENOME_INFO_SIZE	= 10000000;
 int				_ih_maxChrLength		= 0;
 CompressedSeq	*_ih_crefGenOrigin		= NULL;		// only used in pairedEndMode
 unsigned char	*_ih_alphCnt			= NULL;
+long int		_ih_contigStartPos		= 0;
 
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
@@ -285,8 +286,11 @@ int generateHashTable(char *fileName, char *indexName)
 	fprintf(stdout, "\nDONE in %0.2fs!\n", (getTime()-startTime));
 	return 1;
 }
-
-
+/**********************************************/
+void rewindHashTable()
+{
+	fseek(_ih_fp, _ih_contigStartPos, SEEK_SET);
+}
 /**********************************************/
 int checkHashTable(char *fileName)
 {
@@ -384,6 +388,8 @@ int initLoadingHashTable(char *fileName)
 	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
 	_ih_refGenName[0] = '\0';
 	_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
+
+	_ih_contigStartPos = ftell(_ih_fp);
 
 	return 1;
 }

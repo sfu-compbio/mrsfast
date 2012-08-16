@@ -58,7 +58,6 @@ int				getCmpRefGenLen();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
 unsigned int	*getCandidates(int hv);
-
 char			*getAlphabetCount();
-
+void			rewindHashTable();
 #endif

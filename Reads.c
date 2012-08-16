@@ -44,6 +44,7 @@
 
 FILE *_r_fp1;
 FILE *_r_fp2;
+FILE *_r_umfp;
 gzFile _r_gzfp1;
 gzFile _r_gzfp2;
 Read *_r_seq;
@@ -60,6 +61,7 @@ ReadIndexTable **_r_readIndex;
 int *_r_readIndexSize;
 int _r_maxSeqCnt;
 int	_r_firstIteration = 1;
+long long _r_readMemUsage = 0;
 
 /**********************************************/
 char *(*readFirstSeq)(char *);
@@ -192,6 +194,64 @@ void preProcessReadsMT()
 	fprintf(stdout, "DONE %d\n", (div*_r_samplingLocsSize*2));
 }
 
+/**********************************************/
+void calculateSamplingLocations()
+{
+	int i;
+	int samLocsSize = errThreshold + 1;
+	int *samLocs = getMem(sizeof(int)*(samLocsSize+1));
+	for (i=0; i<samLocsSize; i++)
+	{
+		samLocs[i] = (SEQ_LENGTH / samLocsSize) *i;
+		if ( samLocs[i] + WINDOW_SIZE > SEQ_LENGTH)
+			samLocs[i] = SEQ_LENGTH - WINDOW_SIZE;
+	}
+	samLocs[samLocsSize]=SEQ_LENGTH;
+	
+	int size = sizeof(int)*samLocsSize;
+	_r_samplingLocsSeg = getMem(size);
+	_r_samplingLocsOffset = getMem(size);
+	_r_samplingLocsLen = getMem(size);
+	_r_samplingLocsLenFull = getMem(size);
+	for (i=0; i<samLocsSize; i++)
+	{
+		_r_samplingLocsSeg[i]		= samLocs[i] / (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsOffset[i]	= samLocs[i] % (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsLen[i]		= samLocs[i+1] - samLocs[i];
+		_r_samplingLocsLenFull[i]	= SEQ_LENGTH - samLocs[i];
+	}
+	
+	_r_samplingLocs = samLocs;
+	_r_samplingLocsSize = samLocsSize;
+	_r_samplingLocs = samLocs;
+
+
+
+	// Outputing the sampling locations
+/*	int j;
+ 	for (i=0; i<SEQ_LENGTH; i++)
+	{
+		fprintf(stdout, "-");
+	}
+	fprintf(stdout, "\n");
+
+	for ( i=0; i<samLocsSize; i++ )
+	{
+		for ( j=0; j<samLocs[i]; j++ )
+			fprintf(stdout," ");
+		for (j=0; j<WINDOW_SIZE; j++)
+			fprintf(stdout,"+");
+		fprintf(stdout, "\n");
+		fflush(stdout);
+	}
+	for ( i=0; i<SEQ_LENGTH; i++ )
+	{
+		fprintf(stdout, "-");
+	}
+	fprintf(stdout, "\n");*/
+}
+/**********************************************/
+
 int initRead(char *fileName1, char *fileName2)
 {
 	char dummy[SEQ_MAX_LENGTH];
@@ -273,8 +333,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-	fprintf(stdout, "max num of reads %d\n", _r_maxSeqCnt);
-	_r_maxSeqCnt = 80000;
+	_r_maxSeqCnt = 1;
 
 	if (!seqCompressed)
 	{
@@ -284,23 +343,39 @@ int initRead(char *fileName1, char *fileName2)
 	{
 		gzrewind(_r_gzfp1);
 	}
-
-	// Calculating the Maximum # of sequences
-	/*if (_r_fastq)
-		maxCnt /= 4;
-	else
-		maxCnt /= 2;
-
-	if (pairedEndMode && fileName2 != NULL )
-		maxCnt *= 2;*/
 	
 	_r_seq = getMem(sizeof(Read)*_r_maxSeqCnt);
+
+	int maxErrThreshold = (SEQ_LENGTH/WINDOW_SIZE) - 1;
+	if (errThreshold == -1)
+	{
+		errThreshold = SEQ_LENGTH*6/100;
+		fprintf(stdout, "# Errors: %d\n", errThreshold);
+	}
+	if (errThreshold > maxErrThreshold)
+	{
+		errThreshold = maxErrThreshold;
+		fprintf(stdout, "# Error: %d (full sensitivity)\n", errThreshold);
+	}
+
+	calculateSamplingLocations();
+
+	fprintf(stdout, "max num of reads %d\n", _r_maxSeqCnt);
+	
+
+	char *t = unmappedOutput;
+	unmappedOutput = getMem(100);
+	strcpy(unmappedOutput, t);
+	if (strcmp(unmappedOutput, "") == 0)
+		sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
+	_r_umfp = fopen(unmappedOutput, "w");
+
 	return 1;
 }
 
 
 /**********************************************/
-int readAllReads(Read **seqList, unsigned int *seqListSize)
+int readChunk(Read **seqList, unsigned int *seqListSize)
 {
 	double startTime=getTime();
 
@@ -320,7 +395,7 @@ int readAllReads(Read **seqList, unsigned int *seqListSize)
 	char dummy[SEQ_MAX_LENGTH];
 	unsigned char alphCnt[5], alphCnt2[5];
 	char ch;
-	int err1, err2;
+	int err1, err2, size;
 	//int nCnt;
 	unsigned char *nCnt;
 	int discarded = 0;
@@ -468,7 +543,9 @@ int readAllReads(Read **seqList, unsigned int *seqListSize)
 			int _mtmp = strlen(seq1);
 			int cmpLen = calculateCompressedLen(_mtmp);
 			int namelen = strlen(name1);
-			_r_seq[_r_seqCnt].hits	= getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + namelen + 1 + 4);
+			size = 2 + (_mtmp * 3) + 3 + (cmpLen << 4) + namelen + 1 + 4;
+			_r_seq[_r_seqCnt].hits	= getMem(size);
+			_r_readMemUsage += size;
 			_r_seq[_r_seqCnt].seq	= (char *) (_r_seq[_r_seqCnt].hits + 1);
 			_r_seq[_r_seqCnt].rseq	= (char *)_r_seq[_r_seqCnt].seq + _mtmp + 1;
 			_r_seq[_r_seqCnt].qual	= (char *)_r_seq[_r_seqCnt].rseq + _mtmp + 1;
@@ -512,7 +589,9 @@ int readAllReads(Read **seqList, unsigned int *seqListSize)
 			//first seq
 			int _mtmp = strlen(seq1);	
 			int cmpLen = calculateCompressedLen(_mtmp);
-			_r_seq[_r_seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4);
+			size = 2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4;
+			_r_seq[_r_seqCnt].hits	= getMem(size);
+			_r_readMemUsage += size;
 			_r_seq[_r_seqCnt].seq	= (char *) (_r_seq[_r_seqCnt].hits + 1);
 			_r_seq[_r_seqCnt].rseq	= (char *)_r_seq[_r_seqCnt].seq + _mtmp + 1;
 			_r_seq[_r_seqCnt].qual	= (char *)_r_seq[_r_seqCnt].rseq + _mtmp + 1;
@@ -547,7 +626,9 @@ int readAllReads(Read **seqList, unsigned int *seqListSize)
 			_r_seqCnt++;
 
 			//second seq
-			_r_seq[_r_seqCnt].hits = getMem (2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4);
+			size = 2 + (_mtmp * 3) + 3 + (cmpLen << 4) + tmplen + 1 + 4;
+			_r_seq[_r_seqCnt].hits	= getMem(size);
+			_r_readMemUsage += size;
 			_r_seq[_r_seqCnt].seq	= (char *) (_r_seq[_r_seqCnt].hits + 1);
 			_r_seq[_r_seqCnt].rseq	= (char *)_r_seq[_r_seqCnt].seq + _mtmp + 1;
 			_r_seq[_r_seqCnt].qual	= (char *)_r_seq[_r_seqCnt].rseq + _mtmp + 1;
@@ -626,6 +707,45 @@ int readAllReads(Read **seqList, unsigned int *seqListSize)
 		return 1;
 }
 /**********************************************/
+void releaseChunk()
+{
+	if (pairedEndMode)
+		_r_seqCnt /=2;
+
+	int i=0;
+	for (i = 0; i < _r_seqCnt; i++)
+	{
+		if (pairedEndMode && _r_seq[2*i].hits[0] == 0 && _r_fastq)
+		{
+			fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+		}
+		else if (pairedEndMode && _r_seq[2*i].hits[0] == 0)
+		{
+			fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+		}
+		else if (_r_seq[i].hits[0] == 0 && _r_fastq)
+		{
+			fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+		}
+		else if (_r_seq[i].hits[0] == 0)
+		{
+			fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+		}
+	}
+
+	if (pairedEndMode)
+		_r_seqCnt *= 2;
+
+	for (i = 0; i < _r_seqCnt; i++)
+		freeMem(_r_seq[i].hits,0);
+	memUsage -= _r_readMemUsage;
+	_r_readMemUsage = 0;
+
+
+	freeMem(_r_readIndexSize, sizeof(int)*THREAD_COUNT);
+	freeMem(_r_readIndex, sizeof(ReadIndexTable*)*THREAD_COUNT);
+}
+/**********************************************/
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize)
 {
 	*samplingLocs = _r_samplingLocs;
@@ -635,111 +755,9 @@ void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **sampli
 	*samplingLocsLenFull = _r_samplingLocsLenFull;
 	*samplingLocsSize = _r_samplingLocsSize;
 }
-/**********************************************/
-void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize)
-{
-	int i;
-	int samLocsSize = errThreshold + 1;
-	int *samLocs = getMem(sizeof(int)*(samLocsSize+1));
-	for (i=0; i<samLocsSize; i++)
-	{
-		samLocs[i] = (SEQ_LENGTH / samLocsSize) *i;
-		if ( samLocs[i] + WINDOW_SIZE > SEQ_LENGTH)
-			samLocs[i] = SEQ_LENGTH - WINDOW_SIZE;
-	}
-	samLocs[samLocsSize]=SEQ_LENGTH;
-	
-	int size = sizeof(int)*samLocsSize;
-	_r_samplingLocsSeg = getMem(size);
-	_r_samplingLocsOffset = getMem(size);
-	_r_samplingLocsLen = getMem(size);
-	_r_samplingLocsLenFull = getMem(size);
-	for (i=0; i<samLocsSize; i++)
-	{
-		_r_samplingLocsSeg[i]		= samLocs[i] / (sizeof(CompressedSeq)*8/3);
-		_r_samplingLocsOffset[i]	= samLocs[i] % (sizeof(CompressedSeq)*8/3);
-		_r_samplingLocsLen[i]		= samLocs[i+1] - samLocs[i];
-		_r_samplingLocsLenFull[i]	= SEQ_LENGTH - samLocs[i];
-	}
-	
-	*samplingLocs = samLocs;
-	*samplingLocsSize = samLocsSize;
-	_r_samplingLocs = samLocs;
-	_r_samplingLocsSize = samLocsSize;
-	_r_samplingLocs = samLocs;
-
-
-
-	// Outputing the sampling locations
-/*	int j;
- 	for (i=0; i<SEQ_LENGTH; i++)
-	{
-		fprintf(stdout, "-");
-	}
-	fprintf(stdout, "\n");
-
-	for ( i=0; i<samLocsSize; i++ )
-	{
-		for ( j=0; j<samLocs[i]; j++ )
-			fprintf(stdout," ");
-		for (j=0; j<WINDOW_SIZE; j++)
-			fprintf(stdout,"+");
-		fprintf(stdout, "\n");
-		fflush(stdout);
-	}
-	for ( i=0; i<SEQ_LENGTH; i++ )
-	{
-		fprintf(stdout, "-");
-	}
-	fprintf(stdout, "\n");*/
-}
 
 void finalizeReads()
 {
-	int unmapEmpty = (strlen(unmappedOutput) == 0);
-	if (strcmp(unmappedOutput, "") == 0)
-	{
-		unmappedOutput = getMem(100);
-		sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
-	}
-
-	FILE *fp1;
-	
-	fp1 = fileOpen(unmappedOutput, "w");
-
-	if (pairedEndMode)
-		_r_seqCnt /=2;
-
-	int i=0;
-	for (i = 0; i < _r_seqCnt; i++)
-	{
-		if (pairedEndMode && _r_seq[2*i].hits[0] == 0 && _r_fastq)
-		{
-			fprintf(fp1,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
-		}
-		else if (pairedEndMode && _r_seq[2*i].hits[0] == 0)
-		{
-			fprintf(fp1, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
-		}
-		else if (_r_seq[i].hits[0] == 0 && _r_fastq)
-		{
-			fprintf(fp1,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
-		}
-		else if (_r_seq[i].hits[0] == 0)
-		{
-			fprintf(fp1,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
-		}
-	}
-
-	fclose(fp1);
-	if (pairedEndMode)
-		_r_seqCnt *= 2;
-
-	for (i = 0; i < _r_seqCnt; i++)
-	{
-		freeMem(_r_seq[i].hits,0);
-	}
-
 	if (!seqCompressed)
 	{
 		fclose(_r_fp1);
@@ -757,14 +775,14 @@ void finalizeReads()
 		}
 	}
 
-	freeMem(_r_seq,0);
-	freeMem(_r_samplingLocs,0);
+	freeMem(_r_seq, sizeof(Read)*_r_maxSeqCnt);
+	freeMem(_r_samplingLocs, sizeof(int)*(_r_samplingLocsSize+1));
 	int size = sizeof(int)*_r_samplingLocsSize;
 	freeMem(_r_samplingLocsSeg, size);
 	freeMem(_r_samplingLocsOffset, size);
 	freeMem(_r_samplingLocsLen, size);
 	freeMem(_r_samplingLocsLenFull, size);
-	if (unmapEmpty)
-		freeMem(unmappedOutput, 100);
+	freeMem(unmappedOutput, 100);
+	fclose(_r_umfp);
 }
 

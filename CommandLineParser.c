@@ -57,14 +57,13 @@ int						minPairEndedDistance=-1;
 int						maxPairEndedDistance=-1;
 int						minPairEndedDiscordantDistance=-1;
 int						maxPairEndedDiscordantDistance=-1;
+int						errThreshold = -1;
 char					*seqFile1;
 char					*seqFile2;
 char					*mappingOutput = "output";
 char					*mappingOutputPath = "";
 char					*unmappedOutput = "";
-char					fileName[1000][2][FILE_NAME_LENGTH];
-int						fileCnt;
-unsigned char			errThreshold=2;
+char					fileName[2][FILE_NAME_LENGTH];
 unsigned char			maxHits=0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
@@ -92,8 +91,6 @@ int parseCommandLine (int argc, char *argv[])
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
-	char *batchFile = NULL ;
-	int  batchMode = 0;
 	static struct option longOptions[] = 
 	{
 
@@ -134,9 +131,6 @@ int parseCommandLine (int argc, char *argv[])
 			case 's':
 				searchingMode = 1;
 				fastaFile = optarg;
-				break;
-			case 'b':
-				batchMode = 1;
 				break;
 			case 'c': 
 				cropSize = atoi(optarg);
@@ -216,13 +210,7 @@ int parseCommandLine (int argc, char *argv[])
 		CONTIG_SIZE		= 80000000;
 		CONTIG_MAX_SIZE	= 120000000;
 
-		if (batchMode)
-		{
-			batchFile = fastaFile;
-			fastaFile = NULL;
-		}
-
-		if (batchFile == NULL && fastaFile == NULL)
+		if (fastaFile == NULL)
 		{
 			fprintf(stdout, "ERROR: Reference(s) should be indicated for indexing\n");
 			return 0;
@@ -235,19 +223,12 @@ int parseCommandLine (int argc, char *argv[])
 		CONTIG_SIZE		= 300000000;
 		CONTIG_MAX_SIZE	= 300000000;
 
-
-		if (batchMode)
-		{
-			batchFile = fastaFile;
-			fastaFile = NULL;
-		}
-
 		if (pairedEndDiscordantMode)
 		{
 			pairedEndDiscordantMode = pairedEndMode = 1;
 		}
 		
-		if (batchFile == NULL && fastaFile == NULL)
+		if (fastaFile == NULL)
 		{
 			fprintf(stdout, "ERROR: Index File(s) should be indiciated for searching\n");
 			return 0;
@@ -280,37 +261,8 @@ int parseCommandLine (int argc, char *argv[])
 
 	int i = 0;
 
-
-	if (batchMode)
-	{
-		FILE *fp = fileOpen(batchFile, "r");
-
-		if (fp == NULL)
-			return 0;
-
-		fileCnt  = 0;
-
-		while ( fgets(fileName[fileCnt][0], FILE_NAME_LENGTH, fp))
-		{
-			for (i = strlen(fileName[fileCnt][0])-1; i>=0; i--)
-				if ( !isspace(fileName[fileCnt][0][i]))
-					break;
-			fileName[fileCnt][0][i+1] = '\0';
-
-			if (strcmp(fileName[fileCnt][0], "") != 0)
-			{
-				sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
-				fileCnt++;
-			}
-		}
-	}
-	else
-	{
-		sprintf(fileName[fileCnt][0], "%s", fastaFile);
-		sprintf(fileName[fileCnt][1], "%s.index", fileName[fileCnt][0]); 
-		fileCnt++;
-	}
-
+	sprintf(fileName[0], "%s", fastaFile);
+	sprintf(fileName[1], "%s.index", fileName[0]); 
 
 	if (pairedEndProfilingMode)
 	{

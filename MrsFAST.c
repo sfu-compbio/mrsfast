@@ -127,10 +127,9 @@ void (*mapSeqListBal) (unsigned int *l1, int s1, unsigned int *l2, int s2, int d
 /**********************************************/
 void initFAST(Read *seqList, int seqListSize)
 {
-
 	if ( !_msf_initialized )
 	{
-		_msf_initialized = 1;
+//		_msf_initialized = 1;
 		// ----------- GENERAL  ----------- 
 		// initliazing output variables
 		_msf_threads = getMem(sizeof(pthread_t) * THREAD_COUNT);
@@ -152,12 +151,8 @@ void initFAST(Read *seqList, int seqListSize)
 		// initializing reference genome name
 		_msf_refGenName = getMem(SEQ_LENGTH);
 
-		// allocate and initiliaze samplingLoc values, needed for countErrors
+		// get samplingLoc values, needed for countErrors
 		getSamplingLocsInfo(&_msf_samplingLocs, &_msf_samplingLocsSeg, &_msf_samplingLocsOffset, &_msf_samplingLocsLen, &_msf_samplingLocsLenFull, &_msf_samplingLocsSize);
-
-		_msf_seqList = seqList;
-		_msf_seqListSize = seqListSize;
-
 
 		if (!pairedEndMode)
 		{
@@ -218,10 +213,6 @@ void initFAST(Read *seqList, int seqListSize)
 			}
 		}
 
-
-		getReadIndex(&_msf_rIndex, &_msf_rIndexSize);
-		//preProcessReadsMT(&_msf_rIndex, &_msf_rIndexSize);
-
 #ifndef MRSFAST_SSE4
 		// pre loading popcount
 		int x;
@@ -235,6 +226,11 @@ void initFAST(Read *seqList, int seqListSize)
 		}
 #endif
 	}
+
+	// update read info for this chunk
+	getReadIndex(&_msf_rIndex, &_msf_rIndexSize);
+	_msf_seqList = seqList;
+	_msf_seqListSize = seqListSize;
 
 	//Retrieved per contig
 	_msf_refGenLength = getRefGenLength();

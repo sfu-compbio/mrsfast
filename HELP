@@ -14,18 +14,12 @@ General Options:
 
 Indexing Options:
  --index [file]		Generate an index from the specified fasta file. 
- -b			Indicates the indexing will be done in batch mode.
-			The file specified in --index should contain the 
-			list of fasta files.
  -ws [int]		Set window size for indexing (default:12-min:8 max:14).
 
 
 Searching Options:
  --search [file]	Search the specified genome. Index file should be 
 			in same directory as the fasta file.
- -b			Indicates the mapping will be done in batch mode. 
-			The file specified in --search should contain the 
-			list of fasta files.
  --pe 			Search will be done in Pairedend mode.
  --seq [file]		Input sequences in fasta/fastq format [file]. If 
 			pairend reads are interleaved, use this option.

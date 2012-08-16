@@ -57,12 +57,8 @@ int main(int argc, char *argv[])
 	 ***************************************************/
 	if (indexingMode)
 	{
-		int i;
-		for (i = 0; i < fileCnt; i++)
-		{
-			if (!generateHashTable(fileName[i][0], fileName[i][1]))
-				return 1;
-		}
+		if (!generateHashTable(fileName[0], fileName[1]))
+			return 1;
 	}
 	/****************************************************
 	 * SEARCHING
@@ -71,9 +67,6 @@ int main(int argc, char *argv[])
 	{
 		Read *seqList;
 		unsigned int seqListSize;
-		int fc;
-		int samplingLocsSize;
-		int *samplingLocs;
 		int totalNumOfReads = 0;
 		double totalLoadingTime = 0;
 		double totalMappingTime = 0;
@@ -88,82 +81,89 @@ int main(int argc, char *argv[])
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
 
-		if (!checkHashTable(fileName[0][1]))
+		if (!checkHashTable(fileName[1]))
 			return 1;
 
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		if (!initRead(seqFile1, seqFile2))
 			return 1;
 
-		loadSamplingLocations(&samplingLocs, &samplingLocsSize);
-		
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		totalLoadingTime += getTime()-startTime;
 		
 		// Preparing output
 		initOutput(mappingOutput, outCompressed);
+		
+		if (!initLoadingHashTable(fileName[1]))
+			return 1;
 
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 
-		for (fc = 0; fc <fileCnt; fc++)
+		mappingTime = 0;
+		loadingTime = 0;
+		flag = 1;
+
+		tmpTime = getTime();
+		while (readChunk(&seqList, &seqListSize) || seqListSize > 0)
 		{
-			mappingTime = 0;
-			loadingTime = 0;
-			flag = 1;
+			totalNumOfReads += seqListSize;
+			rewindHashTable();
+			totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
 
-			tmpTime = getTime();
-			while (readAllReads(&seqList, &seqListSize) || seqListSize > 0)
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
+			do
 			{
-				totalNumOfReads += seqListSize;
-				if (!initLoadingHashTable(fileName[fc][1]))
-					return 1;
-				totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
+				flag = loadHashTable ( &tmpTime );  			// Reading a fragment
+				loadingTime += tmpTime;
 
-				do
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
+	
+				lstartTime = getTime();
+				initFAST(seqList, seqListSize);
+				mapSeq(flag);
+				mappingTime += getTime() - lstartTime;
+
+				if (maxMem < getMemUsage())
+					maxMem = getMemUsage();
+
+				if (flag == 0 || flag == 2)
 				{
-					flag = loadHashTable ( &tmpTime );  			// Reading a fragment
-					loadingTime += tmpTime;
-
-					lstartTime = getTime();
-					initFAST(seqList, seqListSize);
-					mapSeq(flag);
-					mappingTime += getTime() - lstartTime;
-
-					if (maxMem < getMemUsage())
-						maxMem = getMemUsage();
-
-					if (flag == 0 || flag == 2)
-					{
-						totalMappingTime += mappingTime;
-						totalLoadingTime += loadingTime;
+					totalMappingTime += mappingTime;
+					totalLoadingTime += loadingTime;
 
 
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
+					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+					fflush(stdout);
 
-						loadingTime = 0;
-						mappingTime = 0;
-						maxMem = 0;
-					}
-					else if (progressRep)
-					{
-						fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
-								getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-						fflush(stdout);
-					}
-				} while (flag);
+					loadingTime = 0;
+					mappingTime = 0;
+					maxMem = 0;
+				}
+				else if (progressRep)
+				{
+					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
+					fflush(stdout);
+				}
+			} while (flag);
 
-				tmpTime = getTime();
-			}
-			totalLoadingTime += (getTime() - tmpTime);		// for the last readAllReads call
-		} // end for;
+			releaseChunk();
+			tmpTime = getTime();
+		}
+		totalLoadingTime += (getTime() - tmpTime);		// for the last readAllReads call
 
 
 		finalizeFAST();
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeLoadingHashTable();
 
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeReads();
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeOutput();
 
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
-
+		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 
 	}
 
