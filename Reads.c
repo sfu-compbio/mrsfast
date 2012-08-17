@@ -333,7 +333,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-	_r_maxSeqCnt = 1;
+	_r_maxSeqCnt = 1000;
 
 	if (!seqCompressed)
 	{
@@ -712,7 +712,7 @@ void releaseChunk()
 	if (pairedEndMode)
 		_r_seqCnt /=2;
 
-	int i=0;
+	int i = 0, j = 0;
 	for (i = 0; i < _r_seqCnt; i++)
 	{
 		if (pairedEndMode && _r_seq[2*i].hits[0] == 0 && _r_fastq)
@@ -742,8 +742,14 @@ void releaseChunk()
 	_r_readMemUsage = 0;
 
 
-	freeMem(_r_readIndexSize, sizeof(int)*THREAD_COUNT);
+	for (i = 0; i < THREAD_COUNT; i++)
+	{
+		for (j = 0; j < _r_readIndexSize[i]; j++)
+			freeMem(_r_readIndex[i][j].seqInfo, _r_readIndex[i][j].seqInfo[0]+1);
+		freeMem(_r_readIndex[i], sizeof(ReadIndexTable)*_r_readIndexSize[i]);
+	}
 	freeMem(_r_readIndex, sizeof(ReadIndexTable*)*THREAD_COUNT);
+	freeMem(_r_readIndexSize, sizeof(int)*THREAD_COUNT);
 }
 /**********************************************/
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize)
@@ -756,6 +762,7 @@ void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **sampli
 	*samplingLocsSize = _r_samplingLocsSize;
 }
 
+/**********************************************/
 void finalizeReads()
 {
 	if (!seqCompressed)
