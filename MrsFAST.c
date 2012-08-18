@@ -112,6 +112,9 @@ pthread_mutex_t		_msf_writeLock;
 unsigned char		contigFlag;
 int					*_msf_mappingCnt;
 int					*_msf_mappedSeqCnt;
+long long			_msf_bestMappingMemSize;
+long long			_msf_mappingInfoMemSize;
+long long			_msf_seqHitsMemSize;
 
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -127,9 +130,15 @@ void (*mapSeqListBal) (unsigned int *l1, int s1, unsigned int *l2, int s2, int d
 /**********************************************/
 void initFAST(Read *seqList, int seqListSize)
 {
+	int i;
+	// update read info for this chunk
+	getReadIndex(&_msf_rIndex, &_msf_rIndexSize);
+	_msf_seqList = seqList;
+	_msf_seqListSize = seqListSize;
+	
 	if ( !_msf_initialized )
 	{
-//		_msf_initialized = 1;
+		_msf_initialized = 1;
 		// ----------- GENERAL  ----------- 
 		// initliazing output variables
 		_msf_threads = getMem(sizeof(pthread_t) * THREAD_COUNT);
@@ -141,7 +150,7 @@ void initFAST(Read *seqList, int seqListSize)
 		_msf_maxDistance = errThreshold << 1;
 
 		// pre loading numbers
-		int i, size;
+		int size;
 		for (i=0; i<SEQ_MAX_LENGTH; i++)
 		{
 			sprintf(_msf_numbers[i],"%d%c",i, '\0');
@@ -170,7 +179,8 @@ void initFAST(Read *seqList, int seqListSize)
 		// Required data structure for paired end mapping mode.
 		if (pairedEndMode)
 		{
-			_msf_mappingInfo  = getMem(_msf_seqListSize * sizeof (MappingInfo));
+			_msf_mappingInfoMemSize = _msf_seqListSize * sizeof (MappingInfo);
+			_msf_mappingInfo  = getMem(_msf_mappingInfoMemSize);
 
 			for (i=0; i<seqListSize; i++)
 			{
@@ -182,7 +192,8 @@ void initFAST(Read *seqList, int seqListSize)
 		// Required data structure for discordant mapping mode.
 		if (pairedEndDiscordantMode)
 		{
-			_msf_seqHits = getMem((_msf_seqListSize/2) * sizeof(int));
+			_msf_seqHitsMemSize = (_msf_seqListSize/2) * sizeof(int);
+			_msf_seqHits = getMem(_msf_seqHitsMemSize);
 			
 			for (i=0; i<_msf_seqListSize/2; i++)
 				_msf_seqHits[i] = 0;
@@ -196,21 +207,8 @@ void initFAST(Read *seqList, int seqListSize)
 			for (i = 1; i < 256; i++)
 				_msf_gLogN[i] = (int)(4.343*log(i) + 0.5);
 
-			if ( pairedEndMode )
-			{
-				_msf_bestMapping = getMem(_msf_seqListSize * sizeof(FullMappingInfo));
-				for (i = 0; i < _msf_seqListSize; i++)
-					_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
-			}
-			else
-			{
-				_msf_bestMapping = getMem(_msf_seqListSize * sizeof(FullMappingInfo));
-				for (i = 0; i < _msf_seqListSize; i++)
-				{
-					_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
-					_msf_bestMapping[i].hits = _msf_bestMapping[i].secondBestHits = 0;
-				}
-			}
+			_msf_bestMappingMemSize = _msf_seqListSize * sizeof(FullMappingInfo);
+			_msf_bestMapping = getMem(_msf_bestMappingMemSize);
 		}
 
 #ifndef MRSFAST_SSE4
@@ -226,12 +224,24 @@ void initFAST(Read *seqList, int seqListSize)
 		}
 #endif
 	}
-
-	// update read info for this chunk
-	getReadIndex(&_msf_rIndex, &_msf_rIndexSize);
-	_msf_seqList = seqList;
-	_msf_seqListSize = seqListSize;
-
+	
+	if (bestMappingMode)
+	{
+		if ( pairedEndMode )
+		{
+			for (i = 0; i < _msf_seqListSize; i++)
+				_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
+		}
+		else
+		{
+			for (i = 0; i < _msf_seqListSize; i++)
+			{
+				_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
+				_msf_bestMapping[i].hits = _msf_bestMapping[i].secondBestHits = 0;
+			}
+		}
+	}
+	
 	//Retrieved per contig
 	_msf_refGenLength = getRefGenLength();
 	_msf_crefGen = getCmpRefGenome();
@@ -239,45 +249,47 @@ void initFAST(Read *seqList, int seqListSize)
 	_msf_refGenOffset = getRefGenomeOffset();
 	_msf_alphCnt = getAlphabetCount();
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
-
 	//Calculated per contig
 	_msf_refGenBeg = (_msf_refGenOffset==0)? 1 : (CONTIG_OVERLAP - SEQ_LENGTH + 2);
 	_msf_refGenEnd = _msf_refGenLength - SEQ_LENGTH + 1;
+
 }
 /**********************************************/
 void finalizeFAST()
 {
-	freeMem(_msf_threads, sizeof(pthread_t) * THREAD_COUNT);
-	freeMem(_msf_mappingCnt, sizeof(int) * THREAD_COUNT);
-	freeMem(_msf_mappedSeqCnt, sizeof(int) * THREAD_COUNT);
-
-	freeMem(_msf_op, SEQ_LENGTH);
-	freeMem(_msf_optionalFields, ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS));
-	freeMem(_msf_refGenName, SEQ_LENGTH);
-	freeMem(_msf_mappingInfo, _msf_seqListSize*sizeof(MappingInfo));
-
-	if (pairedEndDiscordantMode)
-		freeMem(_msf_seqHits, (_msf_seqListSize/2)*sizeof(int));
-
-	if (bestMappingMode)
+	if (_msf_initialized)
 	{
-		freeMem(_msf_gLogN, 256*sizeof(int));
-		if (!pairedEndMode)
+		freeMem(_msf_threads, sizeof(pthread_t) * THREAD_COUNT);
+		freeMem(_msf_mappingCnt, sizeof(int) * THREAD_COUNT);
+		freeMem(_msf_mappedSeqCnt, sizeof(int) * THREAD_COUNT);
+
+		freeMem(_msf_op, SEQ_LENGTH);
+		freeMem(_msf_optionalFields, ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS));
+		freeMem(_msf_refGenName, SEQ_LENGTH);
+		
+		if (pairedEndMode)
+			freeMem(_msf_mappingInfo, _msf_mappingInfoMemSize);
+
+		if (pairedEndDiscordantMode)
+			freeMem(_msf_seqHits, _msf_seqHitsMemSize);
+
+		if (bestMappingMode)
 		{
-			freeMem(_msf_bestMapping, _msf_seqListSize * sizeof(FullMappingInfo));
+			freeMem(_msf_gLogN, 256*sizeof(int));
+			freeMem(_msf_bestMapping, _msf_bestMappingMemSize);
 		}
-	}
 
-	/*int i;
-	for (i=0; i<_msf_rIndexSize; i++)
-	{
-		freeMem(_msf_rIndex[i].seqInfo, _msf_rIndex[i].seqInfo[0]+1);
-	}
-	freeMem(_msf_rIndex, _msf_rIndexSize);*/
+		/*int i;
+		  for (i=0; i<_msf_rIndexSize; i++)
+		  {
+		  freeMem(_msf_rIndex[i].seqInfo, _msf_rIndex[i].seqInfo[0]+1);
+		  }
+		  freeMem(_msf_rIndex, _msf_rIndexSize);*/
 
 #ifndef MRSFAST_SSE4
-	freeMem(_msf_errCnt, 1<<24);
+		freeMem(_msf_errCnt, 1<<24);
 #endif
+	}
 }
 /**********************************************/
 inline int countErrors(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp)
@@ -802,7 +814,6 @@ void *mapSeqMT(int *idp)
 	unsigned int *locs = NULL;
 	unsigned int *seqInfo = NULL;
 	int id = *idp;
-
 
 	while ( i < _msf_rIndexSize[id])
 	{
@@ -2316,11 +2327,15 @@ void outputTempMapping()
 			{
 				if ( j>0  && j%MAP_CHUNKS==0)
 				{
+					tmp = cur;
 					cur = cur->next;
+					freeMem(tmp, sizeof(MappingLocations));
 				}
 				tmpOut = fwrite(&(cur->loc[j % MAP_CHUNKS]), sizeof(int), 1, out);
 			}
 			_msf_mappingInfo[i].size = 0;
+			_msf_mappingInfo[i].next = NULL;
+			freeMem(cur, sizeof(MappingLocations));
 		}
 	}
 

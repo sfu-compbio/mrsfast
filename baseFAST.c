@@ -84,11 +84,9 @@ int main(int argc, char *argv[])
 		if (!checkHashTable(fileName[1]))
 			return 1;
 
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		if (!initRead(seqFile1, seqFile2))
 			return 1;
 
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		totalLoadingTime += getTime()-startTime;
 		
 		// Preparing output
@@ -97,7 +95,6 @@ int main(int argc, char *argv[])
 		if (!initLoadingHashTable(fileName[1]))
 			return 1;
 
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
@@ -113,14 +110,11 @@ int main(int argc, char *argv[])
 			rewindHashTable();
 			totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
 
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 			do
 			{
 				flag = loadHashTable ( &tmpTime );  			// Reading a fragment
 				loadingTime += tmpTime;
 
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
-	
 				lstartTime = getTime();
 				initFAST(seqList, seqListSize);
 				mapSeq(flag);
@@ -156,24 +150,17 @@ int main(int argc, char *argv[])
 		}
 		totalLoadingTime += (getTime() - tmpTime);		// for the last readAllReads call
 
-
 		finalizeFAST();
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeLoadingHashTable();
-
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeReads();
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
 		finalizeOutput();
+		fprintf(stdout, "----------------------------------------------------------------------------------------------------------\n");
 
-		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
-		fprintf(stdout, "==================> %lld  <================== \n", memUsage);
-
 	}
 
 	return 0;

@@ -110,8 +110,6 @@ void preProcessReadsMT()
 	char rseq[SEQ_LENGTH+1];
 	int tmpSize;
 
-
-	//_msf_rIndexMax2 = getMem(sizeof(int)*THREAD_COUNT);
 	_r_readIndexSize = getMem(sizeof(int)*THREAD_COUNT);
 	_r_readIndex = getMem(sizeof(ReadIndexTable*)*THREAD_COUNT);
 
@@ -166,6 +164,7 @@ void preProcessReadsMT()
 		fprintf(stdout, "Uniq %d\nprev %d\n", uniq, prev);
 		_r_readIndexSize[z] = uniq;
 		_r_readIndex[z] = getMem(sizeof(ReadIndexTable)*_r_readIndexSize[z]);
+
 		prev = -2;
 
 		j=0;
@@ -179,6 +178,7 @@ void preProcessReadsMT()
 			_r_readIndex[z][j].hv = tmp[beg].hv;
 			_r_readIndex[z][j].seqInfo = getMem(sizeof(int)*(end-beg+2));
 			_r_readIndex[z][j].seqInfo[0] = end-beg+1;
+
 			//if ((end-beg+1) > rIndexMax[z])
 			//	rIndexMax[z] = end-beg+1;
 
@@ -191,6 +191,7 @@ void preProcessReadsMT()
 		}
 	}
 	freeMem(tmp, sizeof(Pair)*(div*_r_samplingLocsSize*2));
+
 	fprintf(stdout, "DONE %d\n", (div*_r_samplingLocsSize*2));
 }
 
@@ -198,34 +199,29 @@ void preProcessReadsMT()
 void calculateSamplingLocations()
 {
 	int i;
-	int samLocsSize = errThreshold + 1;
-	int *samLocs = getMem(sizeof(int)*(samLocsSize+1));
-	for (i=0; i<samLocsSize; i++)
+	_r_samplingLocsSize = errThreshold + 1;
+	_r_samplingLocs = getMem(sizeof(int)*(_r_samplingLocsSize+1));
+	for (i=0; i<_r_samplingLocsSize; i++)
 	{
-		samLocs[i] = (SEQ_LENGTH / samLocsSize) *i;
-		if ( samLocs[i] + WINDOW_SIZE > SEQ_LENGTH)
-			samLocs[i] = SEQ_LENGTH - WINDOW_SIZE;
+		_r_samplingLocs[i] = (SEQ_LENGTH / _r_samplingLocsSize) *i;
+		if ( _r_samplingLocs[i] + WINDOW_SIZE > SEQ_LENGTH)
+			_r_samplingLocs[i] = SEQ_LENGTH - WINDOW_SIZE;
 	}
-	samLocs[samLocsSize]=SEQ_LENGTH;
+	_r_samplingLocs[_r_samplingLocsSize]=SEQ_LENGTH;
 	
-	int size = sizeof(int)*samLocsSize;
+	int size = sizeof(int)*_r_samplingLocsSize;
 	_r_samplingLocsSeg = getMem(size);
 	_r_samplingLocsOffset = getMem(size);
 	_r_samplingLocsLen = getMem(size);
 	_r_samplingLocsLenFull = getMem(size);
-	for (i=0; i<samLocsSize; i++)
+	for (i=0; i<_r_samplingLocsSize; i++)
 	{
-		_r_samplingLocsSeg[i]		= samLocs[i] / (sizeof(CompressedSeq)*8/3);
-		_r_samplingLocsOffset[i]	= samLocs[i] % (sizeof(CompressedSeq)*8/3);
-		_r_samplingLocsLen[i]		= samLocs[i+1] - samLocs[i];
-		_r_samplingLocsLenFull[i]	= SEQ_LENGTH - samLocs[i];
+		_r_samplingLocsSeg[i]		= _r_samplingLocs[i] / (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsOffset[i]	= _r_samplingLocs[i] % (sizeof(CompressedSeq)*8/3);
+		_r_samplingLocsLen[i]		= _r_samplingLocs[i+1] - _r_samplingLocs[i];
+		_r_samplingLocsLenFull[i]	= SEQ_LENGTH - _r_samplingLocs[i];
 	}
 	
-	_r_samplingLocs = samLocs;
-	_r_samplingLocsSize = samLocsSize;
-	_r_samplingLocs = samLocs;
-
-
 
 	// Outputing the sampling locations
 /*	int j;
@@ -235,7 +231,7 @@ void calculateSamplingLocations()
 	}
 	fprintf(stdout, "\n");
 
-	for ( i=0; i<samLocsSize; i++ )
+	for ( i=0; i<_r_samplingLocsSize; i++ )
 	{
 		for ( j=0; j<samLocs[i]; j++ )
 			fprintf(stdout," ");
@@ -333,7 +329,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-	_r_maxSeqCnt = 1000;
+	_r_maxSeqCnt = 2000;
 
 	if (!seqCompressed)
 	{
@@ -352,11 +348,14 @@ int initRead(char *fileName1, char *fileName2)
 		errThreshold = SEQ_LENGTH*6/100;
 		fprintf(stdout, "# Errors: %d\n", errThreshold);
 	}
-	if (errThreshold > maxErrThreshold)
+	if (errThreshold > maxErrThreshold && SEQ_LENGTH>0)
 	{
 		errThreshold = maxErrThreshold;
 		fprintf(stdout, "# Error: %d (full sensitivity)\n", errThreshold);
 	}
+
+
+
 
 	calculateSamplingLocations();
 
@@ -400,9 +399,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	unsigned char *nCnt;
 	int discarded = 0;
 	int maxCnt = 0;
+	_r_seqCnt = 0;
+	_r_readMemUsage = 0;
+	
 	int i, len;
 	unsigned int *setZero;
-	_r_seqCnt = 0;
 	char alphIndex[128];
 	alphIndex['A'] = 0;
 	alphIndex['C'] = 1;
@@ -547,8 +548,8 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].hits	= getMem(size);
 			_r_readMemUsage += size;
 			_r_seq[_r_seqCnt].seq	= (char *) (_r_seq[_r_seqCnt].hits + 1);
-			_r_seq[_r_seqCnt].rseq	= (char *)_r_seq[_r_seqCnt].seq + _mtmp + 1;
-			_r_seq[_r_seqCnt].qual	= (char *)_r_seq[_r_seqCnt].rseq + _mtmp + 1;
+			_r_seq[_r_seqCnt].rseq	= (char *)(_r_seq[_r_seqCnt].seq + _mtmp + 1);
+			_r_seq[_r_seqCnt].qual	= (char *)(_r_seq[_r_seqCnt].rseq + _mtmp + 1);
 			_r_seq[_r_seqCnt].cseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].qual + _mtmp + 1);
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
@@ -690,6 +691,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	*seqList = _r_seq;
 	*seqListSize = _r_seqCnt;
 
+
 	if (_r_seqCnt > 0)
 	{
 		preProcessReadsMT();
@@ -745,7 +747,7 @@ void releaseChunk()
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
 		for (j = 0; j < _r_readIndexSize[i]; j++)
-			freeMem(_r_readIndex[i][j].seqInfo, _r_readIndex[i][j].seqInfo[0]+1);
+			freeMem(_r_readIndex[i][j].seqInfo, (_r_readIndex[i][j].seqInfo[0]+1)*sizeof(int));
 		freeMem(_r_readIndex[i], sizeof(ReadIndexTable)*_r_readIndexSize[i]);
 	}
 	freeMem(_r_readIndex, sizeof(ReadIndexTable*)*THREAD_COUNT);

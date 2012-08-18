@@ -397,8 +397,6 @@ int initLoadingHashTable(char *fileName)
 void finalizeLoadingHashTable()
 {
 	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
-	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
-	freeMem(_ih_refGenName, CONTIG_NAME_SIZE);	
 	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
 	if (pairedEndMode)
 		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
@@ -406,6 +404,8 @@ void finalizeLoadingHashTable()
 	{
 		freeMem(_ih_crefGen, (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
 	}
+	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
+	freeMem(_ih_refGenName, CONTIG_NAME_SIZE);	
 	freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
 	fclose(_ih_fp);
 }
