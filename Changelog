@@ -1,3 +1,6 @@
+2012-08-18  Faraz Hach  <fhach@cs.sf.ca>
+	* DIVET output format is fixed. 
+
 2012-06-13  Faraz Hach  <fhach@cs.sfu.ca>
 	* Phred offset is added.
 	* DISCORDANT_CUT_OFF is added.
