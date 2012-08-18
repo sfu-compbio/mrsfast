@@ -1489,10 +1489,12 @@ void outputPairedEndDiscPP()
 				}
 			}
 			_msf_seqList[rNo*2].hits[0] = 2;
+			fprintf(out, "%s\t%s\t%d\t%d\t%c\t=\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
+					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
 			//fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
 			//		_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
-			fprintf(out, "%s\t%s\t%d\t%d\t%c\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
-					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
+			//fprintf(out, "%s\t%s\t%d\t%d\t%c\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
+			//		_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
 		}
 		flag = fread(&rNo, sizeof(int), 1, in);
 
