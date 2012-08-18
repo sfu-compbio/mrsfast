@@ -45,7 +45,7 @@
 
 float calculateScore(int index, char *seq, char *qual, int *err);
 unsigned char		mrFAST = 0;
-char				*versionNumberF="0.3";
+char				*versionNumberF="0.4";
 
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
