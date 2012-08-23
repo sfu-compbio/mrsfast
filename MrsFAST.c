@@ -595,7 +595,7 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
-				if (1 ||  abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if ( abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)

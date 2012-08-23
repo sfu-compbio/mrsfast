@@ -38,6 +38,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <zlib.h>
+#include <pthread.h>
 #include "Common.h"
 #include "Reads.h"
 #include "MrsFAST.h"
@@ -56,6 +57,7 @@ int *_r_samplingLocsOffset;
 int *_r_samplingLocsLen;
 int *_r_samplingLocsLenFull;
 int *_r_indexSize;
+pthread_t *_r_threads;
 unsigned char _r_fastq;
 ReadIndexTable **_r_readIndex;
 int *_r_readIndexSize;
@@ -100,99 +102,98 @@ void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize)
 	*rIndex = _r_readIndex;
 	*rIndexSize = _r_readIndexSize;
 }
+
 /**********************************************/
-void preProcessReadsMT()
+void *preProcessReads(int *idp)
 {
+	int id = *idp;
 	int i=0; 
 	int j=0;
-	int z=0;
 	int pos = 0;
 	char rseq[SEQ_LENGTH+1];
 	int tmpSize;
-
-	_r_readIndexSize = getMem(sizeof(int)*THREAD_COUNT);
-	_r_readIndex = getMem(sizeof(ReadIndexTable*)*THREAD_COUNT);
 
 	int div = _r_seqCnt / THREAD_COUNT ; // Should be fixed for PE
 	div += (_r_seqCnt % THREAD_COUNT)?1:0;
 	Pair *tmp = getMem(sizeof(Pair)*(div * _r_samplingLocsSize*2));
 
-	fprintf(stdout, "DIV: %d\n", div);
-
-	for (z=0; z<THREAD_COUNT;z++)
+	tmpSize = 0;
+	pos = 0;
+	for (i=id*div; i<div*(id+1) && i<_r_seqCnt; i++)
 	{
-		tmpSize = 0;
-		pos = 0;
-		for (i=z*div; i<div*(z+1) && i<_r_seqCnt; i++)
+		for (j=0; j< _r_samplingLocsSize; j++)
 		{
-			for (j=0; j< _r_samplingLocsSize; j++)
-			{
-				tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
-				//fprintf(stdout, "sloc %d\n", _r_samplingLocs[j]);
-	//			fprintf(stdout, "j %d hv %d\n", j, tmp[pos].hv);
-				tmp[pos].seqInfo = pos +(div*z*2*_r_samplingLocsSize);
-				pos++;
-			}
-			for (j=0; j<_r_samplingLocsSize; j++)
-			{
-				reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
-				tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
-				tmp[pos].seqInfo = pos+(div*z*2*_r_samplingLocsSize);
-				pos++;
-			}
-			tmpSize+=2*_r_samplingLocsSize;
+			tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
+			tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
+			pos++;
 		}
-		fprintf(stdout, "Partition %d %d\n", z*div, tmpSize);
-
-
-		qsort(tmp, tmpSize, sizeof(Pair), compare);
-
-		int uniq = 0;
-		int prev = -2;
-		int beg = -1;
-		int end = -1;
-
-		for (i=0; i<tmpSize; i++)
+		for (j=0; j<_r_samplingLocsSize; j++)
 		{
-			if (prev != tmp[i].hv)
-			{
-				uniq ++;
-				prev = tmp[i].hv;
-			}
+			reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
+			tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
+			tmp[pos].seqInfo = pos+(div*id*2*_r_samplingLocsSize);
+			pos++;
 		}
+		tmpSize+=2*_r_samplingLocsSize;
+	}
 
-		fprintf(stdout, "Uniq %d\nprev %d\n", uniq, prev);
-		_r_readIndexSize[z] = uniq;
-		_r_readIndex[z] = getMem(sizeof(ReadIndexTable)*_r_readIndexSize[z]);
+	qsort(tmp, tmpSize, sizeof(Pair), compare);
 
-		prev = -2;
+	int uniq = 0;
+	int prev = -2;
+	int beg = -1;
+	int end = -1;
 
-		j=0;
-		beg =0;
-		while (beg < tmpSize)
+	for (i=0; i<tmpSize; i++)
+	{
+		if (prev != tmp[i].hv)
 		{
-			end = beg;
-			while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
-				end++;
-
-			_r_readIndex[z][j].hv = tmp[beg].hv;
-			_r_readIndex[z][j].seqInfo = getMem(sizeof(int)*(end-beg+2));
-			_r_readIndex[z][j].seqInfo[0] = end-beg+1;
-
-			//if ((end-beg+1) > rIndexMax[z])
-			//	rIndexMax[z] = end-beg+1;
-
-			for (i=1; i <= _r_readIndex[z][j].seqInfo[0]; i++)
-			{
-				_r_readIndex[z][j].seqInfo[i]=tmp[beg+i-1].seqInfo;
-			}
-			j++;
-			beg = end+1;
+			uniq ++;
+			prev = tmp[i].hv;
 		}
 	}
-	freeMem(tmp, sizeof(Pair)*(div*_r_samplingLocsSize*2));
 
-	fprintf(stdout, "DONE %d\n", (div*_r_samplingLocsSize*2));
+	_r_readIndexSize[id] = uniq;
+	_r_readIndex[id] = getMem(sizeof(ReadIndexTable)*_r_readIndexSize[id]);
+
+
+	prev = -2;
+	j=0;
+	beg =0;
+	while (beg < tmpSize)
+	{
+		end = beg;
+		while (end+1<tmpSize && tmp[end+1].hv==tmp[beg].hv)
+			end++;
+
+		_r_readIndex[id][j].hv = tmp[beg].hv;
+		_r_readIndex[id][j].seqInfo = getMem(sizeof(int)*(end-beg+2));
+		_r_readIndex[id][j].seqInfo[0] = end-beg+1;
+
+		for (i=1; i <= _r_readIndex[id][j].seqInfo[0]; i++)
+		{
+			_r_readIndex[id][j].seqInfo[i]=tmp[beg+i-1].seqInfo;
+		}
+		j++;
+		beg = end+1;
+	}
+	freeMem(tmp, sizeof(Pair)*(div*_r_samplingLocsSize*2));
+}
+/**********************************************/
+void preProcessReadsMT()
+{
+	_r_readIndexSize = getMem(sizeof(int)*THREAD_COUNT);
+	_r_readIndex = getMem(sizeof(ReadIndexTable*)*THREAD_COUNT);
+
+	_r_threads = getMem(sizeof(pthread_t)*THREAD_COUNT);
+	int i=0; 
+	for (i=0; i<THREAD_COUNT; i++)
+		pthread_create(_r_threads+i, NULL, (void*)preProcessReads, THREAD_ID+i);
+	
+	for (i=0; i<THREAD_COUNT; i++)
+		pthread_join(_r_threads[i], NULL);
+	freeMem(_r_threads, sizeof(pthread_t)*THREAD_COUNT);	
+
 }
 
 /**********************************************/
@@ -329,7 +330,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-	_r_maxSeqCnt = 2000;
+//_r_maxSeqCnt =500000;
 
 	if (!seqCompressed)
 	{
@@ -359,7 +360,9 @@ int initRead(char *fileName1, char *fileName2)
 
 	calculateSamplingLocations();
 
-	fprintf(stdout, "max num of reads %d\n", _r_maxSeqCnt);
+
+
+	fprintf(stdout, "%d max num of reads %d\n", SEQ_LENGTH, _r_maxSeqCnt);
 	
 
 	char *t = unmappedOutput;

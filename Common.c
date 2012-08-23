@@ -124,16 +124,22 @@ inline void reverseComplete (char *seq, char *rcSeq , int length)		// TODO: effi
 		//rcSeq[i]=reverseCompleteChar (seq[length-1-i]) ;
 	}
 }
+pthread_mutex_t _common_lock;
 /**********************************************/
 void * getMem(size_t size)			// TODO: if malloc is unsuccessfull, return an error message
 {
+	
+	pthread_mutex_lock(&_common_lock);
 	memUsage+=size;
+	pthread_mutex_unlock(&_common_lock);
 	return malloc(size);
 }
 /**********************************************/
 void freeMem(void *ptr, size_t size)
 {
+	pthread_mutex_lock(&_common_lock);
 	memUsage-=size;
+	pthread_mutex_unlock(&_common_lock);
 	free(ptr);
 }
 /**********************************************/
