@@ -360,11 +360,6 @@ int initRead(char *fileName1, char *fileName2)
 
 	calculateSamplingLocations();
 
-
-
-	fprintf(stdout, "%d max num of reads %d\n", SEQ_LENGTH, _r_maxSeqCnt);
-	
-
 	char *t = unmappedOutput;
 	unmappedOutput = getMem(100);
 	strcpy(unmappedOutput, t);

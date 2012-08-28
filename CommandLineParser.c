@@ -297,14 +297,6 @@ int parseCommandLine (int argc, char *argv[])
 	// Why is this one here?
 	if (pairedEndMode)
 	{
-		//Switching to Inferred Size 
-		minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 2;
-		maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 2;
-		if (pairedEndDiscordantMode)
-		{
-			maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 2;
-			minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 2;
-		}
 
 		sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
 		sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);

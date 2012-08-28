@@ -187,6 +187,15 @@ void initFAST(Read *seqList, int seqListSize)
 				_msf_mappingInfo[i].next = NULL;
 				_msf_mappingInfo[i].size = 0;
 			}
+			
+			//Switching to Inferred Size 
+			minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 1;
+			maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 1;
+			if (pairedEndDiscordantMode)
+			{
+				maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 1;
+				minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 1;
+			}
 		}
 
 		// Required data structure for discordant mapping mode.
@@ -825,27 +834,6 @@ void *mapSeqMT(int *idp)
 		}
 		i++;
 	}
-	
-	if (pairedEndMode)
-	{
-		outputTempMapping();
-		if (contigFlag == 0 || contigFlag == 2)
-		{
-			if (bestMappingMode)
-				updateBestPairedEnd();
-			else
-				outputPairedEnd(id);
-		}
-
-		if (contigFlag == 0)
-		{
-			if (bestMappingMode)
-				outputBestPairedEnd();
-
-			if (pairedEndDiscordantMode)
-				outputPairedEndDiscPP();
-		}
-	}
 }
 /**********************************************/
 int mapSeq(unsigned char cf)
@@ -872,6 +860,26 @@ int mapSeq(unsigned char cf)
 	{
 		if (bestMappingMode && contigFlag == 0)
 			outputBestSingleMapping();
+	}
+	else
+	{
+		outputTempMapping();
+		if (contigFlag == 0 || contigFlag == 2)
+		{
+			if (bestMappingMode)
+				updateBestPairedEnd();
+			else
+				outputPairedEnd();
+		}
+
+		if (contigFlag == 0)
+		{
+			if (bestMappingMode)
+				outputBestPairedEnd();
+
+			if (pairedEndDiscordantMode)
+				outputPairedEndDiscPP();
+		}
 	}
 }
 
@@ -1069,7 +1077,7 @@ void mapPairedEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 }
 
 /**********************************************/
-void outputPairedEnd(int id)
+void outputPairedEnd()
 {
 	char *curGen;
 	char *curGenName;
@@ -1490,7 +1498,7 @@ void outputBestPairedEnd()
 			proper = 0;
 			// ISIZE CALCULATION
 			// The distance between outer edges								
-			isize = abs(_msf_bestMapping[2*i].loc - _msf_bestMapping[2*i+1].loc) + SEQ_LENGTH - 1;												
+			isize = abs(_msf_bestMapping[2*i].loc - _msf_bestMapping[2*i+1].loc) + SEQ_LENGTH;// - 1;												
 			if (_msf_bestMapping[2*i].loc - _msf_bestMapping[2*i+1].loc > 0)
 			{
 				isize *= -1;
