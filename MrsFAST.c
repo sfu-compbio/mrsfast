@@ -86,11 +86,11 @@ int					_msf_seqListSize;
 ReadIndexTable		**_msf_rIndex = NULL;
 int					*_msf_rIndexSize;
 
-SAM					_msf_output;
+SAM					*_msf_output;
 
-OPT_FIELDS			*_msf_optionalFields;
+OPT_FIELDS			**_msf_optionalFields;
 
-char				*_msf_op;
+char				**_msf_op;
 
 char				_msf_numbers[SEQ_MAX_LENGTH][5];
 char				_msf_cigar[5];
@@ -145,8 +145,14 @@ void initFAST(Read *seqList, int seqListSize)
 		_msf_mappingCnt = getMem(sizeof(int) * THREAD_COUNT);
 		_msf_mappedSeqCnt = getMem(sizeof(int) * THREAD_COUNT);
 
-		_msf_op = getMem(SEQ_LENGTH);  // THREADING
-		_msf_optionalFields = getMem( ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS)); // THREADING
+		_msf_output = getMem(THREAD_COUNT * sizeof(SAM));
+		_msf_op = getMem(THREAD_COUNT * sizeof(char *));
+		_msf_optionalFields = getMem(THREAD_COUNT * sizeof(OPT_FIELDS *));
+		for (i = 0; i < THREAD_COUNT; i++)
+		{
+			_msf_op[i] = getMem(SEQ_LENGTH);  // THREADING
+			_msf_optionalFields[i] = getMem( ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS)); // THREADING
+		}
 		_msf_maxDistance = errThreshold << 1;
 
 		// pre loading numbers
@@ -220,6 +226,23 @@ void initFAST(Read *seqList, int seqListSize)
 			_msf_bestMapping = getMem(_msf_bestMappingMemSize);
 		}
 
+		if (bestMappingMode)
+		{
+			if ( pairedEndMode )
+			{
+				for (i = 0; i < _msf_seqListSize; i++)
+					_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
+			}
+			else
+			{
+				for (i = 0; i < _msf_seqListSize; i++)
+				{
+					_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
+					_msf_bestMapping[i].hits = _msf_bestMapping[i].secondBestHits = 0;
+				}
+			}
+		}
+
 #ifndef MRSFAST_SSE4
 		// pre loading popcount
 		int x;
@@ -234,22 +257,6 @@ void initFAST(Read *seqList, int seqListSize)
 #endif
 	}
 	
-	if (bestMappingMode)
-	{
-		if ( pairedEndMode )
-		{
-			for (i = 0; i < _msf_seqListSize; i++)
-				_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
-		}
-		else
-		{
-			for (i = 0; i < _msf_seqListSize; i++)
-			{
-				_msf_bestMapping[i].err = _msf_bestMapping[i].secondBestErrors = errThreshold + 1;
-				_msf_bestMapping[i].hits = _msf_bestMapping[i].secondBestHits = 0;
-			}
-		}
-	}
 	
 	//Retrieved per contig
 	_msf_refGenLength = getRefGenLength();
@@ -268,12 +275,19 @@ void finalizeFAST()
 {
 	if (_msf_initialized)
 	{
+		int i;
 		freeMem(_msf_threads, sizeof(pthread_t) * THREAD_COUNT);
 		freeMem(_msf_mappingCnt, sizeof(int) * THREAD_COUNT);
 		freeMem(_msf_mappedSeqCnt, sizeof(int) * THREAD_COUNT);
+		freeMem(_msf_output, THREAD_COUNT * sizeof(SAM));
 
-		freeMem(_msf_op, SEQ_LENGTH);
-		freeMem(_msf_optionalFields, ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS));
+		for (i = 0; i < THREAD_COUNT; i++)
+		{
+			freeMem(_msf_op[i], SEQ_LENGTH);
+			freeMem(_msf_optionalFields[i], ((pairedEndMode)?4:2) *sizeof(OPT_FIELDS));
+		}
+		freeMem(_msf_op, THREAD_COUNT * sizeof(char *));
+		freeMem(_msf_optionalFields, THREAD_COUNT * sizeof(OPT_FIELDS *));
 		freeMem(_msf_refGenName, SEQ_LENGTH);
 		
 		if (pairedEndMode)
@@ -609,38 +623,38 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 
 				if (err != -1)
 				{
-					calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op);
+					calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
 				
 					_msf_mappingCnt[id]++;
-					pthread_mutex_lock(&_msf_writeLock);
+					//pthread_mutex_lock(&_msf_writeLock);
 
 					_msf_seqList[r].hits[0]++;
 
-					_msf_output.QNAME		= _msf_seqList[r].name;
-					_msf_output.FLAG		= 16 * d;
-					_msf_output.RNAME		= _msf_refGenName;
-					_msf_output.POS			= genLoc + _msf_refGenOffset;
-					_msf_output.MAPQ		= 255;
-					_msf_output.CIGAR		= _msf_cigar;
-					_msf_output.MRNAME		= "*";
-					_msf_output.MPOS		= 0;
-					_msf_output.ISIZE		= 0;
-					_msf_output.SEQ			= _tmpSeq;
-					_msf_output.QUAL		= _tmpQual;
+					_msf_output[id].QNAME		= _msf_seqList[r].name;
+					_msf_output[id].FLAG		= 16 * d;
+					_msf_output[id].RNAME		= _msf_refGenName;
+					_msf_output[id].POS			= genLoc + _msf_refGenOffset;
+					_msf_output[id].MAPQ		= 255;
+					_msf_output[id].CIGAR		= _msf_cigar;
+					_msf_output[id].MRNAME		= "*";
+					_msf_output[id].MPOS		= 0;
+					_msf_output[id].ISIZE		= 0;
+					_msf_output[id].SEQ			= _tmpSeq;
+					_msf_output[id].QUAL		= _tmpQual;
 
-					_msf_output.optSize		= 2;
-					_msf_output.optFields	= _msf_optionalFields;
+					_msf_output[id].optSize		= 2;
+					_msf_output[id].optFields	= _msf_optionalFields[id];
 
-					_msf_optionalFields[0].tag = "NM";
-					_msf_optionalFields[0].type = 'i';
-					_msf_optionalFields[0].iVal = err;
+					_msf_optionalFields[id][0].tag = "NM";
+					_msf_optionalFields[id][0].type = 'i';
+					_msf_optionalFields[id][0].iVal = err;
 
-					_msf_optionalFields[1].tag = "MD";
-					_msf_optionalFields[1].type = 'Z';
-					_msf_optionalFields[1].sVal = _msf_op;
+					_msf_optionalFields[id][1].tag = "MD";
+					_msf_optionalFields[id][1].type = 'Z';
+					_msf_optionalFields[id][1].sVal = _msf_op[id];
 
-					output(_msf_output);
-
+					pthread_mutex_lock(&_msf_writeLock);
+					output(_msf_output[id]);
 					pthread_mutex_unlock(&_msf_writeLock);
 
 					if (_msf_seqList[r].hits[0] == 1)
@@ -755,8 +769,8 @@ void mapSingleEndSeqListBalBest(unsigned int *l1, int s1, unsigned int *l2, int 
 						_msf_bestMapping[r].secondBestHits = _msf_bestMapping[r].hits;
 						_msf_bestMapping[r].err = err;
 						_msf_bestMapping[r].hits = 1;
-						calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op);
-						memcpy(_msf_bestMapping[r].md, _msf_op, 40);
+						calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
+						memcpy(_msf_bestMapping[r].md, _msf_op[id], 40);
 						memcpy(_msf_bestMapping[r].chr, _msf_refGenName, 40);
 					}
 					else if (err == _msf_bestMapping[r].err)
@@ -902,42 +916,40 @@ void outputBestSingleMapping()
 	{
 		if (_msf_bestMapping[r].err <= errThreshold)
 		{
-			pthread_mutex_lock(&_msf_writeLock);
-			_msf_output.QNAME		= _msf_seqList[r].name;
-			_msf_output.FLAG		= 16 * _msf_bestMapping[r].dir;
-			_msf_output.RNAME		= _msf_bestMapping[r].chr;
-			_msf_output.POS			= _msf_bestMapping[r].loc;
-			_msf_output.MAPQ		= getBestMappingQuality(&_msf_bestMapping[r]);
-			_msf_output.CIGAR		= _msf_cigar;
-			_msf_output.MRNAME		= "*";
-			_msf_output.MPOS		= 0;
-			_msf_output.ISIZE		= 0;
+			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_output[0].FLAG		= 16 * _msf_bestMapping[r].dir;
+			_msf_output[0].RNAME		= _msf_bestMapping[r].chr;
+			_msf_output[0].POS			= _msf_bestMapping[r].loc;
+			_msf_output[0].MAPQ		= getBestMappingQuality(&_msf_bestMapping[r]);
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "*";
+			_msf_output[0].MPOS		= 0;
+			_msf_output[0].ISIZE		= 0;
 			if (_msf_bestMapping[r].dir)
 			{
-				_msf_output.SEQ = _msf_seqList[r].rseq;
+				_msf_output[0].SEQ = _msf_seqList[r].rseq;
 				reverse(_msf_seqList[r].qual, revQual, QUAL_LENGTH);
-				_msf_output.QUAL = revQual;
-				_msf_output.QUAL = _msf_seqList[r].qual;
+				_msf_output[0].QUAL = revQual;
+				_msf_output[0].QUAL = _msf_seqList[r].qual;
 			}
 			else
 			{
-				_msf_output.SEQ = _msf_seqList[r].seq;
-				_msf_output.QUAL = _msf_seqList[r].qual;
+				_msf_output[0].SEQ = _msf_seqList[r].seq;
+				_msf_output[0].QUAL = _msf_seqList[r].qual;
 			}
 
-			_msf_output.optSize		= 2;
-			_msf_output.optFields	= _msf_optionalFields;
+			_msf_output[0].optSize		= 2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
 
-			_msf_optionalFields[0].tag = "NM";
-			_msf_optionalFields[0].type = 'i';
-			_msf_optionalFields[0].iVal = _msf_bestMapping[r].err;
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = _msf_bestMapping[r].err;
 
-			_msf_optionalFields[1].tag = "MD";
-			_msf_optionalFields[1].type = 'Z';
-			_msf_optionalFields[1].sVal = _msf_bestMapping[r].md;
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = _msf_bestMapping[r].md;
 
-			output(_msf_output);
-			pthread_mutex_unlock(&_msf_writeLock);
+			output(_msf_output[0]);
 		}
 	}
 	freeMem(revQual, QUAL_LENGTH + 1);
@@ -1260,14 +1272,14 @@ void outputPairedEnd()
 		{
 			for (k=0; k<size1; k++)
 			{
-				mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op);
-				sprintf(mi1[k].md, "%s", _msf_op);
+				mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+				sprintf(mi1[k].md, "%s", _msf_op[0]);
 			}
 
 			for (k=0; k<size2; k++)
 			{
-				mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op);
-				sprintf(mi2[k].md, "%s", _msf_op);
+				mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+				sprintf(mi2[k].md, "%s", _msf_op[0]);
 			}
 		}
 		pos = 0;
@@ -1328,7 +1340,7 @@ void outputPairedEnd()
 						int proper=0;
 						// ISIZE CALCULATION
 						// The distance between outer edges								
-						isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH-1;												
+						isize = abs(mi1[j].loc - mi2[k].loc)+SEQ_LENGTH;//-1;												
 						if (mi1[j].loc - mi2[k].loc > 0)
 						{
 							isize *= -1;
@@ -1359,31 +1371,31 @@ void outputPairedEnd()
 						}
 
 
-						_msf_output.POS			= mi1[j].loc;
-						_msf_output.MPOS		= mi2[k].loc;
-						_msf_output.FLAG		= 1+proper+16*d1+32*d2+64;
-						_msf_output.ISIZE		= isize;
-						_msf_output.SEQ			= seq,
-						_msf_output.QUAL		= qual;
-						_msf_output.QNAME		= _msf_seqList[i*2].name;
-						_msf_output.RNAME		= _msf_refGenName;
-						_msf_output.MAPQ		= 255;
-						_msf_output.CIGAR		= _msf_cigar;
-						_msf_output.MRNAME		= "=";
+						_msf_output[0].POS			= mi1[j].loc;
+						_msf_output[0].MPOS		= mi2[k].loc;
+						_msf_output[0].FLAG		= 1+proper+16*d1+32*d2+64;
+						_msf_output[0].ISIZE		= isize;
+						_msf_output[0].SEQ			= seq,
+						_msf_output[0].QUAL		= qual;
+						_msf_output[0].QNAME		= _msf_seqList[i*2].name;
+						_msf_output[0].RNAME		= _msf_refGenName;
+						_msf_output[0].MAPQ		= 255;
+						_msf_output[0].CIGAR		= _msf_cigar;
+						_msf_output[0].MRNAME		= "=";
 
-						_msf_output.optSize	= 2;
-						_msf_output.optFields	= _msf_optionalFields;
+						_msf_output[0].optSize	= 2;
+						_msf_output[0].optFields	= _msf_optionalFields[0];
 
-						_msf_optionalFields[0].tag = "NM";
-						_msf_optionalFields[0].type = 'i';
-						_msf_optionalFields[0].iVal = mi1[j].err;
+						_msf_optionalFields[0][0].tag = "NM";
+						_msf_optionalFields[0][0].type = 'i';
+						_msf_optionalFields[0][0].iVal = mi1[j].err;
 
-						_msf_optionalFields[1].tag = "MD";
-						_msf_optionalFields[1].type = 'Z';
-						_msf_optionalFields[1].sVal = mi1[j].md;
+						_msf_optionalFields[0][1].tag = "MD";
+						_msf_optionalFields[0][1].type = 'Z';
+						_msf_optionalFields[0][1].sVal = mi1[j].md;
 
 
-						output(_msf_output);
+						output(_msf_output[0]);
 
 						if ( d2 )
 						{
@@ -1396,30 +1408,30 @@ void outputPairedEnd()
 							qual = qual2;
 						}
 
-						_msf_output.POS			= mi2[k].loc;
-						_msf_output.MPOS		= mi1[j].loc;
-						_msf_output.FLAG		= 1+proper+16*d2+32*d1+128;
-						_msf_output.ISIZE		= -isize;
-						_msf_output.SEQ			= seq,
-							_msf_output.QUAL		= qual;
-						_msf_output.QNAME		= _msf_seqList[i*2].name;
-						_msf_output.RNAME		= _msf_refGenName;
-						_msf_output.MAPQ		= 255;
-						_msf_output.CIGAR		= _msf_cigar;
-						_msf_output.MRNAME		= "=";
+						_msf_output[0].POS			= mi2[k].loc;
+						_msf_output[0].MPOS		= mi1[j].loc;
+						_msf_output[0].FLAG		= 1+proper+16*d2+32*d1+128;
+						_msf_output[0].ISIZE		= -isize;
+						_msf_output[0].SEQ			= seq,
+							_msf_output[0].QUAL		= qual;
+						_msf_output[0].QNAME		= _msf_seqList[i*2].name;
+						_msf_output[0].RNAME		= _msf_refGenName;
+						_msf_output[0].MAPQ		= 255;
+						_msf_output[0].CIGAR		= _msf_cigar;
+						_msf_output[0].MRNAME		= "=";
 
-						_msf_output.optSize	= 2;
-						_msf_output.optFields	= _msf_optionalFields;
+						_msf_output[0].optSize	= 2;
+						_msf_output[0].optFields	= _msf_optionalFields[0];
 
-						_msf_optionalFields[0].tag = "NM";
-						_msf_optionalFields[0].type = 'i';
-						_msf_optionalFields[0].iVal = mi2[k].err;;
+						_msf_optionalFields[0][0].tag = "NM";
+						_msf_optionalFields[0][0].type = 'i';
+						_msf_optionalFields[0][0].iVal = mi2[k].err;;
 
-						_msf_optionalFields[1].tag = "MD";
-						_msf_optionalFields[1].type = 'Z';
-						_msf_optionalFields[1].sVal = mi2[k].md;
+						_msf_optionalFields[0][1].tag = "MD";
+						_msf_optionalFields[0][1].type = 'Z';
+						_msf_optionalFields[0][1].sVal = mi2[k].md;
 
-						output(_msf_output);
+						output(_msf_output[0]);
 
 
 						_msf_seqList[i*2].hits[0]++;
@@ -1529,31 +1541,31 @@ void outputBestPairedEnd()
 			}
 
 
-			_msf_output.POS			= _msf_bestMapping[2*i].loc;
-			_msf_output.MPOS		= _msf_bestMapping[2*i+1].loc;
-			_msf_output.FLAG		= 1+proper+16*d1+32*d2+64;
-			_msf_output.ISIZE		= isize;
-			_msf_output.SEQ			= seq,
-				_msf_output.QUAL		= qual;
-			_msf_output.QNAME		= _msf_seqList[i*2].name;
-			_msf_output.RNAME		= _msf_refGenName;
-			_msf_output.MAPQ		= 255;
-			_msf_output.CIGAR		= _msf_cigar;
-			_msf_output.MRNAME		= "=";
+			_msf_output[0].POS			= _msf_bestMapping[2*i].loc;
+			_msf_output[0].MPOS		= _msf_bestMapping[2*i+1].loc;
+			_msf_output[0].FLAG		= 1+proper+16*d1+32*d2+64;
+			_msf_output[0].ISIZE		= isize;
+			_msf_output[0].SEQ			= seq,
+				_msf_output[0].QUAL		= qual;
+			_msf_output[0].QNAME		= _msf_seqList[i*2].name;
+			_msf_output[0].RNAME		= _msf_refGenName;
+			_msf_output[0].MAPQ		= 255;
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "=";
 
-			_msf_output.optSize	= 2;
-			_msf_output.optFields	= _msf_optionalFields;
+			_msf_output[0].optSize	= 2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
 
-			_msf_optionalFields[0].tag = "NM";
-			_msf_optionalFields[0].type = 'i';
-			_msf_optionalFields[0].iVal = _msf_bestMapping[2*i].err;
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = _msf_bestMapping[2*i].err;
 
-			_msf_optionalFields[1].tag = "MD";
-			_msf_optionalFields[1].type = 'Z';
-			_msf_optionalFields[1].sVal = _msf_bestMapping[2*i].md;
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = _msf_bestMapping[2*i].md;
 
 
-			output(_msf_output);
+			output(_msf_output[0]);
 
 			if ( d2 )
 			{
@@ -1566,30 +1578,30 @@ void outputBestPairedEnd()
 				qual = qual2;
 			}
 
-			_msf_output.POS			= _msf_bestMapping[2*i+1].loc;
-			_msf_output.MPOS		= _msf_bestMapping[2*i].loc;
-			_msf_output.FLAG		= 1+proper+16*d2+32*d1+128;
-			_msf_output.ISIZE		= -isize;
-			_msf_output.SEQ			= seq,
-				_msf_output.QUAL		= qual;
-			_msf_output.QNAME		= _msf_seqList[i*2].name;
-			_msf_output.RNAME		= _msf_refGenName;
-			_msf_output.MAPQ		= 255;
-			_msf_output.CIGAR		= _msf_cigar;
-			_msf_output.MRNAME		= "=";
+			_msf_output[0].POS			= _msf_bestMapping[2*i+1].loc;
+			_msf_output[0].MPOS		= _msf_bestMapping[2*i].loc;
+			_msf_output[0].FLAG		= 1+proper+16*d2+32*d1+128;
+			_msf_output[0].ISIZE		= -isize;
+			_msf_output[0].SEQ			= seq,
+				_msf_output[0].QUAL		= qual;
+			_msf_output[0].QNAME		= _msf_seqList[i*2].name;
+			_msf_output[0].RNAME		= _msf_refGenName;
+			_msf_output[0].MAPQ		= 255;
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "=";
 
-			_msf_output.optSize	= 2;
-			_msf_output.optFields	= _msf_optionalFields;
+			_msf_output[0].optSize	= 2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
 
-			_msf_optionalFields[0].tag = "NM";
-			_msf_optionalFields[0].type = 'i';
-			_msf_optionalFields[0].iVal = _msf_bestMapping[2*i+1].err;;
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = _msf_bestMapping[2*i+1].err;;
 
-			_msf_optionalFields[1].tag = "MD";
-			_msf_optionalFields[1].type = 'Z';
-			_msf_optionalFields[1].sVal = _msf_bestMapping[2*i+1].md;
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = _msf_bestMapping[2*i+1].md;
 
-			output(_msf_output);
+			output(_msf_output[0]);
 		}
 	}
 
@@ -1747,14 +1759,14 @@ void updateBestPairedEnd()
 
 		for (k=0; k<size1; k++)
 		{
-			mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op);
-			sprintf(mi1[k].md, "%s", _msf_op);
+			mi1[k].err = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+			sprintf(mi1[k].md, "%s", _msf_op[0]);
 		}
 
 		for (k=0; k<size2; k++)
 		{
-			mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op);
-			sprintf(mi2[k].md, "%s", _msf_op);
+			mi2[k].err = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+			sprintf(mi2[k].md, "%s", _msf_op[0]);
 		}
 
 		pos = 0;
