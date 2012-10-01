@@ -37,5 +37,6 @@
 #define __COMMAND_LINE_PARSER__
 
 int parseCommandLine (int argc, char *argv[]);
+void finalizeCommandParser();
 
 #endif

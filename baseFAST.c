@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
 		finalizeLoadingHashTable();
 		finalizeReads();
 		finalizeOutput();
+		finalizeCommandParser();
 		fprintf(stdout, "----------------------------------------------------------------------------------------------------------\n");
 
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);

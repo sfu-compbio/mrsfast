@@ -312,4 +312,12 @@ int parseCommandLine (int argc, char *argv[])
 
 	return 1;
 }
-
+/**********************************************/
+void finalizeCommandParser()
+{
+	if ( strcmp(mappingOutput, "output") || strlen(mappingOutputPath) )
+	{
+		freeMem(mappingOutput, FILE_NAME_LENGTH);
+		freeMem(mappingOutputPath, FILE_NAME_LENGTH);
+	}
+}
