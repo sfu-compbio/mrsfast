@@ -330,7 +330,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-_r_maxSeqCnt = 10000;
+//_r_maxSeqCnt = 2000;
 
 	if (!seqCompressed)
 	{
@@ -709,7 +709,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 /**********************************************/
 void releaseChunk()
 {
-	fprintf(stdout, "RELESAE\n");
 	if (pairedEndMode)
 		_r_seqCnt /=2;
 
@@ -775,7 +774,7 @@ void finalizeReads()
 	if (!seqCompressed)
 	{
 		fclose(_r_fp1);
-		if ( pairedEndMode && _r_fp2 != NULL )
+		if ( pairedEndMode && _r_fp2 != _r_fp1 )
 		{
 			fclose(_r_fp2);
 		}
