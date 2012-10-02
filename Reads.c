@@ -330,7 +330,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-//_r_maxSeqCnt =500000;
+_r_maxSeqCnt = 10000;
 
 	if (!seqCompressed)
 	{
@@ -709,27 +709,34 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 /**********************************************/
 void releaseChunk()
 {
+	fprintf(stdout, "RELESAE\n");
 	if (pairedEndMode)
 		_r_seqCnt /=2;
 
 	int i = 0, j = 0;
 	for (i = 0; i < _r_seqCnt; i++)
 	{
-		if (pairedEndMode && _r_seq[2*i].hits[0] == 0 && _r_fastq)
+		if (pairedEndMode)
 		{
-			fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			if (_r_seq[2*i].hits[0] == 0 && _r_fastq)
+			{
+				fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			}
+			else if (_r_seq[2*i].hits[0] == 0)
+			{
+				fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+			}
 		}
-		else if (pairedEndMode && _r_seq[2*i].hits[0] == 0)
+		else
 		{
-			fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
-		}
-		else if (_r_seq[i].hits[0] == 0 && _r_fastq)
-		{
-			fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
-		}
-		else if (_r_seq[i].hits[0] == 0)
-		{
-			fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			if (_r_seq[i].hits[0] == 0 && _r_fastq)
+			{
+				fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+			}
+			else if (_r_seq[i].hits[0] == 0)
+			{
+				fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			}
 		}
 	}
 
@@ -737,7 +744,7 @@ void releaseChunk()
 		_r_seqCnt *= 2;
 
 	for (i = 0; i < _r_seqCnt; i++)
-		freeMem(_r_seq[i].hits,0);
+		freeMem(_r_seq[i].hits, 0);
 	memUsage -= _r_readMemUsage;
 	_r_readMemUsage = 0;
 

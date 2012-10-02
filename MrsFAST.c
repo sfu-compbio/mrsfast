@@ -1546,7 +1546,7 @@ void outputBestPairedEnd()
 			_msf_output[0].FLAG		= 1+proper+16*d1+32*d2+64;
 			_msf_output[0].ISIZE		= isize;
 			_msf_output[0].SEQ			= seq,
-				_msf_output[0].QUAL		= qual;
+			_msf_output[0].QUAL		= qual;
 			_msf_output[0].QNAME		= _msf_seqList[i*2].name;
 			_msf_output[0].RNAME		= _msf_refGenName;
 			_msf_output[0].MAPQ		= 255;
@@ -1583,7 +1583,7 @@ void outputBestPairedEnd()
 			_msf_output[0].FLAG		= 1+proper+16*d2+32*d1+128;
 			_msf_output[0].ISIZE		= -isize;
 			_msf_output[0].SEQ			= seq,
-				_msf_output[0].QUAL		= qual;
+			_msf_output[0].QUAL		= qual;
 			_msf_output[0].QNAME		= _msf_seqList[i*2].name;
 			_msf_output[0].RNAME		= _msf_refGenName;
 			_msf_output[0].MAPQ		= 255;
@@ -1707,50 +1707,6 @@ void updateBestPairedEnd()
 		int lm, ll, rl, rm;
 		int pos = 0;
 
-		if (pairedEndDiscordantMode)
-		{
-
-			for (j=0; j<size1; j++)
-			{
-				lm = mi1[j].loc - maxPairEndedDiscordantDistance + 1;
-				ll = mi1[j].loc - minPairEndedDiscordantDistance + 1;
-				rl = mi1[j].loc + minPairEndedDiscordantDistance - 1;
-				rm = mi1[j].loc + maxPairEndedDiscordantDistance - 1;
-
-				while (pos<size2 && mi2[pos].loc < lm)
-				{
-					pos++;
-				}
-
-				k = pos;
-				while (k<size2 && mi2[k].loc<=rm)
-				{
-					if ( mi2[k].loc <= ll || mi2[k].loc >= rl)
-					{
-						if ( (mi1[j].loc < mi2[k].loc && mi1[j].dir==1 && mi2[k].dir == -1)  ||  
-								(mi1[j].loc > mi2[k].loc && mi1[j].dir==-1 && mi2[k].dir == 1) )
-						{
-							_msf_seqList[i*2].hits[0]=1;
-							_msf_seqList[i*2+1].hits[0]=1;
-							size1=0;
-							size2=0;
-							break;
-						}
-					}
-					k++;
-				}
-			}
-
-			_msf_seqHits[i]+= size1*size2;
-			if (_msf_seqHits[i]> DISCORDANT_CUT_OFF)
-			{
-				_msf_seqList[i*2].hits[0]=1;
-				_msf_seqList[i*2+1].hits[0]=1;
-				size1=0;
-				size2=0;
-			}
-		}
-
 		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
 		cseq1 = _msf_seqList[i*2].cseq;
 		crseq1 = _msf_seqList[i*2].crseq;
@@ -1818,11 +1774,11 @@ void updateBestPairedEnd()
 							mappedSeqCnt++;
 							mappingCnt++;
 						}
-
-						if ( maxHits == 0 )
+						
+						/*if ( maxHits == 0 )
 						{
 							_msf_seqList[i*2].hits[0] = _msf_seqList[i*2+1].hits[0] = 2;
-						}
+						}*/
 					}
 				}
 				k++;
@@ -1830,12 +1786,6 @@ void updateBestPairedEnd()
 		}
 
 	}
-
-	if (pairedEndDiscordantMode)
-	{
-		fclose(out);
-	}
-
 
 	freeMem(mi1, sizeof(FullMappingInfo)*_msf_maxLSize);
 	freeMem(mi2, sizeof(FullMappingInfo)*_msf_maxRSize);
