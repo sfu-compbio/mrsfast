@@ -76,9 +76,9 @@ extern long long			mappingCnt;
 extern long long			mappedSeqCnt;
 extern long long			completedSeqCnt;
 
-void initFAST(	Read *seqList,
-				int seqListSize);
-
+void initializeFAST(int seqListSize);
+void initFASTChunk(Read *seqList, int seqListSize);
+void initFASTContig();
 void finalizeFAST();
 
 int mapSeq(unsigned char contigFlag);

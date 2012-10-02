@@ -75,8 +75,8 @@ int main(int argc, char *argv[])
 		double mappingTime;
 		double lstartTime;
 		double tmpTime;
-		int	flag;
 		double maxMem=0;
+		int	flag, firstChunk = 1;
 
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
@@ -103,12 +103,20 @@ int main(int argc, char *argv[])
 		loadingTime = 0;
 		flag = 1;
 
+
 		tmpTime = getTime();
 		while (readChunk(&seqList, &seqListSize) || seqListSize > 0)
 		{
 			totalNumOfReads += seqListSize;
 			rewindHashTable();
 			totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
+	
+			if (firstChunk)
+			{
+				firstChunk = 0;
+				initializeFAST(seqListSize);
+			}
+			initFASTChunk(seqList, seqListSize);
 
 			do
 			{
@@ -116,7 +124,7 @@ int main(int argc, char *argv[])
 				loadingTime += tmpTime;
 
 				lstartTime = getTime();
-				initFAST(seqList, seqListSize);
+				initFASTContig();
 				mapSeq(flag);
 				mappingTime += getTime() - lstartTime;
 
