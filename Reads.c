@@ -121,22 +121,30 @@ void *preProcessReads(int *idp)
 	pos = 0;
 	for (i=id*div; i<div*(id+1) && i<_r_seqCnt; i++)
 	{
-		for (j=0; j< _r_samplingLocsSize; j++)
+		if (_r_seq[i].hits[0] == 1)			// marked reads are not indexed
 		{
-			tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
-			tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
-			pos++;
+			_r_seq[i].hits[0] = 0;
+			pos += 2 * _r_samplingLocsSize;
 		}
-		for (j=0; j<_r_samplingLocsSize; j++)
+		else
 		{
-			reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
-			tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
-			tmp[pos].seqInfo = pos+(div*id*2*_r_samplingLocsSize);
-			pos++;
+			for (j=0; j< _r_samplingLocsSize; j++)
+			{
+				tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
+				tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
+				pos++;
+			}
+			for (j=0; j<_r_samplingLocsSize; j++)
+			{
+				reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
+				tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
+				tmp[pos].seqInfo = pos+(div*id*2*_r_samplingLocsSize);
+				pos++;
+			}
+			tmpSize+=2*_r_samplingLocsSize;
 		}
-		tmpSize+=2*_r_samplingLocsSize;
 	}
-
+	
 	qsort(tmp, tmpSize, sizeof(Pair), compare);
 
 	int uniq = 0;
@@ -360,12 +368,16 @@ int initRead(char *fileName1, char *fileName2)
 
 	calculateSamplingLocations();
 
-	char *t = unmappedOutput;
-	unmappedOutput = getMem(100);
-	strcpy(unmappedOutput, t);
-	if (strcmp(unmappedOutput, "") == 0)
-		sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
-	_r_umfp = fopen(unmappedOutput, "w");
+
+	if (!bestMappingMode)
+	{
+		char *t = unmappedOutput;
+		unmappedOutput = getMem(100);
+		strcpy(unmappedOutput, t);
+		if (strcmp(unmappedOutput, "") == 0)
+			sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
+		_r_umfp = fopen(unmappedOutput, "w");
+	}
 
 	return 1;
 }
@@ -395,7 +407,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	int err1, err2, size;
 	//int nCnt;
 	unsigned char *nCnt;
-	int discarded = 0;
 	int maxCnt = 0;
 	_r_seqCnt = 0;
 	_r_readMemUsage = 0;
@@ -537,7 +548,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			}
 		}
 
-		if (!pairedEndMode && !err1)
+		if (!pairedEndMode)
 		{
 			int _mtmp = strlen(seq1);
 			int cmpLen = calculateCompressedLen(_mtmp);
@@ -563,8 +574,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 
 			int i;
 
-			_r_seq[_r_seqCnt].hits[0] = 0;
-
 			for (i=0; i<=_mtmp; i++)
 			{
 				_r_seq[_r_seqCnt].seq[i] = seq1[i];
@@ -574,9 +583,14 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].qual[_mtmp] = '\0';
 			sprintf(_r_seq[_r_seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
 
+			if (err1)		// if corrupted, mark the read. Does not need to be indexed in preProcessReads()
+				_r_seq[_r_seqCnt].hits[0] = 1;
+			else
+				_r_seq[_r_seqCnt].hits[0] = 0;
+
 			_r_seqCnt++;
 		}
-		else if (pairedEndMode && !err1 && !err2)
+		else
 		{
 			// Naming Conventions X/1, X/2 OR X
 			int tmplen = strlen(name1);
@@ -656,12 +670,10 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			name2[tmplen]='\0';
 			sprintf(_r_seq[_r_seqCnt].name,"%s%c", ((char*)name2)+1,'\0');
 
-			_r_seqCnt++;
+			if (err1 || err2)		// mark both reads as corrupted
+				_r_seq[_r_seqCnt-1].hits[0] = _r_seq[_r_seqCnt].hits[0] = 1;
 
-		}
-		else
-		{
-			discarded++;
+			_r_seqCnt++;
 		}
 
 		if (_r_seqCnt == _r_maxSeqCnt)
@@ -693,12 +705,13 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	if (_r_seqCnt > 0)
 	{
 		preProcessReadsMT();
-		fprintf(stdout, "%d sequences are read in %0.2f. (%d discarded) [Mem:%0.2f M]\n", _r_seqCnt, (getTime()-startTime), discarded, getMemUsage());
+		fprintf(stdout, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
+//		fprintf(stdout, "%d sequences are read in %0.2f. [Mem:%0.2f M]\n", _r_seqCnt, (getTime()-startTime), getMemUsage());
 		_r_firstIteration = 0;
 	}
 	else if (_r_firstIteration)
 	{
-		fprintf(stdout, "ERR: No reads can be found for mapping\n");
+		fprintf(stdout, "ERR: No reads for mapping\n");
 	}
 
 	if (_r_seqCnt < _r_maxSeqCnt)		// reached end of file
@@ -707,12 +720,15 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		return 1;
 }
 /**********************************************/
-void releaseChunk()
+void outputUnmapped()
 {
+	if (bestMappingMode)
+		return;
+
 	if (pairedEndMode)
 		_r_seqCnt /=2;
 
-	int i = 0, j = 0;
+	int i = 0;
 	for (i = 0; i < _r_seqCnt; i++)
 	{
 		if (pairedEndMode)
@@ -741,12 +757,17 @@ void releaseChunk()
 
 	if (pairedEndMode)
 		_r_seqCnt *= 2;
+}
+/**********************************************/
+void releaseChunk()
+{
+	outputUnmapped();
 
+	int i, j;
 	for (i = 0; i < _r_seqCnt; i++)
 		freeMem(_r_seq[i].hits, 0);
 	memUsage -= _r_readMemUsage;
 	_r_readMemUsage = 0;
-
 
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
@@ -795,7 +816,10 @@ void finalizeReads()
 	freeMem(_r_samplingLocsOffset, size);
 	freeMem(_r_samplingLocsLen, size);
 	freeMem(_r_samplingLocsLenFull, size);
-	freeMem(unmappedOutput, 100);
-	fclose(_r_umfp);
+	if (!bestMappingMode)
+	{
+		freeMem(unmappedOutput, 100);
+		fclose(_r_umfp);
+	}
 }
 

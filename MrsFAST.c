@@ -950,6 +950,25 @@ void outputBestSingleMapping()
 
 			output(_msf_output[0]);
 		}
+		else
+		{
+			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_output[0].FLAG			= 4;
+			_msf_output[0].RNAME		= "*";
+			_msf_output[0].POS			= 0;
+			_msf_output[0].MAPQ			= 255;
+			_msf_output[0].CIGAR		= "*";
+			_msf_output[0].MRNAME		= "*";
+			_msf_output[0].MPOS		= 0;
+			_msf_output[0].ISIZE		= 0;
+	
+			_msf_output[0].SEQ = _msf_seqList[r].seq;
+			_msf_output[0].QUAL = _msf_seqList[r].qual;
+
+			_msf_output[0].optSize		= 0;
+
+			output(_msf_output[0]);
+		}
 	}
 	freeMem(revQual, QUAL_LENGTH + 1);
 }

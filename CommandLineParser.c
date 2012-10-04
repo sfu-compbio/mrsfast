@@ -60,7 +60,7 @@ int						maxPairEndedDiscordantDistance=-1;
 int						errThreshold = -1;
 char					*seqFile1;
 char					*seqFile2;
-char					*mappingOutput = "output";
+char					*mappingOutput = "output.sam";
 char					*mappingOutputPath = "";
 char					*unmappedOutput = "";
 char					fileName[2][FILE_NAME_LENGTH];
@@ -315,7 +315,7 @@ int parseCommandLine (int argc, char *argv[])
 /**********************************************/
 void finalizeCommandParser()
 {
-	if ( strcmp(mappingOutput, "output") || strlen(mappingOutputPath) )
+	if ( strcmp(mappingOutput, "output.sam") || strlen(mappingOutputPath) )
 	{
 		freeMem(mappingOutput, FILE_NAME_LENGTH);
 		freeMem(mappingOutputPath, FILE_NAME_LENGTH);
