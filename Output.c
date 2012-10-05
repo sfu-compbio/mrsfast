@@ -181,7 +181,7 @@ int initOutput ( char *fileName, int compressed)
 		output = &outputQ;
 		outputMeta = &outputMetaQ;
 	}
-	outputMeta("@HD VN:1.4 SO:unsorted");
+	outputMeta("@HD\tVN:1.4\tSO:unsorted");
 	return 1;
 }
 

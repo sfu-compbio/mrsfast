@@ -361,7 +361,7 @@ int initLoadingHashTable(char *fileName)
 		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
 		
 		nametmp[nameLen] = '\0';
-		sprintf(strtmp,"@SQ SN:%s LN:%d\0", nametmp, _ih_refGenLen);
+		sprintf(strtmp,"@SQ\tSN:%s\tLN:%d\0", nametmp, _ih_refGenLen);
 		outputMeta(strtmp);
 		
 		if (_ih_refGenLen > _ih_maxChrLength)
