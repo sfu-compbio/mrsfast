@@ -124,7 +124,12 @@ void *preProcessReads(int *idp)
 		if (_r_seq[i].hits[0] == 1)			// marked reads are not indexed
 		{
 			_r_seq[i].hits[0] = 0;
-			pos += 2 * _r_samplingLocsSize;
+			for (j=0; j< 2*_r_samplingLocsSize; j++)
+			{
+				tmp[pos].hv = -1;
+				tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
+				pos++;
+			}
 		}
 		else
 		{
@@ -141,8 +146,9 @@ void *preProcessReads(int *idp)
 				tmp[pos].seqInfo = pos+(div*id*2*_r_samplingLocsSize);
 				pos++;
 			}
-			tmpSize+=2*_r_samplingLocsSize;
+
 		}
+		tmpSize+=2*_r_samplingLocsSize;
 	}
 	
 	qsort(tmp, tmpSize, sizeof(Pair), compare);
