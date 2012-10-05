@@ -40,6 +40,8 @@
 
 #define MAP_CHUNKS 15
 
+enum BestMappingStatus { unset = 0, first_mate, second_mate, trans_loc, improper, proper };
+
 typedef struct mn
 {
 	int loc;
@@ -52,6 +54,24 @@ typedef struct mn
 	char md[40];
 	char chr[40];
 } FullMappingInfo;
+
+
+typedef struct mnp
+{
+	int loc1;
+	char dir1;
+	char err1;
+	char md1[40];
+	char chr1[40];
+	int loc2;
+	char dir2;
+	char err2;
+	char md2[40];
+	char chr2[40];
+	enum BestMappingStatus status;
+} BestMappingInfoPE;
+
+
 
 typedef struct lc
 {
