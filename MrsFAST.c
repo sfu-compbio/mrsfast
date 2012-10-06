@@ -1545,28 +1545,34 @@ void outputBestPairedEnd()
 				f1 = 1 + 4 + 8 + 64;
 				f2 = 1 + 4 + 8 + 128;
 				optSize1 = optSize2 = 0;
+				//fprintf(stdout, "unset\n");
 				break;
 			case first_mate:
-				f1 = 1 + 8 + 64 + (_msf_bestMappingPE[i].dir1 == -1) ?16 :0;
-				f2 = 1 + 4 + 128 + (_msf_bestMappingPE[i].dir1 == -1) ?32 :0;
+				f1 = 1 + 8 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0);
+				f2 = 1 + 4 + 128 + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
 				optSize2 = 0;
+				//fprintf(stdout, "1stmate\n");
 				break;
 			case second_mate:
-				f1 = 1 + 4 + 64 + (_msf_bestMappingPE[i].dir2 == -1) ?32 :0;
-				f2 = 1 + 8 + 128 + (_msf_bestMappingPE[i].dir1 == -1) ?16 :0;
+				f1 = 1 + 4 + 64 + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
+				f2 = 1 + 8 + 128 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0);
+				//fprintf(stdout, "2ndmate\n");
 				optSize1 = 0;
 				break;
 			case trans_loc:
-				f1 = 1 + 64 + (_msf_bestMappingPE[i].dir1 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir2 == -1) ?32 :0;
-				f2 = 1 + 128 + (_msf_bestMappingPE[i].dir2 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir1 == -1) ?32 :0;
+				f1 = 1 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
+				f2 = 1 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
+				//fprintf(stdout, "transLoc %d %d\n", f1, f2);
 				break;
 			case improper:
-				f1 = 1 + 64 + (_msf_bestMappingPE[i].dir1 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir2 == -1) ?32 :0;
-				f2 = 1 + 128 + (_msf_bestMappingPE[i].dir2 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir1 == -1) ?32 :0;
+				f1 = 1 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
+				f2 = 1 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
+				//fprintf(stdout, "improper\n");
 				break;
 			case proper:
-				f1 = 1 + 2 + 64 + (_msf_bestMappingPE[i].dir1 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir2 == -1) ?32 :0;
-				f2 = 1 + 2 + 128 + (_msf_bestMappingPE[i].dir2 == -1) ?16 :0 + (_msf_bestMappingPE[i].dir1 == -1) ?32 :0;
+				f1 = 1 + 2 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
+				f2 = 1 + 2 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
+				//fprintf(stdout, "proper\n");
 				break;
 		}
 		//output best
@@ -1695,7 +1701,7 @@ void updateBestPairedEnd()
 	int size;
 	int j, k;
 	int size1, size2;
-	int proper;
+	int properMapping;
 	int lessErr;
 
 
@@ -1786,9 +1792,15 @@ void updateBestPairedEnd()
 					}
 
 					if (_msf_bestMappingPE[i].status == unset)
+					{
 						_msf_bestMappingPE[i].status = first_mate;
+						mappedSeqCnt++;
+						mappingCnt++;
+					}
 					else if (_msf_bestMappingPE[i].status == second_mate)
+					{
 						_msf_bestMappingPE[i].status = trans_loc;
+					}
 
 				}
 				else
@@ -1807,9 +1819,15 @@ void updateBestPairedEnd()
 					}
 
 					if (_msf_bestMappingPE[i].status == unset)
+					{
 						_msf_bestMappingPE[i].status = second_mate;
+						mappedSeqCnt++;
+						mappingCnt++;
+					}
 					else if (_msf_bestMappingPE[i].status == first_mate)
+					{
 						_msf_bestMappingPE[i].status = trans_loc;
+					}
 
 				}
 			}
@@ -1820,14 +1838,20 @@ void updateBestPairedEnd()
 			{
 				for (k=0; k<size2; k++)
 				{
-					proper  = (mi1[j].dir == 1  && mi2[k].dir == -1 && mi1[j].loc < mi2[k].loc && (mi2[k].loc-mi1[j].loc >=  minPairEndedDistance) && (mi2[k].loc-mi1[j].loc <=  maxPairEndedDistance))|
+					properMapping  = (mi1[j].dir == 1  && mi2[k].dir == -1 && mi1[j].loc < mi2[k].loc && (mi2[k].loc-mi1[j].loc >=  minPairEndedDistance) && (mi2[k].loc-mi1[j].loc <=  maxPairEndedDistance)) |
 							  (mi1[j].dir == -1 && mi2[k].dir ==  1 && mi1[j].loc > mi2[k].loc && (mi1[j].loc-mi2[k].loc >=  minPairEndedDistance) && (mi1[j].loc-mi2[k].loc <=  maxPairEndedDistance));
 				
 					lessErr = (mi1[j].err+mi2[k].err) < (_msf_bestMappingPE[i].err1+_msf_bestMappingPE[i].err2);
 
-					if ( (proper && (_msf_bestMappingPE[i].status != proper || lessErr) ) || 
-						 (!proper && _msf_bestMappingPE[i].status != proper && lessErr) )
+					if ( (properMapping && (_msf_bestMappingPE[i].status != properMapping || lessErr) ) || 
+						 (!properMapping && _msf_bestMappingPE[i].status != properMapping && lessErr) )
 					{
+						if (_msf_bestMappingPE[i].status == unset)
+						{
+							mappedSeqCnt++;
+							mappingCnt++;
+						}
+						_msf_bestMappingPE[i].status = (properMapping) ?proper :improper;
 						_msf_bestMappingPE[i].err1 = mi1[j].err;
 						_msf_bestMappingPE[i].err2 = mi2[k].err;
 						_msf_bestMappingPE[i].loc1 = mi1[j].loc;
@@ -1838,6 +1862,7 @@ void updateBestPairedEnd()
 						memcpy(_msf_bestMappingPE[i].md2, mi2[k].md, 40);
 						memcpy(_msf_bestMappingPE[i].chr1, _msf_refGenName, 40);
 						memcpy(_msf_bestMappingPE[i].chr2, _msf_refGenName, 40);
+
 					}
 				}
 			}
