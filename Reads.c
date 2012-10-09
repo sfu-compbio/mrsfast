@@ -589,10 +589,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].qual[_mtmp] = '\0';
 			sprintf(_r_seq[_r_seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
 
-			if (err1)		// if corrupted, mark the read. Does not need to be indexed in preProcessReads()
-				_r_seq[_r_seqCnt].hits[0] = 1;
-			else
-				_r_seq[_r_seqCnt].hits[0] = 0;
+			_r_seq[_r_seqCnt].hits[0] = (err1) ?1 :0;	// if corrupted, mark the read. Does not need to be indexed in preProcessReads()
 
 			_r_seqCnt++;
 		}
@@ -676,8 +673,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			name2[tmplen]='\0';
 			sprintf(_r_seq[_r_seqCnt].name,"%s%c", ((char*)name2)+1,'\0');
 
-			if (err1 || err2)		// mark both reads as corrupted
-				_r_seq[_r_seqCnt-1].hits[0] = _r_seq[_r_seqCnt].hits[0] = 1;
+			_r_seq[_r_seqCnt].hits[0] = (err2) ?1 :0;
 
 			_r_seqCnt++;
 		}
