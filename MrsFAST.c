@@ -1601,7 +1601,7 @@ void outputBestPairedEnd()
 		_msf_output[0].FLAG			= f1;
 		_msf_output[0].ISIZE		= isize;
 		_msf_output[0].SEQ			= seq1,
-			_msf_output[0].QUAL		= qual1;
+		_msf_output[0].QUAL			= qual1;
 		_msf_output[0].QNAME		= _msf_seqList[i*2].name;
 		_msf_output[0].RNAME		= _msf_bestMappingPE[i].chr1;
 		_msf_output[0].MAPQ			= 255;
@@ -1629,7 +1629,7 @@ void outputBestPairedEnd()
 		_msf_output[0].ISIZE		= -isize;
 		_msf_output[0].SEQ			= seq2,
 		_msf_output[0].QUAL			= qual2;
-		_msf_output[0].QNAME		= _msf_seqList[i*2].name;
+		_msf_output[0].QNAME		= _msf_seqList[i*2+1].name;
 		_msf_output[0].RNAME		= _msf_bestMappingPE[i].chr2;
 		_msf_output[0].MAPQ			= 255;
 		_msf_output[0].CIGAR		= _msf_cigar;
@@ -1843,8 +1843,8 @@ void updateBestPairedEnd()
 				
 					lessErr = (mi1[j].err+mi2[k].err) < (_msf_bestMappingPE[i].err1+_msf_bestMappingPE[i].err2);
 
-					if ( (properMapping && (_msf_bestMappingPE[i].status != properMapping || lessErr) ) || 
-						 (!properMapping && _msf_bestMappingPE[i].status != properMapping && lessErr) )
+					if ( (properMapping && ((_msf_bestMappingPE[i].status != proper) || lessErr) ) || 
+						 (!properMapping && (_msf_bestMappingPE[i].status != proper) && lessErr) )
 					{
 						if (_msf_bestMappingPE[i].status == unset)
 						{
