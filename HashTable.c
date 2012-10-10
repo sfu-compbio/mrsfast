@@ -371,6 +371,9 @@ int initLoadingHashTable(char *fileName)
 	freeMem(nametmp, CONTIG_NAME_SIZE);
 	// Reading Meta End
 
+	if (pairedEndDiscordantMode)
+		maxPairEndedDistance = _ih_maxChrLength;
+
 	if (pairedEndMode)
 	{
 		_ih_crefGenOrigin = getMem((calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
