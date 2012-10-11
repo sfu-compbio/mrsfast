@@ -64,16 +64,21 @@ int *_r_readIndexSize;
 int _r_maxSeqCnt;
 int	_r_firstIteration = 1;
 long long _r_readMemUsage = 0;
+char *_r_alphIndex = NULL;
 
 /**********************************************/
 char *(*readFirstSeq)(char *);
 char *(*readSecondSeq)(char *);
 /**********************************************/
+char *readSeq(char *seq, FILE *fp)
+{
+	return fgets(seq, SEQ_MAX_LENGTH, fp);
+}
+/**********************************************/
 char *readFirstSeqTXT( char *seq )
 {
 	return fgets(seq, SEQ_MAX_LENGTH, _r_fp1);
 }
-
 /**********************************************/
 char *readSecondSeqTXT( char *seq )
 {
@@ -261,8 +266,8 @@ void calculateSamplingLocations()
 	}
 	fprintf(stdout, "\n");*/
 }
-/**********************************************/
 
+/**********************************************/
 int initRead(char *fileName1, char *fileName2)
 {
 	char dummy[SEQ_MAX_LENGTH];
@@ -371,7 +376,6 @@ int initRead(char *fileName1, char *fileName2)
 
 
 
-
 	calculateSamplingLocations();
 
 
@@ -385,9 +389,15 @@ int initRead(char *fileName1, char *fileName2)
 		_r_umfp = fopen(unmappedOutput, "w");
 	}
 
+	_r_alphIndex = getMem(128);		// used in readChunk()
+	_r_alphIndex['A'] = 0;
+	_r_alphIndex['C'] = 1;
+	_r_alphIndex['G'] = 2;
+	_r_alphIndex['T'] = 3;
+	_r_alphIndex['N'] = 4;
+
 	return 1;
 }
-
 
 /**********************************************/
 int readChunk(Read **seqList, unsigned int *seqListSize)
@@ -419,12 +429,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	
 	int i, len;
 	unsigned int *setZero;
-	char alphIndex[128];
-	alphIndex['A'] = 0;
-	alphIndex['C'] = 1;
-	alphIndex['G'] = 2;
-	alphIndex['T'] = 3;
-	alphIndex['N'] = 4;
 
 
 	while( readFirstSeq(name1) )
@@ -433,6 +437,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		err2 = 0;
 		readFirstSeq(seq1);
 		name1[strlen(name1)-1] = '\0';
+		if ( strlen(seq1)-1 != SEQ_LENGTH )
+		{
+			fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
+			exit(EXIT_FAILURE);
+		}
 		for (i=0; i<strlen(name1);i++)
 		{
 			if (name1[i] == ' ')
@@ -440,7 +449,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 				name1[i] = '\0';
 				break;
 			}
-
 		}
 
 		if ( _r_fastq )
@@ -481,7 +489,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			}
 			else
 			{
-				alphCnt[alphIndex[seq1[i]]]++;
+				alphCnt[_r_alphIndex[seq1[i]]]++;
 			}
 		}
 
@@ -496,6 +504,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			readSecondSeq(name2);
 			readSecondSeq(seq2);
 			name2[strlen(name2)-1] = '\0';
+			/*if ( strlen(seq2)-1 != SEQ_LENGTH )
+			{
+				fprintf(stdout, "ERR: Inconsistent read length for %s\n", name2);
+				exit(EXIT_FAILURE);
+			}*/
 			for (i=0; i<strlen(name2);i++)
 			{
 				if (name2[i] == ' ')
@@ -544,7 +557,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 				}
 				else
 				{
-					alphCnt2[alphIndex[seq2[i]]]++;
+					alphCnt2[_r_alphIndex[seq2[i]]]++;
 				}
 			}
 
@@ -818,6 +831,8 @@ void finalizeReads()
 	freeMem(_r_samplingLocsOffset, size);
 	freeMem(_r_samplingLocsLen, size);
 	freeMem(_r_samplingLocsLenFull, size);
+	freeMem(_r_alphIndex, 128);
+
 	if (!bestMappingMode)
 	{
 		freeMem(unmappedOutput, 100);
@@ -825,3 +840,73 @@ void finalizeReads()
 	}
 }
 
+/**********************************************/
+/*int checkAllReads()
+{
+	char seq[SEQ_MAX_LENGTH];
+	char name[SEQ_MAX_LENGTH];
+	FILE *fp = _r_fp1;
+	int flag, firstIteration = 1;
+	int i = 0, seqCnt[2];
+	seqCnt[0] = seqCnt[1] = 0;
+	
+	do {
+		while (readSeq(name, fp))		// name
+		{
+			readSeq(seq, fp);			// seq
+			seqCnt[i]++;
+			
+			if ( strlen(seq)-1 != SEQ_LENGTH )
+			{
+				rewind(fp);
+				fprintf(stderr, "ERR: Inconsistent read length %s", name);
+				return 0;
+			}
+			if (_r_fastq)
+			{
+				readSeq(seq, fp);		// 3rd line
+				readSeq(seq, fp);		// qual
+			}
+		}
+
+		if (firstIteration && pairedEndMode && _r_fp2 != _r_fp1)
+		{
+			flag = 1;
+			rewind(_r_fp1);
+			fp = _r_fp2;
+			firstIteration = 0;
+			i++;
+		}
+		else
+		{
+			flag = 0;
+		}
+
+	} while (flag);
+	
+	rewind(fp);
+
+	if (pairedEndMode)
+	{
+		if (_r_fp1 == _r_fp2)
+		{
+			if (seqCnt[0] & 1)
+			{
+				fprintf(stderr, "ERR: In paired-end mode, number of reads must be divisible by 2\n");
+				return 0;
+			}
+		}
+		else
+		{
+			if (seqCnt[0] != seqCnt[1])
+			{
+				fprintf(stderr, "ERR: Number of reads must be equal in the input files\n");
+				return 0;
+			}
+		}
+	}
+	
+	fprintf(stdout, "Input check: OK\n");
+	return 1;
+}
+*/
