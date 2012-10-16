@@ -60,4 +60,6 @@ HashTable		*getHashTable();
 unsigned int	*getCandidates(int hv);
 char			*getAlphabetCount();
 void			rewindHashTable();
+int 			getChrCnt();
+char 			**getChrNames();
 #endif

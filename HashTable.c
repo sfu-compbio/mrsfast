@@ -61,6 +61,8 @@ int				_ih_maxChrLength		= 0;
 CompressedSeq	*_ih_crefGenOrigin		= NULL;		// only used in pairedEndMode
 unsigned char	*_ih_alphCnt			= NULL;
 long int		_ih_contigStartPos		= 0;
+int				_ih_chrCnt				= 0;
+char			**_ih_chrNames			= 0;
 
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
@@ -352,23 +354,25 @@ int initLoadingHashTable(char *fileName)
 
 	// Reading Meta
 	char *strtmp = getMem(2*CONTIG_NAME_SIZE);
-	char *nametmp = getMem(CONTIG_NAME_SIZE);
-	tmp = fread(&numOfChrs, sizeof(int), 1, _ih_fp);
-	for (i = 0; i < numOfChrs; i++)
+
+	tmp = fread(&_ih_chrCnt, sizeof(int), 1, _ih_fp);
+
+	_ih_chrNames = getMem(_ih_chrCnt * sizeof(char *));
+	for (i = 0; i < _ih_chrCnt; i++)
 	{
+		_ih_chrNames[i] = getMem(CONTIG_NAME_SIZE);
 		tmp = fread(&nameLen, sizeof(int), 1, _ih_fp);
-		tmp = fread(nametmp, sizeof(char), nameLen, _ih_fp);
+		tmp = fread(_ih_chrNames[i], sizeof(char), nameLen, _ih_fp);
+		_ih_chrNames[i][nameLen] = '\0';
 		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
 		
-		nametmp[nameLen] = '\0';
-		sprintf(strtmp,"@SQ\tSN:%s\tLN:%d\0", nametmp, _ih_refGenLen);
+		sprintf(strtmp,"@SQ SN:%s LN:%d\0", _ih_chrNames[i], _ih_refGenLen);
 		outputMeta(strtmp);
 		
 		if (_ih_refGenLen > _ih_maxChrLength)
 			_ih_maxChrLength = _ih_refGenLen;
 	}
 	freeMem(strtmp, 2*CONTIG_NAME_SIZE);
-	freeMem(nametmp, CONTIG_NAME_SIZE);
 	// Reading Meta End
 
 	if (pairedEndDiscordantMode)
@@ -390,7 +394,8 @@ int initLoadingHashTable(char *fileName)
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
 	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
 	_ih_refGenName[0] = '\0';
-	_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
+	if (!snipMode)
+		_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
 
 	_ih_contigStartPos = ftell(_ih_fp);
 
@@ -399,17 +404,20 @@ int initLoadingHashTable(char *fileName)
 /**********************************************/
 void finalizeLoadingHashTable()
 {
+	int i;
 	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
 	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
 	if (pairedEndMode)
 		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
 	else
-	{
 		freeMem(_ih_crefGen, (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
-	}
 	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
 	freeMem(_ih_refGenName, CONTIG_NAME_SIZE);	
-	freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
+	if (!snipMode)
+		freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
+	for (i = 0; i < _ih_chrCnt; i++)
+		freeMem(_ih_chrNames[i], CONTIG_NAME_SIZE);
+	freeMem(_ih_chrNames, _ih_chrCnt * sizeof(char *));
 	fclose(_ih_fp);
 }
 /**********************************************/
@@ -530,54 +538,57 @@ int  loadHashTable(double *loadTime)
 	}
 
 	// calculate alphabet count for each location in genome
-	cnext = _ih_crefGen;
-	cdata = *(cnext++);
-	t = 0;
-	char outgoingChar[SEQ_LENGTH];
-	unsigned int *copy = (unsigned int *)_ih_alphCnt;
-	*copy = 0;
-
-	for (i = 0; i < SEQ_LENGTH; i++)
+	if (!snipMode)
 	{
-		val = (cdata >> 60) & 7;
-		outgoingChar[i] = val;
+		cnext = _ih_crefGen;
+		cdata = *(cnext++);
+		t = 0;
+		char outgoingChar[SEQ_LENGTH];
+		unsigned int *copy = (unsigned int *)_ih_alphCnt;
+		*copy = 0;
 
-		if (++t == 21)
+		for (i = 0; i < SEQ_LENGTH; i++)
 		{
-			t = 0;
-			cdata = *(cnext++);
-		}
-		else
-		{
-			cdata <<= 3;
+			val = (cdata >> 60) & 7;
+			outgoingChar[i] = val;
+
+			if (++t == 21)
+			{
+				t = 0;
+				cdata = *(cnext++);
+			}
+			else
+			{
+				cdata <<= 3;
+			}
+
+			_ih_alphCnt[val] ++;
 		}
 
-		_ih_alphCnt[val] ++;
-	}
+		int o = 0, endIndex = _ih_refGenLen - SEQ_LENGTH + 1;
+		unsigned char *cur;		// current loc
+		i = 0;
 
-	int o = 0, endIndex = _ih_refGenLen - SEQ_LENGTH + 1;
-	unsigned char *cur;		// current loc
-	i = 0;
+		while (++i < endIndex) // BORDER LINE CHECK
+		{
+			cur = (char *)++copy;
+			val = (cdata >> 60) & 7;
+			if (++t == 21)
+			{
+				t = 0;
+				cdata = *(cnext++);
+			}
+			else
+			{
+				cdata <<= 3;
+			}
 
-	while (++i < endIndex) // BORDER LINE CHECK
-	{
-		cur = (char *)++copy;
-		val = (cdata >> 60) & 7;
-		if (++t == 21)
-		{
-			t = 0;
-			cdata = *(cnext++);
+			*copy = *(copy-1);	// copies all 4 bytes at once
+			(*(cur + val)) ++;
+			(*(cur + outgoingChar[o])) --;
+			outgoingChar[o] = val;
+			o = (++o == SEQ_LENGTH) ?0 :o;
 		}
-		else
-		{
-			cdata <<= 3;
-		}
-		
-		*copy = *(copy-1);	// copies all 4 bytes at once
-		(*(cur + val)) ++;
-		(*(cur + outgoingChar[o])) --;
-		outgoingChar[o] = val;
-		o = (++o == SEQ_LENGTH) ?0 :o;
 	}
 
 	*loadTime = getTime()-startTime;
@@ -630,4 +641,14 @@ char *getAlphabetCount()
 CompressedSeq *getCmpRefGenOrigin()
 {
 	return _ih_crefGenOrigin;
+}
+/**********************************************/
+int getChrCnt()
+{
+	return _ih_chrCnt;
+}
+/**********************************************/
+char **getChrNames()
+{
+	return _ih_chrNames;
 }

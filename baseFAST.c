@@ -43,6 +43,8 @@
 #include "Output.h"
 #include "HashTable.h"
 #include "MrsFAST.h"
+#include "SnipReader.h"
+
 char 				*versionNumber = "3.0";			// Current Version
 unsigned char		seqFastq;
 void				printStat();
@@ -94,6 +96,9 @@ int main(int argc, char *argv[])
 		
 		if (!initLoadingHashTable(fileName[1]))
 			return 1;
+
+		if (snipMode)
+			initLoadingSnips(fileName[2]);
 
 		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
 		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
@@ -163,6 +168,9 @@ int main(int argc, char *argv[])
 		finalizeReads();
 		finalizeOutput();
 		finalizeCommandParser();
+		if (snipMode)
+			finalizeSnips();
+
 		fprintf(stdout, "----------------------------------------------------------------------------------------------------------\n");
 
 		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
