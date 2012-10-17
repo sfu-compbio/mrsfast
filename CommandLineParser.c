@@ -49,6 +49,7 @@ int						pairedEndMode;
 int						pairedEndDiscordantMode;
 int						pairedEndProfilingMode;
 int						bestMappingMode = 0;
+int						snipMode = 0;
 int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
@@ -63,7 +64,7 @@ char					*seqFile2;
 char					*mappingOutput = "output";
 char					*mappingOutputPath = "";
 char					*unmappedOutput = "";
-char					fileName[2][FILE_NAME_LENGTH];
+char					fileName[3][FILE_NAME_LENGTH];
 unsigned char			maxHits=0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
@@ -92,6 +93,7 @@ int parseCommandLine (int argc, char *argv[])
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
+	char *snipFile = NULL;
 	static struct option longOptions[] = 
 	{
 
@@ -115,6 +117,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"crop",			required_argument,  0,					'c'},
 		{"threads",			required_argument,  0,					't'},
 		{"mem",				required_argument,  0,					'z'},
+		{"snp",				required_argument,  0,					'p'},
 		{0,0,0,0}
 
 	};
@@ -181,6 +184,10 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'z':
 				MAX_MEMORY = atoi(optarg);
+				break;
+			case 'p':
+				snipMode = 1;
+				snipFile = optarg;
 				break;
 		}
 
@@ -264,14 +271,15 @@ int parseCommandLine (int argc, char *argv[])
 	int i = 0;
 
 	sprintf(fileName[0], "%s", fastaFile);
-	sprintf(fileName[1], "%s.index", fileName[0]); 
+	sprintf(fileName[1], "%s.index", fileName[0]);
+	if (snipMode)
+		sprintf(fileName[2], "%s", snipFile);
 
 	if (pairedEndProfilingMode)
 	{
 
 		minPairEndedDistance = 0;
 		maxPairEndedDistance = 300000000;
-
 	}
 
 	if (pairedEndDiscordantMode)
@@ -280,7 +288,7 @@ int parseCommandLine (int argc, char *argv[])
 		maxPairEndedDiscordantDistance = maxPairEndedDistance;
 
 		minPairEndedDistance = 0;
-		maxPairEndedDistance = 300000000;
+		maxPairEndedDistance = 300000000;		// precise value is set in initLoadingHashTable()
 	}
 	
 	if (!indexingMode)

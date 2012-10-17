@@ -39,7 +39,6 @@
 CompressedSeq	*loadSnipMap(char *chrName, int contigStartIndex, int contigLength);
 void 			initLoadingSnips(char *fileName);
 void 			finalizeSnips();
-#endif
 
 typedef struct snp
 {
@@ -47,3 +46,5 @@ typedef struct snp
 	int locCnt;
 	int *locs;
 } ChrSnips;
+
+#endif
