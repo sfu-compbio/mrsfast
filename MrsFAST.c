@@ -119,6 +119,8 @@ long long			_msf_bestMappingMemSize;
 long long			_msf_mappingInfoMemSize;
 long long			_msf_seqHitsMemSize;
 long long			_msf_bestMappingPEMemSize;
+int					*_msf_distance = NULL;
+int					_msf_firstChr = 1;
 
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -132,9 +134,13 @@ void mapPairedEndSeqListBal (unsigned int *l1, int s1, unsigned int *l2, int s2,
 
 inline int countErrorsSnip (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
+void calculateConcordantDistances();
+void updateDistance();
+void modifyMinMaxDistances();
 
 int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 void (*mapSeqListBal) (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id);
+
 /**********************************************/
 void initializeFAST(int seqListSize)
 {
@@ -201,14 +207,14 @@ void initializeFAST(int seqListSize)
 			_msf_mappingInfo[i].size = 0;
 		}
 
-		//Switching to Inferred Size 
-		minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 1;
-		maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 1;
-		if (pairedEndDiscordantMode)
+		modifyMinMaxDistances();
+
+		if (pairedEndProfilingMode)
 		{
-			maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 1;
-			minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 1;
+			_msf_distance = getMem(seqListSize/2 * sizeof(int));
+			memset(_msf_distance, 0, _msf_seqListSize/2 * sizeof(int));
 		}
+
 	}
 
 	// Required data structure for discordant mapping mode.
@@ -323,7 +329,11 @@ void finalizeFAST()
 	freeMem(_msf_refGenName, CONTIG_NAME_SIZE);
 
 	if (pairedEndMode)
+	{
 		freeMem(_msf_mappingInfo, _msf_mappingInfoMemSize);
+		if (pairedEndProfilingMode)
+			freeMem(_msf_distance, _msf_seqListSize/2 * sizeof(int));		// FIXME:in the last chunk this size could be smaller than the initialized value
+	}
 
 	if (pairedEndDiscordantMode)
 		freeMem(_msf_seqHits, _msf_seqHitsMemSize);
@@ -983,9 +993,17 @@ int mapSeq(unsigned char cf)
 	}
 	else
 	{
+		if (_msf_firstChr && pairedEndProfilingMode)
+			updateDistance();
+
 		outputTempMapping();
+
 		if (contigFlag == 0 || contigFlag == 2)
 		{
+			_msf_firstChr = 0;
+			if (pairedEndProfilingMode)
+				calculateConcordantDistances();
+
 			if (bestMappingMode)
 				updateBestPairedEnd();
 			else
@@ -1001,6 +1019,7 @@ int mapSeq(unsigned char cf)
 				outputPairedEndDiscPP();
 		}
 	}
+
 }
 
 /**********************************************/
@@ -2580,4 +2599,72 @@ void outputTempMapping()
 	fclose(out1);
 	fclose(out2);
 
+}
+/**********************************************/
+void updateDistance()
+{
+	MappingLocations *cur1, *cur2;
+	int i;
+
+	for (i=0; i<_msf_seqListSize/2; i++)
+	{
+		if ( _msf_mappingInfo[2*i].size == 1 && _msf_mappingInfo[2*i+1].size == 1 )
+		{
+			cur1 = _msf_mappingInfo[2*i].next;
+			cur2 = _msf_mappingInfo[2*i+1].next;
+
+			if ( cur1->loc[0] * cur2->loc[0] < 0 && cur1->loc[0] + cur2->loc[0] < 0 )		// concordant
+			{
+				if ( _msf_distance[i] == 0 )		// it's the first calculation for this pair
+				{
+					_msf_distance[i] = abs( abs(cur1->loc[0]) - abs(cur2->loc[0]) ) + SEQ_LENGTH;
+				}
+				else
+				{
+					_msf_distance[i] = -1;
+				}
+			}
+		}
+	}
+}
+/**********************************************/
+void calculateConcordantDistances()
+{
+	int i, cnt = 0;
+	double mu = 0, sigma = 0;
+
+	for (i = 0; i < _msf_seqListSize/2; i++)
+	{
+		if (_msf_distance[i] > 0 && _msf_distance[i] < 5000 && _msf_distance[i] > 1.5 * SEQ_LENGTH )
+		{
+			//fprintf(stderr, "%d\n", _msf_distance[i]);
+			cnt ++;
+			mu += _msf_distance[i];
+		}
+	}
+
+	mu /= cnt;
+	
+	for (i = 0; i < _msf_seqListSize/2; i++)
+	{
+		if (_msf_distance[i] > 0 && _msf_distance[i] < 5000 && _msf_distance[i] > 1.5 * SEQ_LENGTH )
+			sigma += (_msf_distance[i] - mu) * (_msf_distance[i] - mu);
+	}
+	sigma = sqrt(sigma/cnt);
+
+	minPairEndedDistance = mu - 3*sigma;
+	maxPairEndedDistance = mu + 3*sigma;
+	modifyMinMaxDistances();
+}
+/**********************************************/
+void modifyMinMaxDistances()
+{
+	//Switching to Inferred Size 
+	minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 1;
+	maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 1;
+	if (pairedEndDiscordantMode)
+	{
+		maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 1;
+		minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 1;
+	}
 }

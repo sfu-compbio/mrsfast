@@ -339,8 +339,7 @@ int initRead(char *fileName1, char *fileName2)
 	SEQ_LENGTH = seqLen - 1;
 	int cmpLen = calculateCompressedLen(seqLen);
 	double readMem = (2 + (seqLen * 3) + 3 + (cmpLen << 4) + nameLen + 1 + 4);
-	if (bestMappingMode)
-		readMem += ((bestMappingMode) ?(sizeof(FullMappingInfo)) :0);
+	readMem += ((bestMappingMode) ?(sizeof(FullMappingInfo)) :0);
 	if (pairedEndMode)
 		readMem += sizeof(MappingInfo) + 2*sizeof(MappingLocations);
 

@@ -47,7 +47,7 @@ int						indexingMode;
 int						searchingMode;
 int						pairedEndMode;
 int						pairedEndDiscordantMode;
-int						pairedEndProfilingMode;
+int						pairedEndProfilingMode = 0;
 int						bestMappingMode = 0;
 int						snipMode = 0;
 int						seqCompressed;
@@ -99,7 +99,7 @@ int parseCommandLine (int argc, char *argv[])
 
 		{"pe",				no_argument,		&pairedEndMode,		1},
 		{"discordant-vh",	no_argument,		&pairedEndDiscordantMode,	1},
-		{"profile",			no_argument, 		&pairedEndProfilingMode,	1},
+//		{"profile",			no_argument, 		&pairedEndProfilingMode,	1},
 		{"seqcomp",			no_argument,		&seqCompressed,		1},
 		{"outcomp",			no_argument,		&outCompressed,		1},
 		{"progress",		no_argument,		&progressRep,		1},
@@ -255,16 +255,23 @@ int parseCommandLine (int argc, char *argv[])
 			return 0;
 		}
 
-		if (pairedEndMode && (minPairEndedDistance <0 || maxPairEndedDistance < 0 || minPairEndedDistance > maxPairEndedDistance))
+		if (pairedEndMode)
 		{
-			fprintf(stdout, "ERROR: Please enter a valid range for pairedend sequences.\n");
-			return 0;
-		}
+			if (minPairEndedDistance < 0 && maxPairEndedDistance < 0)
+			{
+				pairedEndProfilingMode = 1;
+			}
+			else if ( minPairEndedDistance <0 || maxPairEndedDistance < 0 || minPairEndedDistance > maxPairEndedDistance )
+			{
+				fprintf(stdout, "ERROR: Please enter a valid range for pairedend sequences.\n");
+				return 0;
+			}
 
-		if (pairedEndMode && seqFile1 == NULL)
-		{
-			fprintf(stdout, "ERROR: Please indicate the first file for pairedend search.\n");
-			return 0;
+			if (seqFile1 == NULL)
+			{
+				fprintf(stdout, "ERROR: Please indicate the first file for pairedend search.\n");
+				return 0;
+			}
 		}
 	}
 
@@ -275,13 +282,12 @@ int parseCommandLine (int argc, char *argv[])
 	if (snipMode)
 		sprintf(fileName[2], "%s", snipFile);
 
-	if (pairedEndProfilingMode)
+/*	if (pairedEndProfilingMode)
 	{
-
 		minPairEndedDistance = 0;
 		maxPairEndedDistance = 300000000;
-	}
-
+	}	
+*/
 	if (pairedEndDiscordantMode)
 	{
 		minPairEndedDiscordantDistance = minPairEndedDistance;
