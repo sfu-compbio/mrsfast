@@ -98,6 +98,7 @@ extern char				fileName[3][FILE_NAME_LENGTH];
 extern int				fileCnt;
 extern long long		memUsage;
 extern char				*alphabet;
+extern char				checkSumLength;
 
 // Pair is used to pre-processing and making the read index table
 typedef struct
@@ -124,4 +125,5 @@ void 	stripPath(char *full, char **path, char **fileName);
 void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
 inline int 	calculateCompressedLen(int normalLen);
 int	hashVal(char *seq);
+int	checkSumVal(char *seq);
 #endif

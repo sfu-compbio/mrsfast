@@ -120,7 +120,8 @@ long long			_msf_mappingInfoMemSize;
 long long			_msf_seqHitsMemSize;
 long long			_msf_bestMappingPEMemSize;
 int					*_msf_distance = NULL;
-int					_msf_firstChr = 1;
+int					_msf_profilingCompleted = 0;
+unsigned char		*_msf_refCheckSum = NULL;
 
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -298,9 +299,10 @@ void initFASTContig()
 	//Retrieved per contig
 	_msf_refGenLength = getRefGenLength();
 	_msf_crefGen = getCmpRefGenome();
-	_msf_crefGenLen = getCmpRefGenLen();
+	_msf_crefGenLen = getCmpRefGenLength();
 	_msf_refGenOffset = getRefGenomeOffset();
 	_msf_alphCnt = getAlphabetCount();
+	_msf_refCheckSum = getCheckSums();
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
 	if (snipMode)
 		_msf_snipMap = loadSnipMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
@@ -719,11 +721,19 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 
 			for (z=0; z<s1; z++)
 			{
+				
 				int genLoc = locs[z]-_msf_samplingLocs[o];
 
-
-				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
+				if (_msf_refCheckSum[locs[z]] != _msf_seqList[r].checkSum[x]  || 
+					genLoc < _msf_refGenBeg ||
+					genLoc > _msf_refGenEnd)
 					continue;
+
+
+				/*if (_msf_refCheckSum[locs[z]] != _msf_seqList[r].checkSum[x])
+					continue;
+				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
+					continue;*/
 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
@@ -993,15 +1003,14 @@ int mapSeq(unsigned char cf)
 	}
 	else
 	{
-		if (_msf_firstChr && pairedEndProfilingMode)
+		if (!_msf_profilingCompleted && pairedEndProfilingMode)
 			updateDistance();
 
 		outputTempMapping();
 
 		if (contigFlag == 0 || contigFlag == 2)
 		{
-			_msf_firstChr = 0;
-			if (pairedEndProfilingMode)
+			if (!_msf_profilingCompleted && pairedEndProfilingMode)
 				calculateConcordantDistances();
 
 			if (bestMappingMode)
@@ -2655,13 +2664,25 @@ void calculateConcordantDistances()
 	minPairEndedDistance = mu - 3*sigma;
 	maxPairEndedDistance = mu + 3*sigma;
 	modifyMinMaxDistances();
+
+	_msf_profilingCompleted = 1;
 }
 /**********************************************/
 void modifyMinMaxDistances()
 {
+	
+	if (pairedEndDiscordantMode)
+	{
+		minPairEndedDiscordantDistance = minPairEndedDistance;
+		maxPairEndedDiscordantDistance = maxPairEndedDistance;
+		minPairEndedDistance = 0;
+		maxPairEndedDistance = getMaxChrLength();
+	}
+
 	//Switching to Inferred Size 
 	minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 1;
 	maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 1;
+	
 	if (pairedEndDiscordantMode)
 	{
 		maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 1;

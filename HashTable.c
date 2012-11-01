@@ -63,6 +63,7 @@ unsigned char	*_ih_alphCnt			= NULL;
 long int		_ih_contigStartPos		= 0;
 int				_ih_chrCnt				= 0;
 char			**_ih_chrNames			= 0;
+unsigned char	*_ih_checkSums			= NULL;
 
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
@@ -375,9 +376,6 @@ int initLoadingHashTable(char *fileName)
 	freeMem(strtmp, 2*CONTIG_NAME_SIZE);
 	// Reading Meta End
 
-	if (pairedEndDiscordantMode)
-		maxPairEndedDistance = _ih_maxChrLength;
-
 	if (pairedEndMode)
 	{
 		_ih_crefGenOrigin = getMem((calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
@@ -396,6 +394,7 @@ int initLoadingHashTable(char *fileName)
 	_ih_refGenName[0] = '\0';
 	if (!snipMode)
 		_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
+	_ih_checkSums = getMem(CONTIG_MAX_SIZE);
 
 	_ih_contigStartPos = ftell(_ih_fp);
 
@@ -417,6 +416,7 @@ void finalizeLoadingHashTable()
 		freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
 	for (i = 0; i < _ih_chrCnt; i++)
 		freeMem(_ih_chrNames[i], CONTIG_NAME_SIZE);
+	freeMem(_ih_checkSums, CONTIG_MAX_SIZE);
 	freeMem(_ih_chrNames, _ih_chrCnt * sizeof(char *));
 	fclose(_ih_fp);
 }
@@ -446,6 +446,7 @@ int  loadHashTable(double *loadTime)
 	}
 
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
+	memset(_ih_checkSums, 0, CONTIG_MAX_SIZE);
 
 	// Reading Chr Name
 	tmp = fread(&len, sizeof(len), 1, _ih_fp);
@@ -471,7 +472,7 @@ int  loadHashTable(double *loadTime)
 	tmp = fread(&hashTableSize, sizeof(hashTableSize), 1, _ih_fp);
 
 	int index = 0, diff, bytesToRead;
-	unsigned int hv=0;
+	unsigned long long hv=0;
 	i = 0;
 	while (i < hashTableSize)
 	{
@@ -483,23 +484,30 @@ int  loadHashTable(double *loadTime)
 			index += decodeVariableByte(_ih_IOBuffer + index, &diff);
 			index += decodeVariableByte(_ih_IOBuffer + index, &tmpSize);
 			hv += diff;
-			
-			_ih_hashTable[hv].locs = mem + tmpSize;
-			*mem = tmpSize;
+//fprintf(stderr, "# %d %d\n",hv, tmpSize);
+			_ih_hashTable[hv].locs = mem;// tmpSize;
+			*mem = _ih_refGenLen+1;//0;//tmpSize;
 			mem += (tmpSize + 1);
 			i++;
 		}
 	}
 
+	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
+
 	// creating hash table
-	unsigned int windowMask = 0xffffffff >> (sizeof(unsigned int)*8 - WINDOW_SIZE*2);
+	int windowMaskSize = WINDOW_SIZE + checkSumLength;
+	unsigned long long windowMask =   0xffffffffffffffff >> (sizeof(unsigned long long)*8 - windowMaskSize*2);
+	unsigned long long checkSumMask = 0xffffffffffffffff >> (sizeof(unsigned long long)*8 - (checkSumLength)*2);
+	if (checkSumLength == 0)
+		checkSumMask = 0;
 	CompressedSeq *cnext = _ih_crefGen;
 	CompressedSeq cdata = *(cnext++);
 	i = 0;
 	hv = 0;
-	int val, t = 0, stack=1;
-	int loc = -WINDOW_SIZE+1;
-	
+	unsigned int hvtemp;
+	int pos, val, t = 0, stack = 1;
+	int loc = -WINDOW_SIZE - checkSumLength + 1;
+	int x;
 	// calculate refGen hashValues
 	while (i++ < _ih_refGenLen) // BORDER LINE CHECK
 	{
@@ -515,15 +523,21 @@ int  loadHashTable(double *loadTime)
 			cdata <<= 3;
 		}
 
-		if (val != 4 && stack == WINDOW_SIZE)
+		if (val != 4 && stack == windowMaskSize)
 		{
 			hv = ((hv << 2)|val)&windowMask;
-			*(_ih_hashTable[hv].locs)= loc; 
-			_ih_hashTable[hv].locs--;
+			_ih_checkSums[loc] = hv & checkSumMask;
+			hvtemp = hv >> (checkSumLength<<1);
+
+			//_ih_hashTable[hvtemp].locs++;i
+			++_ih_hashTable[hvtemp].locs;
+			*(_ih_hashTable[hvtemp].locs)= loc;
+			//pos = ++_ih_hashTable[hvtemp].locs[0];
+			//_ih_hashTable[hvtemp].locs[pos]= loc;
 		}
 		else
 		{
-			if (val == 4)
+			if (val == 4)		// N
 			{
 				stack = 1;
 				hv = 0;
@@ -537,6 +551,25 @@ int  loadHashTable(double *loadTime)
 		}
 	}
 
+	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
+	int cnt;
+	for (i=0; i<_ih_maxHashTableSize;i++)
+	{
+		if (_ih_hashTable[i].locs == NULL) continue;
+		cnt = 0;
+		while (*(_ih_hashTable[i].locs) != _ih_refGenLen+1)
+		{
+			_ih_hashTable[i].locs--;
+			cnt++;
+		}
+	//	fprintf(stdout, "%d %d\n", _ih_hashTable[i].locs[0], cnt);
+		_ih_hashTable[i].locs[0]=cnt;
+	//	fprintf(stderr, "$ %d %d\n", i, cnt);
+	}
+
+
+
+	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
 	// calculate alphabet count for each location in genome
 	if (!snipMode)
 	{
@@ -597,7 +630,7 @@ int  loadHashTable(double *loadTime)
 /**********************************************/
 unsigned int *getCandidates(int hv)
 {
-	if ( hv != -1 )
+	if ( hv != -1 && _ih_hashTable[hv].locs != NULL && _ih_hashTable[hv].locs[0] != 0)
 		return _ih_hashTable[hv].locs;
 	else 
 		return NULL;
@@ -628,7 +661,7 @@ int getRefGenLength()
 	return _ih_refGenLen;
 }
 /**********************************************/
-int getCmpRefGenLen()
+int getCmpRefGenLength()
 {
 	return _ih_crefGenLen;
 }
@@ -651,4 +684,14 @@ int getChrCnt()
 char **getChrNames()
 {
 	return _ih_chrNames;
+}
+/**********************************************/
+unsigned char *getCheckSums()
+{
+	return _ih_checkSums;
+}
+/**********************************************/
+int getMaxChrLength()
+{
+	return _ih_maxChrLength;
 }

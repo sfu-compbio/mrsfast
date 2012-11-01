@@ -263,3 +263,30 @@ int hashVal(char *seq)
 	}
 	return val;
 }
+/**********************************************/
+int checkSumVal(char *seq)
+{
+	int i=0;
+	int val=0, numericVal=0;
+
+	while(i<checkSumLength)
+	{
+		switch (seq[i])
+		{
+			case 'A':
+				numericVal = 0; break;
+			case 'C':
+				numericVal = 1; break;
+			case 'G' :
+				numericVal = 2; break;
+			case 'T':
+				numericVal = 3; break;
+			default:
+				return -1;
+				break;
+		}
+		val = (val << 2)|numericVal;
+		i++;
+	}
+	return val;
+}

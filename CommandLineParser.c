@@ -282,21 +282,6 @@ int parseCommandLine (int argc, char *argv[])
 	if (snipMode)
 		sprintf(fileName[2], "%s", snipFile);
 
-/*	if (pairedEndProfilingMode)
-	{
-		minPairEndedDistance = 0;
-		maxPairEndedDistance = 300000000;
-	}	
-*/
-	if (pairedEndDiscordantMode)
-	{
-		minPairEndedDiscordantDistance = minPairEndedDistance;
-		maxPairEndedDiscordantDistance = maxPairEndedDistance;
-
-		minPairEndedDistance = 0;
-		maxPairEndedDistance = 300000000;		// precise value is set in initLoadingHashTable()
-	}
-	
 	if (!indexingMode)
 	{
 		fprintf(stdout, "# Threads: %d\n", THREAD_COUNT);

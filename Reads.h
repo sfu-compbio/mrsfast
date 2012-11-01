@@ -46,6 +46,7 @@ typedef struct
 	CompressedSeq *crseq;
 	char *name;
 	unsigned char *alphCnt;
+	unsigned char *checkSum;
 } Read;
 
 int readChunk(Read **seqList, unsigned int *seqListSize);

@@ -54,7 +54,7 @@ int				getRefGenomeOffset();
 CompressedSeq	*getCmpRefGenome();
 CompressedSeq	*getCmpRefGenOrigin();
 int				getRefGenLength();
-int				getCmpRefGenLen();
+int				getCmpRefGenLength();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
 unsigned int	*getCandidates(int hv);
@@ -62,4 +62,6 @@ char			*getAlphabetCount();
 void			rewindHashTable();
 int 			getChrCnt();
 char 			**getChrNames();
+unsigned char 	*getCheckSums();
+int 			getMaxChrLength();
 #endif
