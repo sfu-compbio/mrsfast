@@ -120,7 +120,12 @@ long long			_msf_mappingInfoMemSize;
 long long			_msf_seqHitsMemSize;
 long long			_msf_bestMappingPEMemSize;
 int					*_msf_distance = NULL;
+int					_msf_distanceMemSize;
 int					_msf_profilingCompleted = 0;
+unsigned char		*_msf_refCheckSum = NULL;
+char				_msf_hitsTempFileName[100];
+FILE				*_msf_hitsTempFile;
+int					_msf_initialized = 0;
 
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -130,7 +135,11 @@ void outputTempMapping();
 void outputBestSingleMapping();
 void mapSingleEndSeqListBalBest (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 void mapSingleEndSeqListBalMultiple (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
+void mapSingleEndSeqListBalMultipleMaxHits (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 void mapPairedEndSeqListBal (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
+void outputMaxHitsSingleMapping();
+void updateMaxHitsPairedEnd();
+void outputMaxHitsPairedEnd();
 
 inline int countErrorsSnip (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
@@ -144,6 +153,10 @@ void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int d
 /**********************************************/
 void initializeFAST(int seqListSize)
 {
+	if (_msf_initialized)		// the function should be executed only once
+		return;
+
+	_msf_initialized = 1;
 	int i;
 	_msf_seqListSize = seqListSize;
 	// ----------- GENERAL  ----------- 
@@ -173,6 +186,7 @@ void initializeFAST(int seqListSize)
 
 	// initializing reference genome name
 	_msf_refGenName = getMem(CONTIG_NAME_SIZE);
+	_msf_refGenName[0] = '\0';
 
 	// get samplingLoc values, needed for countErrors
 	getSamplingLocsInfo(&_msf_samplingLocs, &_msf_samplingLocsSeg, &_msf_samplingLocsOffset, &_msf_samplingLocsLen, &_msf_samplingLocsLenFull, &_msf_samplingLocsSize);
@@ -187,7 +201,7 @@ void initializeFAST(int seqListSize)
 		if (bestMappingMode)
 			mapSeqListBal = & mapSingleEndSeqListBalBest;
 		else
-			mapSeqListBal = & mapSingleEndSeqListBalMultiple;
+			mapSeqListBal = (maxHits) ?(& mapSingleEndSeqListBalMultipleMaxHits) :(& mapSingleEndSeqListBalMultiple);
 	}
 	else
 	{
@@ -211,8 +225,9 @@ void initializeFAST(int seqListSize)
 
 		if (pairedEndProfilingMode)
 		{
-			_msf_distance = getMem(seqListSize/2 * sizeof(int));
-			memset(_msf_distance, 0, _msf_seqListSize/2 * sizeof(int));
+			_msf_distanceMemSize = _msf_seqListSize/2 * sizeof(int);
+			_msf_distance = getMem(_msf_distanceMemSize);
+			memset(_msf_distance, 0, _msf_distanceMemSize);
 		}
 
 	}
@@ -246,6 +261,12 @@ void initializeFAST(int seqListSize)
 			_msf_bestMapping = getMem(_msf_bestMappingMemSize);
 		}
 
+	}
+
+	if (maxHits)
+	{
+		sprintf(_msf_hitsTempFileName, "%s__%s__%s__1",mappingOutputPath, mappingOutput, "hits");
+		_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "w");
 	}
 
 #ifndef MRSFAST_SSE4
@@ -304,6 +325,15 @@ void initFASTContig()
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
 	if (snipMode)
 		_msf_snipMap = loadSnipMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
+	if (maxHits)
+	{
+		int tmpOut, m = -1;
+		unsigned char len;
+		len = strlen(_msf_refGenName);
+		tmpOut = fwrite(&m, sizeof(int), 1, _msf_hitsTempFile);
+		tmpOut = fwrite(&len, sizeof(char), 1, _msf_hitsTempFile);
+		tmpOut = fwrite(_msf_refGenName, sizeof(char), (int)len, _msf_hitsTempFile);
+	}
 
 	//Calculated per contig
 	_msf_refGenBeg = (_msf_refGenOffset==0)? 1 : (CONTIG_OVERLAP - SEQ_LENGTH + 2);
@@ -332,7 +362,7 @@ void finalizeFAST()
 	{
 		freeMem(_msf_mappingInfo, _msf_mappingInfoMemSize);
 		if (pairedEndProfilingMode)
-			freeMem(_msf_distance, _msf_seqListSize/2 * sizeof(int));		// FIXME:in the last chunk this size could be smaller than the initialized value
+			freeMem(_msf_distance, _msf_distanceMemSize);
 	}
 
 	if (pairedEndDiscordantMode)
@@ -645,6 +675,123 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 	
 	return err;
 }
+/**********************************************/
+void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
+{
+	if (s1 == 0 || s2 == 0)
+	{
+		return;
+	}
+	else if (s1 == s2 && s1 <= 200)
+	{
+		int j = 0;
+		int z = 0;
+		GeneralIndex *genInfo;
+		GeneralIndex *seqInfo;
+		CompressedSeq *_tmpCmpSeq;
+		unsigned char tmp[4];
+		unsigned char *alph, *gl;
+		
+		if (dir > 0)
+		{
+			genInfo		= l1;
+			seqInfo		= l2;
+		}
+		else
+		{
+			genInfo		= l2;
+			seqInfo		= l1;
+		}
+
+
+		for (j=0; j<s2; j++)
+		{
+			int re = _msf_samplingLocsSize * 2;
+			int r = seqInfo[j].info / re;
+
+			int x = seqInfo[j].info % re;
+			int o = x % _msf_samplingLocsSize;
+			char d = (x/_msf_samplingLocsSize)?1:0;
+
+			if (_msf_seqList[r].hits[0] > maxHits)
+				continue;
+
+			if (d)
+			{
+				_tmpCmpSeq = _msf_seqList[r].crseq;
+				tmp[0]=_msf_seqList[r].alphCnt[3];
+				tmp[1]=_msf_seqList[r].alphCnt[2];
+				tmp[2]=_msf_seqList[r].alphCnt[1];
+				tmp[3]=_msf_seqList[r].alphCnt[0];
+				alph = tmp;
+			}
+			else
+			{
+				_tmpCmpSeq = _msf_seqList[r].cseq;
+				alph = _msf_seqList[r].alphCnt;
+			}
+
+
+			for (z=0; z<s1; z++)
+			{
+				
+				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
+
+				if (genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
+					continue;
+
+				int err = -1;
+				gl = _msf_alphCnt + ((genLoc-1)<<2);
+
+				if ( snipMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+					err = verifySeq(genLoc, _tmpCmpSeq, o);
+
+				if (err != -1)
+				{
+					_msf_mappingCnt[id]++;
+					_msf_seqList[r].hits[0]++;
+
+					if (_msf_seqList[r].hits[0] == 1)
+						_msf_mappedSeqCnt[id]++;
+					
+					if (_msf_seqList[r].hits[0] > maxHits)
+					{
+						_msf_mappedSeqCnt[id]--;
+						_msf_mappingCnt[id] -= (maxHits+1);
+						break;
+					}
+					
+					int tmpOut;
+					int flag = 16 * d;
+					int loc = genLoc + _msf_refGenOffset;
+					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
+					unsigned char mdlen = strlen(_msf_op[id]);
+
+					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&flag, sizeof(int), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&loc, sizeof(int), 1, _msf_hitsTempFile);
+					if (snipMode)
+						tmpOut = fwrite(&err, sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&mderr, sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(_msf_op[id], sizeof(char), mdlen, _msf_hitsTempFile);
+				}
+
+			}
+		}
+	}
+	else
+	{
+		int tmp1=s1/2, tmp2= s2/2;
+		if (tmp1 != 0)
+			mapSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir, id);
+		mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir, id);
+		if (tmp2 !=0)
+			mapSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir, id);
+		if (tmp1 + tmp2 != 0)
+			mapSeqListBal(l2, tmp2, l1, tmp1, -dir, id);
+	}
+}
 
 /**********************************************/
 void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
@@ -655,7 +802,6 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 	}
 	else if (s1 == s2 && s1 <= 200)
 	{
-
 		int j = 0;
 		int z = 0;
 		GeneralIndex *genInfo;
@@ -684,18 +830,8 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 
 		for (j=0; j<s2; j++)
 		{
-// 			if (seqInfo[j].checksum > genInfo[s1-1].checksum)
-//				break;
-//			if (seqInfo[j].checksum < genInfo[s1-1].checksum && seqInfo[j].checksum < genInfo[0].checksum)
-//				continue;
- 
 			int re = _msf_samplingLocsSize * 2;
 			int r = seqInfo[j].info/re;
-			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
-			{
-				continue;
-			}
-
 			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
@@ -726,8 +862,6 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				
 				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
 
-//				if (genInfo[z].checksum != seqInfo[j].checksum)
-//					continue;
 				if (genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
 					continue;
 
@@ -787,11 +921,6 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 					{
 						_msf_seqList[r].hits[0] = 2;
 					}
-
-					if ( maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
-					{
-						break;
-					}
 				}
 
 			}
@@ -843,10 +972,6 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 		{
 			int re = _msf_samplingLocsSize * 2;
 			int r = seqInfo[j].info/re;
-
-			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
-				continue;
-
 			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
@@ -1008,13 +1133,18 @@ int mapSeq(unsigned char cf)
 		mappingCnt += _msf_mappingCnt[i];
 		mappedSeqCnt += _msf_mappedSeqCnt[i];
 	}
-	
-	if (!pairedEndMode)
+
+	if (!pairedEndMode)	// single end
 	{
-		if (bestMappingMode && contigFlag == 0)
-			outputBestSingleMapping();
+		if (contigFlag == 0)		// end of whole genome
+		{
+			if (bestMappingMode)
+				outputBestSingleMapping();
+			else if (maxHits)
+				outputMaxHitsSingleMapping();
+		}
 	}
-	else
+	else				// paired end
 	{
 		if (!_msf_profilingCompleted && pairedEndProfilingMode)
 			updateDistance();
@@ -1028,17 +1158,23 @@ int mapSeq(unsigned char cf)
 
 			if (bestMappingMode)
 				updateBestPairedEnd();
+			else if (maxHits)
+				updateMaxHitsPairedEnd();
 			else
 				outputPairedEnd();
 		}
 
 		if (contigFlag == 0)
 		{
-			if (bestMappingMode)
-				outputBestPairedEnd();
-
 			if (pairedEndDiscordantMode)
 				outputPairedEndDiscPP();
+			else
+			{
+				if (bestMappingMode)
+					outputBestPairedEnd();
+				else if (maxHits)
+					outputMaxHitsPairedEnd();
+			}
 		}
 	}
 
@@ -1053,6 +1189,275 @@ int getBestMappingQuality(FullMappingInfo *map)
 	if (map->secondBestHits == 0) return 37;
 	int n = (map->secondBestHits >= 255) ?255 :map->secondBestHits;
 	return (23 < _msf_gLogN[n]) ?0 :(23 - _msf_gLogN[n]);
+}
+/**********************************************/
+void outputMaxHitsPairedEnd()
+{
+	int tmpOut, r, f1, f2, loc1, loc2;
+	unsigned char mderr1, mderr2, err1, err2, d1, d2, mdlen;
+	char md1[SEQ_LENGTH], md2[SEQ_LENGTH];
+	char **chrNames = getChrNames();
+	char *_tmpQual, *_tmpSeq;
+
+	CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
+	char *seq1, *seq2, *qual1, *qual2, *rseq1, *rseq2;
+	char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
+	rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
+	
+	fclose(_msf_hitsTempFile);
+	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
+	
+	int byteSize = 2*sizeof(int) + sizeof(char) + ((snipMode) ?sizeof(char) :0);
+
+	while ( fread(&r, sizeof(int), 1, _msf_hitsTempFile) )
+	{
+		if (r < 0)		// chromosome name should be read
+		{
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(_msf_refGenName, sizeof(char), (int)mdlen, _msf_hitsTempFile);
+			_msf_refGenName[mdlen] = '\0';
+		}
+		else if (_msf_seqList[r].hits[0] > maxHits)
+		{
+			tmpOut = fread(md1, sizeof(char), byteSize, _msf_hitsTempFile); 	// dummy
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md1, sizeof(char), mdlen, _msf_hitsTempFile);
+			tmpOut = fread(md1, sizeof(char), byteSize-1, _msf_hitsTempFile); 	// dummy
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md1, sizeof(char), mdlen, _msf_hitsTempFile);
+		}
+		else
+		{
+			// mate 1
+			tmpOut = fread(&f1, sizeof(int), 1, _msf_hitsTempFile);
+			d1 = f1 & 16;
+			tmpOut = fread(&loc1, sizeof(int), 1, _msf_hitsTempFile);
+			if (snipMode)
+				tmpOut = fread(&err1, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mderr1, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md1, sizeof(char), mdlen, _msf_hitsTempFile);
+			md1[mdlen] = '\0';
+
+			// mate 2
+			tmpOut = fread(&f2, sizeof(int), 1, _msf_hitsTempFile);
+			d2 = f2 & 16;
+			tmpOut = fread(&loc2, sizeof(int), 1, _msf_hitsTempFile);
+			if (snipMode)
+				tmpOut = fread(&err2, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mderr2, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mdlen, sizeof(unsigned char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md2, sizeof(char), mdlen, _msf_hitsTempFile);
+			md2[mdlen] = '\0';
+
+
+			seq1 = _msf_seqList[r].seq;
+			rseq1 = _msf_seqList[r].rseq;
+			cseq1 = _msf_seqList[r].cseq;
+			crseq1 = _msf_seqList[r].crseq;
+			qual1 = _msf_seqList[r].qual;
+			reverse(_msf_seqList[r].qual, rqual1, QUAL_LENGTH);
+
+			seq2 = _msf_seqList[r+1].seq;
+			rseq2 = _msf_seqList[r+1].rseq;	
+			cseq2 = _msf_seqList[r+1].cseq;
+			crseq2 = _msf_seqList[r+1].crseq;
+			qual2 = _msf_seqList[r+1].qual;
+			reverse(_msf_seqList[r+1].qual, rqual2, QUAL_LENGTH);
+
+			char *seq;
+			char *qual;
+			int isize;
+			int proper=0;
+			// ISIZE CALCULATION
+			// The distance between outer edges								
+			isize = abs(loc1 - loc2)+SEQ_LENGTH;//-1;												
+			if (loc1 - loc2 > 0)
+			{
+				isize *= -1;
+			}
+
+			if ( d1 )
+			{
+				seq = rseq1;
+				qual = rqual1;
+			}
+			else
+			{
+				seq = seq1;
+				qual = qual1;
+			}
+
+			_msf_output[0].POS			= loc1;
+			_msf_output[0].MPOS			= loc2;
+			_msf_output[0].FLAG			= f1;
+			_msf_output[0].ISIZE		= isize;
+			_msf_output[0].SEQ			= seq,
+			_msf_output[0].QUAL			= qual;
+			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_output[0].RNAME		= _msf_refGenName;
+			_msf_output[0].MAPQ			= 255;
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "=";
+
+			_msf_output[0].optSize	= (snipMode) ?3 :2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
+
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = mderr1;
+
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = md1;
+
+			if (snipMode)
+			{
+				_msf_optionalFields[0][2].tag = "XS";
+				_msf_optionalFields[0][2].type = 'i';
+				_msf_optionalFields[0][2].iVal = mderr1 - err1;
+			}
+
+			output(_msf_output[0]);
+
+			if ( d2 )
+			{
+				seq = rseq2;
+				qual = rqual2;
+			}
+			else
+			{
+				seq = seq2;
+				qual = qual2;
+			}
+
+			_msf_output[0].POS			= loc2;
+			_msf_output[0].MPOS			= loc1;
+			_msf_output[0].FLAG			= f2;
+			_msf_output[0].ISIZE		= -isize;
+			_msf_output[0].SEQ			= seq,
+			_msf_output[0].QUAL			= qual;
+			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_output[0].RNAME		= _msf_refGenName;
+			_msf_output[0].MAPQ			= 255;
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "=";
+
+			_msf_output[0].optSize	= (snipMode) ?3 :2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
+
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = mderr2;
+
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = md2;
+
+			if (snipMode)
+			{
+				_msf_optionalFields[0][2].tag = "XS";
+				_msf_optionalFields[0][2].type = 'i';
+				_msf_optionalFields[0][2].iVal = mderr2 - err2;
+			}
+
+			output(_msf_output[0]);
+
+		}
+	}
+
+	fclose(_msf_hitsTempFile);
+	unlink(_msf_hitsTempFileName);
+}
+/**********************************************/
+void outputMaxHitsSingleMapping()
+{
+	int tmpOut, r, flag, loc;
+	unsigned char mderr, err, mdlen;
+	char md[SEQ_LENGTH];
+	char **chrNames = getChrNames();
+	char *_tmpQual, *_tmpSeq;
+	char rqual[QUAL_LENGTH+1];
+	rqual[QUAL_LENGTH]='\0';
+
+	fclose(_msf_hitsTempFile);
+	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
+
+	int byteSize = 2*sizeof(int) + sizeof(char) + ((snipMode) ?sizeof(char) :0);
+
+	while ( fread(&r, sizeof(int), 1, _msf_hitsTempFile) )
+	{
+		if (r < 0)		// chromosome name should be read
+		{
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(_msf_refGenName, sizeof(char), (int)mdlen, _msf_hitsTempFile);
+			_msf_refGenName[mdlen] = '\0';
+		}
+		else if (_msf_seqList[r].hits[0] > maxHits)
+		{
+			tmpOut = fread(md, sizeof(char), byteSize, _msf_hitsTempFile); 	// dummy
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md, sizeof(char), mdlen, _msf_hitsTempFile);
+		}
+		else
+		{
+			tmpOut = fread(&flag, sizeof(int), 1, _msf_hitsTempFile);
+			tmpOut = fread(&loc, sizeof(int), 1, _msf_hitsTempFile);
+			if (snipMode)
+				tmpOut = fread(&err, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mderr, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+			tmpOut = fread(md, sizeof(char), mdlen, _msf_hitsTempFile);
+			md[mdlen] = '\0';
+
+			if (flag & 16)
+			{
+				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
+				_tmpQual = rqual;
+				_tmpSeq = _msf_seqList[r].rseq;
+			}
+			else
+			{
+				_tmpQual = _msf_seqList[r].qual;
+				_tmpSeq = _msf_seqList[r].seq;
+			}
+
+			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_output[0].FLAG			= flag;
+			_msf_output[0].RNAME		= _msf_refGenName;
+			_msf_output[0].POS			= loc;
+			_msf_output[0].MAPQ			= 255;
+			_msf_output[0].CIGAR		= _msf_cigar;
+			_msf_output[0].MRNAME		= "*";
+			_msf_output[0].MPOS			= 0;
+			_msf_output[0].ISIZE		= 0;
+			_msf_output[0].SEQ			= _tmpSeq;
+			_msf_output[0].QUAL			= _tmpQual;
+
+			_msf_output[0].optSize		= (snipMode) ?3 :2;
+			_msf_output[0].optFields	= _msf_optionalFields[0];
+
+			_msf_optionalFields[0][0].tag = "NM";
+			_msf_optionalFields[0][0].type = 'i';
+			_msf_optionalFields[0][0].iVal = mderr;
+
+			_msf_optionalFields[0][1].tag = "MD";
+			_msf_optionalFields[0][1].type = 'Z';
+			_msf_optionalFields[0][1].sVal = md;
+
+			if (snipMode)
+			{
+				_msf_optionalFields[0][2].tag = "XS";
+				_msf_optionalFields[0][2].type = 'i';
+				_msf_optionalFields[0][2].iVal = mderr - err;
+			}
+
+			output(_msf_output[0]);
+		}
+	}
+
+	fclose(_msf_hitsTempFile);
+	unlink(_msf_hitsTempFileName);
 }
 /**********************************************/
 void outputBestSingleMapping()
@@ -1508,7 +1913,6 @@ void outputPairedEnd()
 					} // end discordant
 					else
 					{ //start sampe
-						CompressedSeq *cmpSeq, *cmpRseq;
 						char *seq;
 						char *qual;
 						char d1;
@@ -1815,6 +2219,199 @@ void outputBestPairedEnd()
 		output(_msf_output[0]);
 	}
 
+}
+/**********************************************/
+void updateMaxHitsPairedEnd()
+{
+	char *curGen;
+	char *curGenName;
+	int tmpOut;
+
+	_msf_crefGen = getCmpRefGenOrigin();
+
+	FILE* in1[_msf_openFiles];
+	FILE* in2[_msf_openFiles];
+
+	char fname1[_msf_openFiles][FILE_NAME_LENGTH];	
+	char fname2[_msf_openFiles][FILE_NAME_LENGTH];	
+
+	int i;
+
+	FullMappingInfo *mi1 = getMem(sizeof(FullMappingInfo) * _msf_maxLSize);
+	FullMappingInfo *mi2 = getMem(sizeof(FullMappingInfo) * _msf_maxRSize);
+
+
+	for (i=0; i<_msf_openFiles; i++)
+	{
+		sprintf(fname1[i], "%s__%s__%d__1", mappingOutputPath, mappingOutput, i);
+		sprintf(fname2[i], "%s__%s__%d__2", mappingOutputPath, mappingOutput, i);
+		in1[i] = fileOpen(fname1[i], "r");
+		in2[i] = fileOpen(fname2[i], "r");
+	}
+
+	int size;
+	int j, k;
+	int size1, size2;
+
+	for (i=0; i<_msf_seqListSize/2; i++)
+	{
+		size1 = size2 = 0;
+		for (j=0; j<_msf_openFiles; j++)
+		{
+			tmpOut = fread(&size, sizeof(int), 1, in1[j]);
+			if ( size > 0 )
+			{
+				for (k=0; k<size; k++)
+				{
+					mi1[size1+k].dir = 1;
+					tmpOut = fread (&(mi1[size1+k].loc), sizeof(int), 1, in1[j]);
+					tmpOut = fread (&(mi1[size1+k].err), sizeof(char), 1, in1[j]);
+					if (mi1[size1+k].loc<1)
+					{	
+						mi1[size1+k].loc *= -1;
+						mi1[size1+k].dir = -1;
+					}
+				}
+				qsort(mi1+size1, size, sizeof(FullMappingInfo), compareOut);
+				size1+=size;
+			}
+		}
+
+		for (j=0; j<_msf_openFiles; j++)
+		{
+			tmpOut = fread(&size, sizeof(int), 1, in2[j]);
+			if ( size > 0 )
+			{
+				for (k=0; k<size; k++)
+				{
+
+					mi2[size2+k].dir = 1;
+					tmpOut = fread (&(mi2[size2+k].loc), sizeof(int),  1, in2[j]);
+					tmpOut = fread (&(mi2[size2+k].err), sizeof(char), 1, in2[j]);
+
+					if (mi2[size2+k].loc<1)
+					{	
+						mi2[size2+k].loc *= -1;
+						mi2[size2+k].dir = -1;
+					}
+				}
+				qsort(mi2+size2, size, sizeof(FullMappingInfo), compareOut);
+				size2+=size;
+			}
+		}
+
+		int lm, ll, rl, rm;
+		int pos = 0;
+
+		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
+		cseq1 = _msf_seqList[i*2].cseq;
+		crseq1 = _msf_seqList[i*2].crseq;
+		cseq2 = _msf_seqList[i*2+1].cseq;
+		crseq2 = _msf_seqList[i*2+1].crseq;
+
+		for (k=0; k<size1; k++)
+		{
+			mi1[k].mderr = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+			sprintf(mi1[k].md, "%s", _msf_op[0]);
+		}
+
+		for (k=0; k<size2; k++)
+		{
+			mi2[k].mderr = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+			sprintf(mi2[k].md, "%s", _msf_op[0]);
+		}
+		
+		for (j=0; j<size1; j++)
+		{
+			lm = mi1[j].loc - maxPairEndedDistance + 1;
+			ll = mi1[j].loc - minPairEndedDistance + 1;
+			rl = mi1[j].loc + minPairEndedDistance - 1;
+			rm = mi1[j].loc + maxPairEndedDistance - 1;
+
+			while (pos<size2 && mi2[pos].loc < lm)
+			{
+				pos++;
+			}
+
+			k = pos;
+			while (k<size2 && mi2[k].loc <= rm)
+			{
+				if (mi2[k].loc <= ll || mi2[k].loc >= rl)
+				{
+					char d1;
+					char d2;
+					int proper=0;
+					// ISIZE CALCULATION
+					// The distance between outer edges								
+
+					d1 = (mi1[j].dir == -1)?1:0;
+					d2 = (mi2[k].dir == -1)?1:0;
+
+					if ( (mi1[j].loc < mi2[k].loc && !d1 && d2) ||
+							(mi1[j].loc > mi2[k].loc && d1 && !d2) )
+					{
+						proper = 2;
+					}
+					else
+					{
+						proper = 0;
+					}
+
+					mappingCnt++;
+					_msf_seqList[2*i].hits[0]++;
+					_msf_seqList[2*i+1].hits[0]++;
+					if (_msf_seqList[2*i].hits[0] == 1)
+						mappedSeqCnt ++;
+
+					if (_msf_seqList[2*i].hits[0] > maxHits)
+					{
+						mappedSeqCnt--;
+						mappingCnt -= (maxHits+1);
+						break;
+					}
+
+					int tmpOut;
+					int r = 2*i;
+					unsigned char mdlen = strlen(mi1[j].md);
+					int flag1 = 1+proper+16*d1+32*d2+64;
+					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&flag1, sizeof(int), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&(mi1[j].loc), sizeof(int), 1, _msf_hitsTempFile);
+					if (snipMode)
+						tmpOut = fwrite(&(mi1[j].err), sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&(mi1[j].mderr), sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(mi1[j].md, sizeof(char), mdlen, _msf_hitsTempFile);
+
+					mdlen = strlen(mi2[k].md);
+					int flag2 = 1+proper+16*d2+32*d1+128;
+					tmpOut = fwrite(&flag2, sizeof(int), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&(mi2[k].loc), sizeof(int), 1, _msf_hitsTempFile);
+					if (snipMode)
+						tmpOut = fwrite(&(mi2[k].err), sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&(mi2[k].mderr), sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
+					tmpOut = fwrite(mi2[k].md, sizeof(char), mdlen, _msf_hitsTempFile);
+				}
+				k++;
+			}
+			
+			if (_msf_seqList[2*i].hits[0] > maxHits)
+				break;
+		}
+	}
+
+	freeMem(mi1, sizeof(FullMappingInfo)*_msf_maxLSize);
+	freeMem(mi2, sizeof(FullMappingInfo)*_msf_maxRSize);
+
+	for (i=0; i<_msf_openFiles; i++)
+	{
+		fclose(in1[i]);
+		fclose(in2[i]);
+		unlink(fname1[i]);
+		unlink(fname2[i]);
+	}
+	_msf_openFiles = 0;
 }
 /**********************************************/
 void updateBestPairedEnd()

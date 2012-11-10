@@ -65,7 +65,7 @@ char					*mappingOutput = "output";
 char					*mappingOutputPath = "";
 char					*unmappedOutput = "";
 char					fileName[3][FILE_NAME_LENGTH];
-unsigned char			maxHits=0;
+short					maxHits = 0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
@@ -99,7 +99,6 @@ int parseCommandLine (int argc, char *argv[])
 
 		{"pe",				no_argument,		&pairedEndMode,		1},
 		{"discordant-vh",	no_argument,		&pairedEndDiscordantMode,	1},
-//		{"profile",			no_argument, 		&pairedEndProfilingMode,	1},
 		{"seqcomp",			no_argument,		&seqCompressed,		1},
 		{"outcomp",			no_argument,		&outCompressed,		1},
 		{"progress",		no_argument,		&progressRep,		1},
@@ -226,6 +225,20 @@ int parseCommandLine (int argc, char *argv[])
 		}
 	}
 
+	if (maxHits)
+	{
+		if (maxHits < 0)
+		{
+			fprintf(stdout, "ERROR: Number of maximum hits must be greater than 0\n");
+			return 0;
+		}
+
+		if (bestMappingMode)
+		{
+			fprintf(stdout, "ERROR: Maximum number of mappings could not be set in best mapping mode. Maximum mappings input ignored\n");
+			maxHits = 0;
+		}
+	}
 
 	if ( searchingMode )
 	{

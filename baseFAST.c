@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 		double lstartTime;
 		double tmpTime;
 		double maxMem=0;
-		int	flag, firstChunk = 1;
+		int	flag;
 
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
@@ -116,11 +116,7 @@ int main(int argc, char *argv[])
 			rewindHashTable();
 			totalLoadingTime += (getTime() - tmpTime);	// readAllReads + initLoadingHashTable
 	
-			if (firstChunk)
-			{
-				firstChunk = 0;
-				initializeFAST(seqListSize);
-			}
+			initializeFAST(seqListSize);
 			initFASTChunk(seqList, seqListSize);
 
 			do

@@ -69,7 +69,6 @@ extern char				*versionNumberF;
 extern unsigned char	mrFAST;
 
 
-extern int				uniqueMode;
 extern int				indexingMode;
 extern int				searchingMode;
 extern int				pairedEndMode;
@@ -89,7 +88,7 @@ extern char 			*mappingOutputPath;
 extern char				*unmappedOutput;
 extern unsigned char	seqFastq;
 extern int				errThreshold;
-extern unsigned char	maxHits;	
+extern short			maxHits;	
 extern int				minPairEndedDiscordantDistance;
 extern int				maxPairEndedDiscordantDistance;
 extern int				minPairEndedDistance;
