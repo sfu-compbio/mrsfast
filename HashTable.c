@@ -47,7 +47,7 @@ FILE			*_ih_fp					= NULL;
 IHashTable		*_ih_hashTable			= NULL;
 int				_ih_maxHashTableSize	= 0;
 unsigned int	_ih_hashTableMemSize	= 0;
-unsigned int	*_ih_hashTableMem		= NULL;
+GeneralIndex	*_ih_hashTableMem		= NULL;
 int				_ih_refGenLen			= 0;
 CompressedSeq	*_ih_crefGen			= NULL;
 int				_ih_crefGenLen			= 0;
@@ -63,7 +63,6 @@ unsigned char	*_ih_alphCnt			= NULL;
 long int		_ih_contigStartPos		= 0;
 int				_ih_chrCnt				= 0;
 char			**_ih_chrNames			= 0;
-unsigned char	*_ih_checkSums			= NULL;
 
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
@@ -88,6 +87,11 @@ inline unsigned int decodeVariableByte(unsigned char *buffer, unsigned int *resu
 		i++;
 	} while ((t & 128) == 0);
 	return i;
+}
+/**********************************************/
+int compareCheckSumHT (const void *a, const void *b)
+{
+	return ((GeneralIndex *)a)->checksum - ((GeneralIndex *)b)->checksum;
 }
 /**********************************************/
 void initSavingIHashTable(char *fileName, char *genomeMetaInfo, int genomeMetaInfoLength)
@@ -346,7 +350,8 @@ int initLoadingHashTable(char *fileName)
 	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
 	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
 	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
-	_ih_hashTableMem = getMem(_ih_hashTableMemSize*sizeof(unsigned int));
+
+	_ih_hashTableMem = getMem(_ih_hashTableMemSize*sizeof(GeneralIndex));
 
 	tmp = fread(&_ih_IOBufferSize, sizeof(_ih_IOBufferSize), 1, _ih_fp);
 	_ih_IOBuffer = getMem(_ih_IOBufferSize);
@@ -394,7 +399,6 @@ int initLoadingHashTable(char *fileName)
 	_ih_refGenName[0] = '\0';
 	if (!snipMode)
 		_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
-	_ih_checkSums = getMem(CONTIG_MAX_SIZE);
 
 	_ih_contigStartPos = ftell(_ih_fp);
 
@@ -404,7 +408,7 @@ int initLoadingHashTable(char *fileName)
 void finalizeLoadingHashTable()
 {
 	int i;
-	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(unsigned int));
+	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(GeneralIndex));
 	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
 	if (pairedEndMode)
 		freeMem(_ih_crefGenOrigin, (calculateCompressedLen(_ih_maxChrLength)+1) * sizeof(CompressedSeq));
@@ -416,7 +420,6 @@ void finalizeLoadingHashTable()
 		freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
 	for (i = 0; i < _ih_chrCnt; i++)
 		freeMem(_ih_chrNames[i], CONTIG_NAME_SIZE);
-	freeMem(_ih_checkSums, CONTIG_MAX_SIZE);
 	freeMem(_ih_chrNames, _ih_chrCnt * sizeof(char *));
 	fclose(_ih_fp);
 }
@@ -446,7 +449,6 @@ int  loadHashTable(double *loadTime)
 	}
 
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
-	memset(_ih_checkSums, 0, CONTIG_MAX_SIZE);
 
 	// Reading Chr Name
 	tmp = fread(&len, sizeof(len), 1, _ih_fp);
@@ -467,7 +469,7 @@ int  loadHashTable(double *loadTime)
 
 
 	//Reading Hashtable Size and Content
-	unsigned int *mem =_ih_hashTableMem;
+	GeneralIndex *mem =_ih_hashTableMem;
 
 	tmp = fread(&hashTableSize, sizeof(hashTableSize), 1, _ih_fp);
 
@@ -484,15 +486,12 @@ int  loadHashTable(double *loadTime)
 			index += decodeVariableByte(_ih_IOBuffer + index, &diff);
 			index += decodeVariableByte(_ih_IOBuffer + index, &tmpSize);
 			hv += diff;
-//fprintf(stderr, "# %d %d\n",hv, tmpSize);
-			_ih_hashTable[hv].locs = mem;// tmpSize;
-			*mem = _ih_refGenLen+1;//0;//tmpSize;
+			_ih_hashTable[hv].list = mem;
+			mem->info = _ih_refGenLen+1;
 			mem += (tmpSize + 1);
 			i++;
 		}
 	}
-
-	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
 
 	// creating hash table
 	int windowMaskSize = WINDOW_SIZE + checkSumLength;
@@ -526,14 +525,11 @@ int  loadHashTable(double *loadTime)
 		if (val != 4 && stack == windowMaskSize)
 		{
 			hv = ((hv << 2)|val)&windowMask;
-			_ih_checkSums[loc] = hv & checkSumMask;
 			hvtemp = hv >> (checkSumLength<<1);
 
-			//_ih_hashTable[hvtemp].locs++;i
-			++_ih_hashTable[hvtemp].locs;
-			*(_ih_hashTable[hvtemp].locs)= loc;
-			//pos = ++_ih_hashTable[hvtemp].locs[0];
-			//_ih_hashTable[hvtemp].locs[pos]= loc;
+			++_ih_hashTable[hvtemp].list;
+			_ih_hashTable[hvtemp].list->info= loc;
+			_ih_hashTable[hvtemp].list->checksum= hv & checkSumMask;
 		}
 		else
 		{
@@ -555,21 +551,18 @@ int  loadHashTable(double *loadTime)
 	int cnt;
 	for (i=0; i<_ih_maxHashTableSize;i++)
 	{
-		if (_ih_hashTable[i].locs == NULL) continue;
+		if (_ih_hashTable[i].list == NULL) continue;
 		cnt = 0;
-		while (*(_ih_hashTable[i].locs) != _ih_refGenLen+1)
+		while (_ih_hashTable[i].list->info != _ih_refGenLen+1)
 		{
-			_ih_hashTable[i].locs--;
+			_ih_hashTable[i].list--;
 			cnt++;
 		}
-	//	fprintf(stdout, "%d %d\n", _ih_hashTable[i].locs[0], cnt);
-		_ih_hashTable[i].locs[0]=cnt;
-	//	fprintf(stderr, "$ %d %d\n", i, cnt);
+		_ih_hashTable[i].list[0].info=cnt;
+		if (cnt)
+			qsort(_ih_hashTable[i].list + 1, _ih_hashTable[i].list[0].info, sizeof(GeneralIndex), compareCheckSumHT);
 	}
 
-
-
-	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
 	// calculate alphabet count for each location in genome
 	if (!snipMode)
 	{
@@ -628,10 +621,10 @@ int  loadHashTable(double *loadTime)
 	return extraInfo;
 }
 /**********************************************/
-unsigned int *getCandidates(int hv)
+GeneralIndex *getCandidates(int hv)
 {
-	if ( hv != -1 && _ih_hashTable[hv].locs != NULL && _ih_hashTable[hv].locs[0] != 0)
-		return _ih_hashTable[hv].locs;
+	if ( hv != -1 && _ih_hashTable[hv].list != NULL && _ih_hashTable[hv].list[0].info != 0)
+		return _ih_hashTable[hv].list;
 	else 
 		return NULL;
 }
@@ -684,11 +677,6 @@ int getChrCnt()
 char **getChrNames()
 {
 	return _ih_chrNames;
-}
-/**********************************************/
-unsigned char *getCheckSums()
-{
-	return _ih_checkSums;
 }
 /**********************************************/
 int getMaxChrLength()

@@ -100,7 +100,13 @@ char *readSecondSeqGZ( char *seq )
 /**********************************************/
 int compare (const void *a, const void *b)
 {
-	return ((Pair *)a)->hv - ((Pair *)b)->hv;
+	Pair *x=(Pair *)a;
+	Pair *y=(Pair *)b;
+
+	if (x->hv == y->hv)
+		return x->checksum - y->checksum;
+	else
+		return x->hv - y->hv;
 }
 /**********************************************/
 void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize)
@@ -118,9 +124,10 @@ void *preProcessReads(int *idp)
 	int pos = 0;
 	char rseq[SEQ_LENGTH+1];
 	int tmpSize;
-	int cstmp;
 
-	int div = _r_seqCnt / THREAD_COUNT ; // Should be fixed for PE
+	int32_t	hvtmp, cstmp;
+
+	int div = _r_seqCnt / THREAD_COUNT;
 	div += (_r_seqCnt % THREAD_COUNT)?1:0;
 	Pair *tmp = getMem(sizeof(Pair)*(div * _r_samplingLocsSize*2));
 
@@ -134,6 +141,7 @@ void *preProcessReads(int *idp)
 			for (j=0; j< 2*_r_samplingLocsSize; j++)
 			{
 				tmp[pos].hv = -1;
+				tmp[pos].checksum = 0;
 				tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
 				pos++;
 			}
@@ -142,16 +150,17 @@ void *preProcessReads(int *idp)
 		{
 			for (j=0; j< _r_samplingLocsSize; j++)
 			{
-				tmp[pos].hv = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
+				hvtmp = hashVal(_r_seq[i].seq+_r_samplingLocs[j]);
 				cstmp = checkSumVal(_r_seq[i].seq+_r_samplingLocs[j]+WINDOW_SIZE);
-				if (cstmp == -1)
+				if (hvtmp == -1 || cstmp == -1)
 				{
 					tmp[pos].hv = -1;
-					_r_seq[i].checkSum[j] = 0;
+					tmp[pos].checksum = 0;
 				}
 				else
 				{
-					_r_seq[i].checkSum[j] = cstmp;
+					tmp[pos].hv = hvtmp;
+					tmp[pos].checksum = cstmp;
 				}
 				tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
 				pos++;
@@ -159,17 +168,18 @@ void *preProcessReads(int *idp)
 			for (j=0; j<_r_samplingLocsSize; j++)
 			{
 				reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
-				tmp[pos].hv = hashVal(rseq+_r_samplingLocs[j]);
-				
+				hvtmp = hashVal(rseq+_r_samplingLocs[j]);
 				cstmp = checkSumVal(rseq+_r_samplingLocs[j]+WINDOW_SIZE);
-				if (cstmp == -1)
+				
+				if (hvtmp == -1  || cstmp == -1)
 				{
 					tmp[pos].hv = -1;
-					_r_seq[i].checkSum[j + _r_samplingLocsSize] = 0;
+					tmp[pos].checksum = 0;
 				}
 				else
 				{
-					_r_seq[i].checkSum[j + _r_samplingLocsSize] = cstmp;
+					tmp[pos].hv = hvtmp;
+					tmp[pos].checksum = cstmp;
 				}
 				tmp[pos].seqInfo = pos+(div*id*2*_r_samplingLocsSize);
 				pos++;
@@ -209,13 +219,16 @@ void *preProcessReads(int *idp)
 			end++;
 
 		_r_readIndex[id][j].hv = tmp[beg].hv;
-		_r_readIndex[id][j].seqInfo = getMem(sizeof(int)*(end-beg+2));
-		_r_readIndex[id][j].seqInfo[0] = end-beg+1;
 
-		for (i=1; i <= _r_readIndex[id][j].seqInfo[0]; i++)
+		_r_readIndex[id][j].list = getMem(sizeof(GeneralIndex)*(end-beg+2));
+		_r_readIndex[id][j].list[0].info = end-beg+1;
+
+		for (i=1; i <= _r_readIndex[id][j].list[0].info; i++)
 		{
-			_r_readIndex[id][j].seqInfo[i]=tmp[beg+i-1].seqInfo;
+			_r_readIndex[id][j].list[i].info=tmp[beg+i-1].seqInfo;
+			_r_readIndex[id][j].list[i].checksum=tmp[beg+i-1].checksum;
 		}
+
 		j++;
 		beg = end+1;
 	}
@@ -607,7 +620,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + namelen + 1);
-			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
+//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 
 			for (i = 0; i < 4; i++)
@@ -655,7 +668,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + tmplen + 1);
-			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
+//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 			for (i = 0; i < 4; i++)
 				_r_seq[_r_seqCnt].alphCnt[i] = alphCnt[i];
@@ -693,7 +706,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + tmplen + 1);
-			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
+//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 			for (i = 0; i < 4; i++)
 				_r_seq[_r_seqCnt].alphCnt[i] = alphCnt2[i];
@@ -816,7 +829,7 @@ void releaseChunk()
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
 		for (j = 0; j < _r_readIndexSize[i]; j++)
-			freeMem(_r_readIndex[i][j].seqInfo, (_r_readIndex[i][j].seqInfo[0]+1)*sizeof(int));
+			freeMem(_r_readIndex[i][j].list, (_r_readIndex[i][j].list[0].info+1)*sizeof(GeneralIndex));
 		freeMem(_r_readIndex[i], sizeof(ReadIndexTable)*_r_readIndexSize[i]);
 	}
 	freeMem(_r_readIndex, sizeof(ReadIndexTable*)*THREAD_COUNT);

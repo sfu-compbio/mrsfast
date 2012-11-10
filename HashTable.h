@@ -45,7 +45,7 @@ typedef struct HashTable
 
 typedef struct 
 {
-	unsigned int *locs;
+	GeneralIndex *list;
 } IHashTable;
 
 char			*getRefGenome();
@@ -57,11 +57,10 @@ int				getRefGenLength();
 int				getCmpRefGenLength();
 int				initLoadingHashTable(char *fileName);
 HashTable		*getHashTable();
-unsigned int	*getCandidates(int hv);
+GeneralIndex	*getCandidates(int hv);
 char			*getAlphabetCount();
 void			rewindHashTable();
 int 			getChrCnt();
 char 			**getChrNames();
-unsigned char 	*getCheckSums();
 int 			getMaxChrLength();
 #endif

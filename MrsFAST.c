@@ -121,7 +121,6 @@ long long			_msf_seqHitsMemSize;
 long long			_msf_bestMappingPEMemSize;
 int					*_msf_distance = NULL;
 int					_msf_profilingCompleted = 0;
-unsigned char		*_msf_refCheckSum = NULL;
 
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -129,9 +128,9 @@ void updateBestPairedEnd();
 void outputPairedEndDiscPP();
 void outputTempMapping();
 void outputBestSingleMapping();
-void mapSingleEndSeqListBalBest (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id);
-void mapSingleEndSeqListBalMultiple (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id);
-void mapPairedEndSeqListBal (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id);
+void mapSingleEndSeqListBalBest (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
+void mapSingleEndSeqListBalMultiple (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
+void mapPairedEndSeqListBal (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 
 inline int countErrorsSnip (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
@@ -140,7 +139,7 @@ void updateDistance();
 void modifyMinMaxDistances();
 
 int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
-void (*mapSeqListBal) (unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id);
+void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 
 /**********************************************/
 void initializeFAST(int seqListSize)
@@ -302,7 +301,6 @@ void initFASTContig()
 	_msf_crefGenLen = getCmpRefGenLength();
 	_msf_refGenOffset = getRefGenomeOffset();
 	_msf_alphCnt = getAlphabetCount();
-	_msf_refCheckSum = getCheckSums();
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
 	if (snipMode)
 		_msf_snipMap = loadSnipMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
@@ -649,19 +647,19 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 }
 
 /**********************************************/
-void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id)
+void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
 {
 	if (s1 == 0 || s2 == 0)
 	{
 		return;
 	}
-	else if (s1 == s2 && s1 <= 50)
+	else if (s1 == s2 && s1 <= 200)
 	{
 
 		int j = 0;
 		int z = 0;
-		int *locs;
-		int *seqInfo;
+		GeneralIndex *genInfo;
+		GeneralIndex *seqInfo;
 		int mderr;
 		CompressedSeq *_tmpCmpSeq;
 		char *_tmpQual, *_tmpSeq;
@@ -674,29 +672,33 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 		
 		if (dir > 0)
 		{
-			locs		= (int *) l1;
-			seqInfo		= (int *) l2;
+			genInfo		= l1;
+			seqInfo		= l2;
 		}
 		else
 		{
-			locs		= (int *) l2;
-			seqInfo		= (int *) l1;
+			genInfo		= l2;
+			seqInfo		= l1;
 		}
 
 
 		for (j=0; j<s2; j++)
 		{
+// 			if (seqInfo[j].checksum > genInfo[s1-1].checksum)
+//				break;
+//			if (seqInfo[j].checksum < genInfo[s1-1].checksum && seqInfo[j].checksum < genInfo[0].checksum)
+//				continue;
+ 
 			int re = _msf_samplingLocsSize * 2;
-			int r = seqInfo[j]/re;
+			int r = seqInfo[j].info/re;
 			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 			{
 				continue;
 			}
 
-			int x = seqInfo[j] % re;
+			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
-
 
 			if (d)
 			{
@@ -722,18 +724,12 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 			for (z=0; z<s1; z++)
 			{
 				
-				int genLoc = locs[z]-_msf_samplingLocs[o];
+				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
 
-				if (_msf_refCheckSum[locs[z]] != _msf_seqList[r].checkSum[x]  || 
-					genLoc < _msf_refGenBeg ||
-					genLoc > _msf_refGenEnd)
+//				if (genInfo[z].checksum != seqInfo[j].checksum)
+//					continue;
+				if (genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
 					continue;
-
-
-				/*if (_msf_refCheckSum[locs[z]] != _msf_seqList[r].checkSum[x])
-					continue;
-				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd)
-					continue;*/
 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
@@ -746,7 +742,6 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 					mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
 				
 					_msf_mappingCnt[id]++;
-
 					_msf_seqList[r].hits[0]++;
 
 					_msf_output[id].QNAME		= _msf_seqList[r].name;
@@ -795,7 +790,6 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 
 					if ( maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 					{
-						//completedSeqCnt++;
 						break;
 					}
 				}
@@ -817,43 +811,43 @@ void mapSingleEndSeqListBalMultiple(unsigned int *l1, int s1, unsigned int *l2, 
 }
 
 /**********************************************/
-void mapSingleEndSeqListBalBest(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id)
+void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
 {
 	if (s1 == 0 || s2 == 0)
 	{
 		return;
 	}
-	else if (s1 == s2 && s1 <= 50)
+	else if (s1 == s2 && s1 <= 200)
 	{
 		int j = 0;
 		int z = 0;
-		int *locs;
-		int *seqInfo;
+		GeneralIndex *genInfo;
+		GeneralIndex *seqInfo;
 		CompressedSeq *_tmpCmpSeq;
 		unsigned char tmp[4];
 		unsigned char *alph, *gl;
 
 		if (dir > 0)
 		{
-			locs		= (int *) l1;
-			seqInfo		= (int *) l2;
+			genInfo	= l1;
+			seqInfo	= l2;
 		}
 		else
 		{
-			locs		= (int *) l2;
-			seqInfo		= (int *) l1;
+			genInfo	= l2;
+			seqInfo	= l1;
 		}
 
 
 		for (j=0; j<s2; j++)
 		{
 			int re = _msf_samplingLocsSize * 2;
-			int r = seqInfo[j]/re;
+			int r = seqInfo[j].info/re;
 
 			if (maxHits!=0 && _msf_seqList[r].hits[0] == maxHits)
 				continue;
 
-			int x = seqInfo[j] % re;
+			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
 
@@ -874,7 +868,7 @@ void mapSingleEndSeqListBalBest(unsigned int *l1, int s1, unsigned int *l2, int 
 
 			for (z=0; z<s1; z++)
 			{
-				int genLoc = locs[z]-_msf_samplingLocs[o];
+				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
 
 				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
 					continue;
@@ -939,7 +933,7 @@ void mapSingleEndSeqListBalBest(unsigned int *l1, int s1, unsigned int *l2, int 
 }
 
 /**********************************************/
-void mapSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2, int id)
+void mapSeqList(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int id)
 {
 	if (s1 < s2)
 	{
@@ -959,18 +953,37 @@ void mapSeqList(unsigned int *l1, int s1, unsigned int *l2, int s2, int id)
 /*********************************************/
 void *mapSeqMT(int *idp)
 {
-	int i = 0;
-	unsigned int *locs = NULL;
-	unsigned int *seqInfo = NULL;
 	int id = *idp;
+	int i = 0;
+
+	GeneralIndex *genInfo = NULL, *seqInfo = NULL;
+
 
 	while ( i < _msf_rIndexSize[id])
 	{
-		locs = getCandidates (_msf_rIndex[id][i].hv);
-		if ( locs != NULL)
+		genInfo = getCandidates (_msf_rIndex[id][i].hv);
+		if ( genInfo != NULL)
 		{
-			seqInfo  = _msf_rIndex[id][i].seqInfo;
-			mapSeqList (locs+1, locs[0], seqInfo+1, seqInfo[0], id);			
+			seqInfo  = _msf_rIndex[id][i].list;
+			int rb = 0, re = 1, sb = 0, se = 1;
+			int rs = seqInfo[0].info;
+			int ss = genInfo[0].info;
+			seqInfo++;
+			genInfo++; 
+			while (rb < rs)
+			{
+				while (re < rs && seqInfo[re].checksum == seqInfo[rb].checksum) re++;
+				while (sb < ss && genInfo[sb].checksum < seqInfo[rb].checksum) sb++;
+
+				if (seqInfo[rb].checksum == genInfo[sb].checksum)
+				{
+					se = sb+1;
+					while (se < ss && genInfo[se].checksum == genInfo[sb].checksum) se++;
+					mapSeqList (genInfo+sb, se-sb, seqInfo+rb, re-rb, id);			
+				}
+				rb = re;
+				re++;
+			}
 		}
 		i++;
 	}
@@ -1126,44 +1139,44 @@ int compareOut (const void *a, const void *b)
 }
 
 /**********************************************/
-void mapPairedEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, int dir, int id)
+void mapPairedEndSeqListBal(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
 {
 	if (s1 == 0 || s2 == 0)
 	{
 		return;
 	}
-	else if (s1 == s2 && s1 <= 50)
+	else if (s1 == s2 && s1 <= 200)
 	{
 		int j = 0;
 		int z = 0;
-		int *locs;
-		int *seqInfo = (int *) l2;
+		GeneralIndex *genInfo;
+		GeneralIndex *seqInfo;
 		CompressedSeq *_tmpCmpSeq;
 		unsigned char tmpAlph[4];
 		unsigned char *alph, *gl;
 
 		if (dir > 0)
 		{
-			locs        = (int *) l1;
-			seqInfo     = (int *) l2;
+			genInfo = l1;
+			seqInfo = l2;
 		}
 		else
 		{
-			locs        = (int *) l2;
-			seqInfo     = (int *) l1;
+			genInfo = l2;
+			seqInfo = l1;
 		}
 
 		for (j=0; j<s2; j++)
 		{
 			int re = _msf_samplingLocsSize * 2;
-			int r = seqInfo[j]/re;
+			int r = seqInfo[j].info/re;
 
 			if (pairedEndDiscordantMode && (_msf_seqList[r].hits[0] == 1 || (_msf_seqHits[r/2] > DISCORDANT_CUT_OFF) ))
 			{
 				continue;
 			}
 
-			int x = seqInfo[j] % re;
+			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?-1:1;
 
@@ -1186,7 +1199,7 @@ void mapPairedEndSeqListBal(unsigned int *l1, int s1, unsigned int *l2, int s2, 
 
 			for (z=0; z<s1; z++)
 			{
-				int genLoc = locs[z]-_msf_samplingLocs[o];
+				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
 
 				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
 					continue;

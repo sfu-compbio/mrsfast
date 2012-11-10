@@ -100,17 +100,18 @@ extern long long		memUsage;
 extern char				*alphabet;
 extern char				checkSumLength;
 
-// Pair is used to pre-processing and making the read index table
-typedef struct
-{
-	int hv;
-	int seqInfo;
-} Pair;
 
+#pragma pack(push, 1)
+typedef struct
+{
+	uint8_t  checksum; 
+	uint32_t info;				// ReadIndex => seqInfo | GenomeIndex ==> Loc
+} GeneralIndex;
+#pragma pack(pop)
 typedef struct
 {
 	int hv;
-	unsigned int *seqInfo;
+	GeneralIndex *list;
 } ReadIndexTable;
 
 FILE	* fileOpen(char *fileName, char *mode);

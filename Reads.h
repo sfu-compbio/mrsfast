@@ -38,6 +38,14 @@
 
 typedef struct
 {
+	int32_t hv;
+	uint8_t checksum;
+	int32_t seqInfo;
+
+} Pair;
+
+typedef struct
+{
 	uint16_t *hits;
 	char *seq;
 	char *qual;
@@ -46,12 +54,11 @@ typedef struct
 	CompressedSeq *crseq;
 	char *name;
 	unsigned char *alphCnt;
-	unsigned char *checkSum;
+//	unsigned char *checkSum;
 } Read;
 
 int readChunk(Read **seqList, unsigned int *seqListSize);
 void finalizeReads();
-//void preProcessReadsMT(ReadIndexTable ***readIndex, int **readIndexSize);
 void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
 int initRead(char *seqFile1, char *seqFile2);
 void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize);
