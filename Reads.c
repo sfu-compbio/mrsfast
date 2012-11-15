@@ -324,7 +324,6 @@ int readAllReads(char *fileName1,
 
 
 			reverseComplete(seq1, rseq1, _mtmp);
-			rseq1[_mtmp] =  '\0';
 			int i;
 
 			list[seqCnt].hits[0] = 0;
@@ -335,8 +334,8 @@ int readAllReads(char *fileName1,
 				list[seqCnt].rseq[i] = rseq1[i] ;
 				list[seqCnt].qual[i] = qual1[i];
 			}
+			list[seqCnt].rseq[_mtmp]=list[seqCnt].qual[_mtmp]='\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
-
 			seqCnt++;
 
 		}
@@ -349,10 +348,6 @@ int readAllReads(char *fileName1,
 				tmplen = strlen(name1)-2;
 			}
 		
-			if (strcmp(name1, "@IL11_266:2:1:922:509/1") == 0)
-			{
-				fprintf(stdout, "%d\n", seqCnt);
-			}
 			//first seq
 			int _mtmp = strlen(seq1);
 			list[seqCnt].hits = getMem (1+3*_mtmp+3+tmplen+1);
@@ -362,7 +357,6 @@ int readAllReads(char *fileName1,
 			list[seqCnt].name = list[seqCnt].qual + _mtmp+1;
 
 			reverseComplete(seq1, rseq1, _mtmp);
-			rseq1[_mtmp] =  '\0';
 			int i;
 
 			list[seqCnt].hits[0] = 0;
@@ -374,11 +368,10 @@ int readAllReads(char *fileName1,
 				list[seqCnt].qual[i] = qual1[i];
 			}
 
-
 			name1[tmplen]='\0';
+			list[seqCnt].rseq[_mtmp]=list[seqCnt].qual[_mtmp]='\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name1)+1,'\0');
-
-
+			
 			seqCnt++;
 
 			//second seq
@@ -389,19 +382,18 @@ int readAllReads(char *fileName1,
 			list[seqCnt].name = list[seqCnt].qual + _mtmp+1;
 
 			reverseComplete(seq2, rseq2, _mtmp);
-			rseq2[_mtmp] =  '\0';
 
 			list[seqCnt].hits[0] = 0;
 
 			for (i=0; i<=_mtmp; i++)
 			{
 				list[seqCnt].seq[i] = seq2[i];
-				list[seqCnt].rseq[i] = rseq2[i] ;
+				list[seqCnt].rseq[i] = rseq2[i];
 				list[seqCnt].qual[i] = qual2[i];
 			}
 
-
 			name2[tmplen]='\0';
+			list[seqCnt].rseq[_mtmp]=list[seqCnt].qual[_mtmp]='\0';
 			sprintf(list[seqCnt].name,"%s%c", ((char*)name2)+1,'\0');
 
 
@@ -525,21 +517,27 @@ void finalizeReads(char *fileName)
 	int i=0;
 	for (i = 0; i < _r_seqCnt; i++)
 	{
-		if (pairedEndMode && _r_seq[2*i].hits[0] == 0 &&  strcmp(_r_seq[2*i].qual,"*")!=0)
+		if (pairedEndMode)
 		{
-			fprintf(fp1,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			if (_r_seq[2*i].hits[0] == 0 &&  strcmp(_r_seq[2*i].qual,"*")!=0)
+			{
+				fprintf(fp1,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			}
+			else if (_r_seq[2*i].hits[0] == 0)
+			{
+				fprintf(fp1, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+			}
 		}
-		else if (pairedEndMode && _r_seq[2*i].hits[0] == 0)
+		else
 		{
-			fprintf(fp1, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
-		}
-		else if (_r_seq[i].hits[0] == 0 && strcmp(_r_seq[i].qual, "*")!=0)
-		{
-			fprintf(fp1,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
-		}
-		else if (_r_seq[i].hits[0] == 0)
-		{
-			fprintf(fp1,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			if (_r_seq[i].hits[0] == 0 && strcmp(_r_seq[i].qual, "*")!=0)
+			{
+				fprintf(fp1,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+			}
+			else if (_r_seq[i].hits[0] == 0)
+			{
+				fprintf(fp1,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			}
 		}
 	}
 

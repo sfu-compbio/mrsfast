@@ -1,4 +1,7 @@
-2012-08-18  Faraz Hach  <fhach@cs.sf.ca>
+2012-11-14	Faraz Hach	<fhach@cs.sfu.ca>
+	* Bug fix with respect to quality end null characters.
+
+2012-08-18  Faraz Hach  <fhach@cs.sfu.ca>
 	* DIVET output format is fixed. 
 
 2012-06-13  Faraz Hach  <fhach@cs.sfu.ca>

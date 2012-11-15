@@ -44,7 +44,7 @@
 #include "HashTable.h"
 #include "MrsFAST.h"
 
-char 				*versionNumber = "2.4";			// Current Version
+char 				*versionNumber = "2.5";			// Current Version
 unsigned char		seqFastq;
 
 int main(int argc, char *argv[])
