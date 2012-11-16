@@ -372,9 +372,23 @@ int initRead(char *fileName1, char *fileName2)
 	int nameLen = strlen(dummy);
 	readFirstSeq(dummy);
 	int seqLen = strlen(dummy);
-	SEQ_LENGTH = seqLen - 1;
-	int cmpLen = calculateCompressedLen(seqLen);
-	double readMem = (2 + (seqLen * 3) + 3 + (cmpLen << 4) + nameLen + 1 + 4);
+	SEQ_LENGTH = 0;
+	int i;
+	while (i<seqLen && !isspace(dummy[i]))
+	{
+		i++;
+		SEQ_LENGTH++;
+	}
+	
+	if ( SEQ_LENGTH == SEQ_MAX_LENGTH )
+	{
+		fprintf(stdout, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
+		exit(EXIT_FAILURE);
+	}
+
+	//TODO MEMORY CALCULATION FIX
+	int cmpLen = calculateCompressedLen(SEQ_LENGTH);
+	double readMem = (2 + (SEQ_LENGTH * 3) + 3 + (cmpLen * 2 * 8) + nameLen + 1 + 4);
 	readMem += ((bestMappingMode) ?(sizeof(FullMappingInfo)) :0);
 	if (pairedEndMode)
 		readMem += sizeof(MappingInfo) + 2*sizeof(MappingLocations);
@@ -475,11 +489,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		err2 = 0;
 		readFirstSeq(seq1);
 		name1[strlen(name1)-1] = '\0';
-		if ( strlen(seq1)-1 != SEQ_LENGTH )
-		{
-			fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
-			exit(EXIT_FAILURE);
-		}
+		
 		for (i=0; i<strlen(name1);i++)
 		{
 			if (name1[i] == ' ')
@@ -530,6 +540,12 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 				alphCnt[_r_alphIndex[seq1[i]]]++;
 			}
 		}
+		
+		if ( strlen(seq1) != SEQ_LENGTH )
+		{
+			fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
+			exit(EXIT_FAILURE);
+		}
 
 		if (*nCnt > errThreshold)
 		{
@@ -542,11 +558,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			readSecondSeq(name2);
 			readSecondSeq(seq2);
 			name2[strlen(name2)-1] = '\0';
-			/*if ( strlen(seq2)-1 != SEQ_LENGTH )
-			{
-				fprintf(stdout, "ERR: Inconsistent read length for %s\n", name2);
-				exit(EXIT_FAILURE);
-			}*/
+
 			for (i=0; i<strlen(name2);i++)
 			{
 				if (name2[i] == ' ')
@@ -598,6 +610,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 					alphCnt2[_r_alphIndex[seq2[i]]]++;
 				}
 			}
+			if ( strlen(seq2) != SEQ_LENGTH )
+			{
+				fprintf(stdout, "ERR: Inconsistent read length for %s\n", name2);
+				exit(EXIT_FAILURE);
+			}
 
 			if (*nCnt > errThreshold)
 			{
@@ -620,7 +637,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + namelen + 1);
-//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 
 			for (i = 0; i < 4; i++)
@@ -668,7 +684,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + tmplen + 1);
-//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 			for (i = 0; i < 4; i++)
 				_r_seq[_r_seqCnt].alphCnt[i] = alphCnt[i];
@@ -706,7 +721,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + cmpLen);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + cmpLen);
 			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + tmplen + 1);
-//			_r_seq[_r_seqCnt].checkSum = (char *)(_r_seq[_r_seqCnt].alphCnt + 4);
 
 			for (i = 0; i < 4; i++)
 				_r_seq[_r_seqCnt].alphCnt[i] = alphCnt2[i];
@@ -754,7 +768,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 
 
 	// Closing Files
-	
 	*seqList = _r_seq;
 	*seqListSize = _r_seqCnt;
 
@@ -763,7 +776,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	{
 		preProcessReadsMT();
 		fprintf(stdout, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
-//		fprintf(stdout, "%d sequences are read in %0.2f. [Mem:%0.2f M]\n", _r_seqCnt, (getTime()-startTime), getMemUsage());
 		_r_firstIteration = 0;
 	}
 	else if (_r_firstIteration)

@@ -43,7 +43,7 @@
 #include <zlib.h>
 #include <stdint.h>
 
-#define SEQ_MAX_LENGTH		200			// Seq Max Length
+#define SEQ_MAX_LENGTH		500			// Seq Max Length
 #define CMP_SEQ_MAX_LENGTH	10			// Compressed Seq Max Length
 #define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
