@@ -61,10 +61,10 @@ int						maxPairEndedDiscordantDistance=-1;
 int						errThreshold = -1;
 char					*seqFile1;
 char					*seqFile2;
-char					*mappingOutput = "output";
-char					*mappingOutputPath = "";
-char					*unmappedOutput = "";
 char					fileName[3][FILE_NAME_LENGTH];
+char					*unmappedOutput;
+char					*mappingOutputPath;
+char					*unmappedOutput;
 short					maxHits = 0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
@@ -74,7 +74,6 @@ double					MAX_MEMORY = 4;// GB
 int						THREAD_ID[255];
 extern char 			_binary_HELP_start;
 extern char				_binary_HELP_end;
-int						defaultOutputName = 1;
 
 
 void printHelp()
@@ -94,9 +93,16 @@ int parseCommandLine (int argc, char *argv[])
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
 	char *snipFile = NULL;
+
+	mappingOutput = getMem(FILE_NAME_LENGTH);
+	mappingOutputPath = getMem(FILE_NAME_LENGTH);
+	unmappedOutput = getMem(FILE_NAME_LENGTH);
+	strcpy(mappingOutput, "output.sam");
+	strcpy(unmappedOutput, "output.nohit");
+	mappingOutputPath[0] = '\0';
+
 	static struct option longOptions[] = 
 	{
-
 		{"pe",				no_argument,		&pairedEndMode,		1},
 		{"discordant-vh",	no_argument,		&pairedEndDiscordantMode,	1},
 		{"seqcomp",			no_argument,		&seqCompressed,		1},
@@ -118,7 +124,6 @@ int parseCommandLine (int argc, char *argv[])
 		{"mem",				required_argument,  0,					'z'},
 		{"snp",				required_argument,  0,					'p'},
 		{0,0,0,0}
-
 	};
 
 
@@ -148,13 +153,11 @@ int parseCommandLine (int argc, char *argv[])
 				seqFile2 = optarg;
 				break;
 			case 'u':
-				unmappedOutput = optarg;
+				strcpy(unmappedOutput, optarg);
 				break;
 			case 'o':
-				mappingOutput = getMem(FILE_NAME_LENGTH);
-				mappingOutputPath = getMem(FILE_NAME_LENGTH);
 				stripPath (optarg, &mappingOutputPath, &mappingOutput);
-				defaultOutputName = 0;
+				sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
 				break;
 			case 'n':
 				maxHits = atoi(optarg);
@@ -329,9 +332,7 @@ int parseCommandLine (int argc, char *argv[])
 /**********************************************/
 void finalizeCommandParser()
 {
-	if ( !defaultOutputName )
-	{
-		freeMem(mappingOutput, FILE_NAME_LENGTH);
-		freeMem(mappingOutputPath, FILE_NAME_LENGTH);
-	}
+	freeMem(mappingOutput, FILE_NAME_LENGTH);
+	freeMem(unmappedOutput, FILE_NAME_LENGTH);
+	freeMem(mappingOutputPath, FILE_NAME_LENGTH);
 }

@@ -433,11 +433,6 @@ int initRead(char *fileName1, char *fileName2)
 
 	if (!bestMappingMode)
 	{
-		char *t = unmappedOutput;
-		unmappedOutput = getMem(100);
-		strcpy(unmappedOutput, t);
-		if (strcmp(unmappedOutput, "") == 0)
-			sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
 		_r_umfp = fopen(unmappedOutput, "w");
 	}
 
@@ -889,7 +884,6 @@ void finalizeReads()
 
 	if (!bestMappingMode)
 	{
-		freeMem(unmappedOutput, 100);
 		fclose(_r_umfp);
 	}
 }
