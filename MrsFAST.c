@@ -976,6 +976,9 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
 
+			if (_msf_bestMapping[r].hits > 1 && _msf_bestMapping[r].err == 0)
+				continue;
+
 			if (d)
 			{
 				_tmpCmpSeq = _msf_seqList[r].crseq;
@@ -993,6 +996,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 
 			for (z=0; z<s1; z++)
 			{
+
 				int genLoc = genInfo[z].info-_msf_samplingLocs[o];
 
 				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
