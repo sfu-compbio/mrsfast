@@ -767,6 +767,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
 					unsigned char mdlen = strlen(_msf_op[id]);
 
+					pthread_mutex_lock(&_msf_writeLock);
 					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&flag, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&loc, sizeof(int), 1, _msf_hitsTempFile);
@@ -775,6 +776,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 					tmpOut = fwrite(&mderr, sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(_msf_op[id], sizeof(char), mdlen, _msf_hitsTempFile);
+					pthread_mutex_unlock(&_msf_writeLock);
 				}
 
 			}
