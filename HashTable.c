@@ -41,6 +41,7 @@
 #include "RefGenome.h"
 #include "HashTable.h"
 #include "Output.h"
+#include "Sort.h"
 
 /**********************************************/
 FILE			*_ih_fp					= NULL;
@@ -560,7 +561,8 @@ int  loadHashTable(double *loadTime)
 		}
 		_ih_hashTable[i].list[0].info=cnt;
 		if (cnt)
-			qsort(_ih_hashTable[i].list + 1, _ih_hashTable[i].list[0].info, sizeof(GeneralIndex), compareCheckSumHT);
+//			qsort(_ih_hashTable[i].list + 1, _ih_hashTable[i].list[0].info, sizeof(GeneralIndex), compareCheckSumHT);
+			introSortGI(_ih_hashTable[i].list, 1 , _ih_hashTable[i].list[0].info);
 	}
 
 	// calculate alphabet count for each location in genome

@@ -42,6 +42,7 @@
 #include "Common.h"
 #include "Reads.h"
 #include "MrsFAST.h"
+#include "Sort.h"
 
 FILE *_r_fp1;
 FILE *_r_fp2;
@@ -189,7 +190,8 @@ void *preProcessReads(int *idp)
 		tmpSize+=2*_r_samplingLocsSize;
 	}
 	
-	qsort(tmp, tmpSize, sizeof(Pair), compare);
+//	qsort(tmp, tmpSize, sizeof(Pair), compare);
+	introSortPair( tmp, 0, tmpSize-1);
 
 	int uniq = 0;
 	int prev = -2;
