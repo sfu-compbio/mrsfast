@@ -2,7 +2,7 @@ GCC44 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 4)$(shell expr `gcc -
 DEBUG := 0
 PROFILE := 0
 
-ALL: mrsfast
+ALL: mrsfast snp_indexer
 
 LDFLAGS=-static
 LIBS=-lz -lm -pthread -lpthread
@@ -26,6 +26,9 @@ endif
 mrsfast: baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o HELP.o 
 	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
 	rm -rf *.o
+
+snp_indexer:
+	gcc --static -O2 -o snp_indexer SNPIndexer.c
 
 clean:
 	rm -rf *.o
