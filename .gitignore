@@ -1,5 +1,6 @@
 /data
 /data/*
 mrsfast
+snp_indexer
 gmon.out
 *.o
