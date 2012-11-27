@@ -27,8 +27,9 @@ mrsfast: baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o Ha
 	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
 	rm -rf *.o
 
-snp_indexer:
-	gcc --static -O2 -o snp_indexer SNPIndexer.c
+snp_indexer: SNPIndexer.o
+	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
+	rm -rf *.o
 
 clean:
 	rm -rf *.o

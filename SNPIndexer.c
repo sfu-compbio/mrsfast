@@ -16,34 +16,6 @@ int cmp(const void *a, const void *b)
 }
 /**************************************/
 
-void stripPath(char *full, char **path, char **fileName)
-{
-	int i;
-	int loc = -1;
-
-	for (i=strlen(full)-1; i>=0; i--)
-	{
-		if (full[i]=='/')
-		{
-			loc = i;
-			break;
-		}
-	}
-
-	if (loc != -1)
-	{
-		sprintf(*fileName, "%s%c", (full+loc+1), '\0');
-		full[loc+1]='\0';
-		sprintf(*path,"%s%c", full, '\0');
-	}
-	else
-	{
-		sprintf(*fileName, "%s%c", full, '\0');
-		sprintf(*path,"%c", '\0');
-	}
-}
-/**************************************/
-
 int main(int argc, char *argv[])
 {
 	if (argc < 3)
@@ -52,9 +24,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	FILE *inFile = 0, *outFile = 0;
-	char *filePath = malloc(FILE_NAME_LENGTH);
-	char *inFileName = malloc(FILE_NAME_LENGTH);
-	char *outFileName = argv[2];//malloc(FILE_NAME_LENGTH);
+	char *inFileName = argv[1];
+	char *outFileName = argv[2];
 	char line[MAX_LINE_LENGTH], chr[MAX_LINE_LENGTH], ref[MAX_LINE_LENGTH], alt[MAX_LINE_LENGTH], dummy[MAX_LINE_LENGTH];
 	int i, loc, index;
 	unsigned int snpCnt;
@@ -65,9 +36,6 @@ int main(int argc, char *argv[])
 		chrSNPs[i] = malloc(MAX_SNP_PER_CHR * sizeof(int));
 		chrSNPs[i][0] = 0;		// num of locs
 	}
-	
-	stripPath(argv[1], &filePath, &inFileName);
-	//sprintf(outFileName, "%s%s", filePath, "out.snp");
 	
 	inFile = fopen(argv[1], "r");
 	if (!inFile)
@@ -139,6 +107,7 @@ int main(int argc, char *argv[])
 		if (chrSNPs[i][0])
 			qsort(chrSNPs[i]+1, chrSNPs[i][0], sizeof(int), cmp);
 	}
+
 	// -------- write to output file ------- //
 	outFile = fopen(outFileName, "w");
 	
@@ -154,8 +123,5 @@ int main(int argc, char *argv[])
 	for (i = 0; i < NUM_OF_CHRS; i++)
 		free(chrSNPs[i]);
 	free(chrSNPs);
-	free(filePath);
-	free(inFileName);
-	free(outFileName);
 	fprintf(stdout, "%lld SNP locations registered successfully\n", snpCnt);
 }
