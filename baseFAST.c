@@ -45,7 +45,6 @@
 #include "MrsFAST.h"
 #include "SNPReader.h"
 
-char 				*versionNumber = "3.0";			// Current Version
 unsigned char		seqFastq;
 void				printStat();
 

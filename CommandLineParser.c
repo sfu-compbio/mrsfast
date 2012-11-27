@@ -176,7 +176,7 @@ int parseCommandLine (int argc, char *argv[])
 				return 0;
 				break;
 			case 'v':
-				fprintf(stdout, "%s.%s\n", versionNumber, versionNumberF);
+				fprintf(stdout, "Version: %s\nBuild Date: %s\n", MRSFAST_VERSION, BUILD_DATE);
 				return 0;
 				break;
 			case 't':
@@ -197,7 +197,11 @@ int parseCommandLine (int argc, char *argv[])
 
 #ifndef MRSFAST_SSE4
 	if (searchingMode)
-		fprintf(stdout, "==> This version is compiled without SSE4 instructions set. To obtain better performance, please upgrade your GCC version to >4.4 <==\n");
+		fprintf(stdout, "==> This version is compiled without any SSE4 optimization <==\n");
+#endif
+#ifdef GCC_UPDATE
+	if (searchingMode)
+		fprintf(stdout, "==> Your machine has SSE4 insruction set, to take advantage of it, update your GCC version to >4.4<==\n");
 #endif
 
 	if (indexingMode + searchingMode != 1)

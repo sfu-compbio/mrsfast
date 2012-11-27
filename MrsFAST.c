@@ -51,11 +51,6 @@
 #include <nmmintrin.h>
 #endif
 
-
-float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
-unsigned char		mrFAST = 0;
-char				*versionNumberF="0.0";
-
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
 long long			mappedSeqCnt = 0;
@@ -127,6 +122,7 @@ char				_msf_hitsTempFileName[100];
 FILE				*_msf_hitsTempFile;
 int					_msf_initialized = 0;
 
+float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
 void outputPairedEnd();
 void outputBestPairedEnd();
 void updateBestPairedEnd();

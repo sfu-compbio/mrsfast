@@ -36,8 +36,12 @@
 #ifndef __COMMON__
 #define __COMMON__
 
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >=4 
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >=4 && SSE4==1 
 #define MRSFAST_SSE4
+#endif
+
+#if SSE4==1 && (__GNUC__ < 4 || __GNUC_MINOR < 4)
+#define GCC_UPDATE
 #endif
 
 #include <zlib.h>
@@ -63,11 +67,6 @@ extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
 extern unsigned short	QUAL_LENGTH;
 extern unsigned short	CMP_SEQ_LENGTH;
-
-extern char				*versionNumber;
-extern char				*versionNumberF;
-extern unsigned char	mrFAST;
-
 
 extern int				indexingMode;
 extern int				searchingMode;
@@ -98,7 +97,6 @@ extern int				fileCnt;
 extern long long		memUsage;
 extern char				*alphabet;
 extern char				checkSumLength;
-
 
 #pragma pack(push, 1)
 typedef struct
