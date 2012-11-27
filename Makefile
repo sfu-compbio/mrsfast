@@ -23,7 +23,7 @@ ifeq "$(PROFILE)" "1"
 	LIBS += -pg
 endif
 
-mrsfast: baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SnipReader.o HELP.o 
+mrsfast: baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o HELP.o 
 	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
 	rm -rf *.o
 

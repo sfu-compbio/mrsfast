@@ -44,7 +44,7 @@
 #include "Output.h"
 #include "MrsFAST.h"
 #include "RefGenome.h"
-#include "SnipReader.h"
+#include "SNPReader.h"
 
 #ifdef MRSFAST_SSE4
 #include <smmintrin.h>
@@ -65,7 +65,7 @@ char				*mappingOutput;
 CompressedSeq 		_msf_NMASK = 0x4924924924924924;
 int					_msf_refGenLength = 0;	
 CompressedSeq		*_msf_crefGen = NULL;
-CompressedSeq		*_msf_snipMap = NULL;
+CompressedSeq		*_msf_SNPMap = NULL;
 int					_msf_crefGenLen = 0;
 int					_msf_refGenOffset = 0;
 char				*_msf_refGenName = NULL;
@@ -141,7 +141,7 @@ void outputMaxHitsSingleMapping();
 void updateMaxHitsPairedEnd();
 void outputMaxHitsPairedEnd();
 
-inline int countErrorsSnip (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
+inline int countErrorsSNP (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
 void calculateConcordantDistances();
 void updateDistance();
@@ -171,8 +171,8 @@ void initializeFAST(int seqListSize)
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
 		_msf_op[i] = getMem(SEQ_LENGTH);  // THREADING
-		_msf_optionalFields[i] = getMem( ((snipMode) ?3 :2) * sizeof(OPT_FIELDS)); // THREADING
-		//_msf_optionalFields[i] = getMem( (((pairedEndMode)?4:2) + ((snipMode) ?1 :0)) * sizeof(OPT_FIELDS)); // THREADING
+		_msf_optionalFields[i] = getMem( ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS)); // THREADING
+		//_msf_optionalFields[i] = getMem( (((pairedEndMode)?4:2) + ((SNPMode) ?1 :0)) * sizeof(OPT_FIELDS)); // THREADING
 	}
 	_msf_maxDistance = errThreshold << 1;
 
@@ -191,8 +191,8 @@ void initializeFAST(int seqListSize)
 	// get samplingLoc values, needed for countErrors
 	getSamplingLocsInfo(&_msf_samplingLocs, &_msf_samplingLocsSeg, &_msf_samplingLocsOffset, &_msf_samplingLocsLen, &_msf_samplingLocsLenFull, &_msf_samplingLocsSize);
 
-	if (snipMode)
-		countErrors = & countErrorsSnip;
+	if (SNPMode)
+		countErrors = & countErrorsSNP;
 	else
 		countErrors = & countErrorsNormal;
 
@@ -323,8 +323,8 @@ void initFASTContig()
 	_msf_refGenOffset = getRefGenomeOffset();
 	_msf_alphCnt = getAlphabetCount();
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
-	if (snipMode)
-		_msf_snipMap = loadSnipMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
+	if (SNPMode)
+		_msf_SNPMap = loadSNPMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
 	if (maxHits)
 	{
 		int tmpOut, m = -1;
@@ -351,8 +351,8 @@ void finalizeFAST()
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
 		freeMem(_msf_op[i], SEQ_LENGTH);
-		freeMem(_msf_optionalFields[i], ((snipMode) ?3 :2) * sizeof(OPT_FIELDS) );
-		//freeMem(_msf_optionalFields[i], (((pairedEndMode)?4:2) + ((snipMode) ?1 :0)) * sizeof(OPT_FIELDS) );
+		freeMem(_msf_optionalFields[i], ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS) );
+		//freeMem(_msf_optionalFields[i], (((pairedEndMode)?4:2) + ((SNPMode) ?1 :0)) * sizeof(OPT_FIELDS) );
 	}
 	freeMem(_msf_op, THREAD_COUNT * sizeof(char *));
 	freeMem(_msf_optionalFields, THREAD_COUNT * sizeof(OPT_FIELDS *));
@@ -447,9 +447,9 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 	return err;
 }
 /**********************************************/
-inline int countErrorsSnip(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp)
+inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp)
 {
-	CompressedSeq *snp = _msf_snipMap + (ref - _msf_crefGen);	// snipMap offset is exactly the same as crefGen
+	CompressedSeq *snp = _msf_SNPMap + (ref - _msf_crefGen);	// SNPMap offset is exactly the same as crefGen
 
 	int refALS = refOff * 3;
 	int segALS = seqOff * 3;
@@ -743,7 +743,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
-				if ( snipMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
@@ -771,7 +771,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&flag, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&loc, sizeof(int), 1, _msf_hitsTempFile);
-					if (snipMode)
+					if (SNPMode)
 						tmpOut = fwrite(&err, sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&mderr, sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
@@ -870,7 +870,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
-				if ( snipMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
@@ -892,7 +892,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 					_msf_output[id].SEQ			= _tmpSeq;
 					_msf_output[id].QUAL		= _tmpQual;
 
-					_msf_output[id].optSize		= (snipMode) ?3 :2;
+					_msf_output[id].optSize		= (SNPMode) ?3 :2;
 					_msf_output[id].optFields	= _msf_optionalFields[id];
 
 					_msf_optionalFields[id][0].tag = "NM";
@@ -903,7 +903,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 					_msf_optionalFields[id][1].type = 'Z';
 					_msf_optionalFields[id][1].sVal = _msf_op[id];
 
-					if (snipMode)
+					if (SNPMode)
 					{
 						_msf_optionalFields[id][2].tag = "XS";
 						_msf_optionalFields[id][2].type = 'i';
@@ -1007,7 +1007,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				int err = -1;
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
-				if ( snipMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 				
 				if (err != -1)
@@ -1213,7 +1213,7 @@ void outputMaxHitsPairedEnd()
 	fclose(_msf_hitsTempFile);
 	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
 	
-	int byteSize = 2*sizeof(int) + sizeof(char) + ((snipMode) ?sizeof(char) :0);
+	int byteSize = 2*sizeof(int) + sizeof(char) + ((SNPMode) ?sizeof(char) :0);
 
 	while ( fread(&r, sizeof(int), 1, _msf_hitsTempFile) )
 	{
@@ -1238,7 +1238,7 @@ void outputMaxHitsPairedEnd()
 			tmpOut = fread(&f1, sizeof(int), 1, _msf_hitsTempFile);
 			d1 = f1 & 16;
 			tmpOut = fread(&loc1, sizeof(int), 1, _msf_hitsTempFile);
-			if (snipMode)
+			if (SNPMode)
 				tmpOut = fread(&err1, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mderr1, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
@@ -1249,7 +1249,7 @@ void outputMaxHitsPairedEnd()
 			tmpOut = fread(&f2, sizeof(int), 1, _msf_hitsTempFile);
 			d2 = f2 & 16;
 			tmpOut = fread(&loc2, sizeof(int), 1, _msf_hitsTempFile);
-			if (snipMode)
+			if (SNPMode)
 				tmpOut = fread(&err2, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mderr2, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mdlen, sizeof(unsigned char), 1, _msf_hitsTempFile);
@@ -1306,7 +1306,7 @@ void outputMaxHitsPairedEnd()
 			_msf_output[0].CIGAR		= _msf_cigar;
 			_msf_output[0].MRNAME		= "=";
 
-			_msf_output[0].optSize	= (snipMode) ?3 :2;
+			_msf_output[0].optSize	= (SNPMode) ?3 :2;
 			_msf_output[0].optFields	= _msf_optionalFields[0];
 
 			_msf_optionalFields[0][0].tag = "NM";
@@ -1317,7 +1317,7 @@ void outputMaxHitsPairedEnd()
 			_msf_optionalFields[0][1].type = 'Z';
 			_msf_optionalFields[0][1].sVal = md1;
 
-			if (snipMode)
+			if (SNPMode)
 			{
 				_msf_optionalFields[0][2].tag = "XS";
 				_msf_optionalFields[0][2].type = 'i';
@@ -1349,7 +1349,7 @@ void outputMaxHitsPairedEnd()
 			_msf_output[0].CIGAR		= _msf_cigar;
 			_msf_output[0].MRNAME		= "=";
 
-			_msf_output[0].optSize	= (snipMode) ?3 :2;
+			_msf_output[0].optSize	= (SNPMode) ?3 :2;
 			_msf_output[0].optFields	= _msf_optionalFields[0];
 
 			_msf_optionalFields[0][0].tag = "NM";
@@ -1360,7 +1360,7 @@ void outputMaxHitsPairedEnd()
 			_msf_optionalFields[0][1].type = 'Z';
 			_msf_optionalFields[0][1].sVal = md2;
 
-			if (snipMode)
+			if (SNPMode)
 			{
 				_msf_optionalFields[0][2].tag = "XS";
 				_msf_optionalFields[0][2].type = 'i';
@@ -1389,7 +1389,7 @@ void outputMaxHitsSingleMapping()
 	fclose(_msf_hitsTempFile);
 	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
 
-	int byteSize = 2*sizeof(int) + sizeof(char) + ((snipMode) ?sizeof(char) :0);
+	int byteSize = 2*sizeof(int) + sizeof(char) + ((SNPMode) ?sizeof(char) :0);
 
 	while ( fread(&r, sizeof(int), 1, _msf_hitsTempFile) )
 	{
@@ -1409,7 +1409,7 @@ void outputMaxHitsSingleMapping()
 		{
 			tmpOut = fread(&flag, sizeof(int), 1, _msf_hitsTempFile);
 			tmpOut = fread(&loc, sizeof(int), 1, _msf_hitsTempFile);
-			if (snipMode)
+			if (SNPMode)
 				tmpOut = fread(&err, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mderr, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
@@ -1440,7 +1440,7 @@ void outputMaxHitsSingleMapping()
 			_msf_output[0].SEQ			= _tmpSeq;
 			_msf_output[0].QUAL			= _tmpQual;
 
-			_msf_output[0].optSize		= (snipMode) ?3 :2;
+			_msf_output[0].optSize		= (SNPMode) ?3 :2;
 			_msf_output[0].optFields	= _msf_optionalFields[0];
 
 			_msf_optionalFields[0][0].tag = "NM";
@@ -1451,7 +1451,7 @@ void outputMaxHitsSingleMapping()
 			_msf_optionalFields[0][1].type = 'Z';
 			_msf_optionalFields[0][1].sVal = md;
 
-			if (snipMode)
+			if (SNPMode)
 			{
 				_msf_optionalFields[0][2].tag = "XS";
 				_msf_optionalFields[0][2].type = 'i';
@@ -1496,7 +1496,7 @@ void outputBestSingleMapping()
 				_msf_output[0].QUAL = _msf_seqList[r].qual;
 			}
 
-			_msf_output[0].optSize		= (snipMode) ?3 :2;
+			_msf_output[0].optSize		= (SNPMode) ?3 :2;
 			_msf_output[0].optFields	= _msf_optionalFields[0];
 
 			_msf_optionalFields[0][0].tag = "NM";
@@ -1507,7 +1507,7 @@ void outputBestSingleMapping()
 			_msf_optionalFields[0][1].type = 'Z';
 			_msf_optionalFields[0][1].sVal = _msf_bestMapping[r].md;
 
-			if (snipMode)
+			if (SNPMode)
 			{
 				_msf_optionalFields[0][2].tag = "XS";
 				_msf_optionalFields[0][2].type = 'i';
@@ -1618,7 +1618,7 @@ void mapPairedEndSeqListBal(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, 
 				int err = -1;
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
-				if ( snipMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
 					err = verifySeq(genLoc, _tmpCmpSeq, o);
 
 				if (err != -1)
@@ -1970,7 +1970,7 @@ void outputPairedEnd()
 						_msf_output[0].CIGAR		= _msf_cigar;
 						_msf_output[0].MRNAME		= "=";
 
-						_msf_output[0].optSize	= (snipMode) ?3 :2;
+						_msf_output[0].optSize	= (SNPMode) ?3 :2;
 						_msf_output[0].optFields	= _msf_optionalFields[0];
 
 						_msf_optionalFields[0][0].tag = "NM";
@@ -1981,7 +1981,7 @@ void outputPairedEnd()
 						_msf_optionalFields[0][1].type = 'Z';
 						_msf_optionalFields[0][1].sVal = mi1[j].md;
 
-						if (snipMode)
+						if (SNPMode)
 						{
 							_msf_optionalFields[0][2].tag = "XS";
 							_msf_optionalFields[0][2].type = 'i';
@@ -2013,7 +2013,7 @@ void outputPairedEnd()
 						_msf_output[0].CIGAR		= _msf_cigar;
 						_msf_output[0].MRNAME		= "=";
 
-						_msf_output[0].optSize	= (snipMode) ?3 :2;
+						_msf_output[0].optSize	= (SNPMode) ?3 :2;
 						_msf_output[0].optFields	= _msf_optionalFields[0];
 
 						_msf_optionalFields[0][0].tag = "NM";
@@ -2024,7 +2024,7 @@ void outputPairedEnd()
 						_msf_optionalFields[0][1].type = 'Z';
 						_msf_optionalFields[0][1].sVal = mi2[k].md;
 
-						if (snipMode)
+						if (SNPMode)
 						{
 							_msf_optionalFields[0][2].tag = "XS";
 							_msf_optionalFields[0][2].type = 'i';
@@ -2099,7 +2099,7 @@ void outputBestPairedEnd()
 		qual2 = _msf_seqList[i*2+1].qual;
 		reverse(_msf_seqList[i*2+1].qual, rqual2, QUAL_LENGTH);
 		
-		optSize1 = optSize2 = (snipMode) ?3 :2;
+		optSize1 = optSize2 = (SNPMode) ?3 :2;
 		isize = 0;
 
 		switch (_msf_bestMappingPE[i].status)
@@ -2182,7 +2182,7 @@ void outputBestPairedEnd()
 		_msf_optionalFields[0][1].type = 'Z';
 		_msf_optionalFields[0][1].sVal = _msf_bestMappingPE[i].md1;
 
-		if (snipMode)
+		if (SNPMode)
 		{
 			_msf_optionalFields[0][2].tag = "XS";
 			_msf_optionalFields[0][2].type = 'i';
@@ -2215,7 +2215,7 @@ void outputBestPairedEnd()
 		_msf_optionalFields[0][1].type = 'Z';
 		_msf_optionalFields[0][1].sVal = _msf_bestMappingPE[i].md2;
 
-		if (snipMode)
+		if (SNPMode)
 		{
 			_msf_optionalFields[0][2].tag = "XS";
 			_msf_optionalFields[0][2].type = 'i';
@@ -2383,7 +2383,7 @@ void updateMaxHitsPairedEnd()
 					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&flag1, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&(mi1[j].loc), sizeof(int), 1, _msf_hitsTempFile);
-					if (snipMode)
+					if (SNPMode)
 						tmpOut = fwrite(&(mi1[j].err), sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&(mi1[j].mderr), sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
@@ -2393,7 +2393,7 @@ void updateMaxHitsPairedEnd()
 					int flag2 = 1+proper+16*d2+32*d1+128;
 					tmpOut = fwrite(&flag2, sizeof(int), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&(mi2[k].loc), sizeof(int), 1, _msf_hitsTempFile);
-					if (snipMode)
+					if (SNPMode)
 						tmpOut = fwrite(&(mi2[k].err), sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&(mi2[k].mderr), sizeof(char), 1, _msf_hitsTempFile);
 					tmpOut = fwrite(&mdlen, sizeof(char), 1, _msf_hitsTempFile);

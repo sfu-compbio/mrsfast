@@ -39,113 +39,126 @@
 #include <math.h>
 #include "Common.h"
 #include "HashTable.h"
-#include "SnipReader.h"
+#include "SNPReader.h"
 
-int				MAX_SNIP_CNT		= 24000;	// 1/1000 * length of chr01
-CompressedSeq	*_snp_snipMap		= NULL;
-int				_snp_snipMapLength	= 0;
-ChrSnips		*_snp_chrSnips		= NULL;
+int				MAX_SNIP_CNT		= 3750000;	// max num of 1bp SNPs in a chromosome
+CompressedSeq	*_snp_SNPMap		= NULL;
+int				_snp_SNPMapLength	= 0;
+ChrSNPs			*_snp_chrSNPs		= NULL;
 int				_snp_chrCnt			= 0;
 int				_snp_currentChr		= 0;
 int				_snp_currentLoc	= 0;
 
 /**********************************************/
-int cmp(const void *a, const void *b)
+void initLoadingSNPs(char *fileName)
 {
-	int *x = (int *)a;
-	int *y = (int *)b;
-	return (*x - *y);
-}
-/**********************************************/
-void initLoadingSnips(char *fileName)
-{
-	int maxLineLength = CONTIG_NAME_SIZE + 20;
-	int i, loc;
-	char cname[CONTIG_NAME_SIZE];	// chromosome name, read from file
-	char line[maxLineLength];
+	int i, j, loc, t, found;
+	char cname[CONTIG_NAME_SIZE];	// chromosome name
+	int ccnt;						// chr count in the file
 	char **chrNames;
+	int *dummy = getMem(MAX_SNIP_CNT * sizeof(int));
 
 	_snp_chrCnt = getChrCnt();
 	chrNames = getChrNames();
-	_snp_chrSnips = getMem(_snp_chrCnt * sizeof(ChrSnips));
+	_snp_chrSNPs = getMem(_snp_chrCnt * sizeof(ChrSNPs));
 	
 	for (i = 0; i < _snp_chrCnt; i++)
 	{
-		_snp_chrSnips[i].chrName = chrNames[i];
-		_snp_chrSnips[i].locCnt = 0;
-		_snp_chrSnips[i].locs = getMem(MAX_SNIP_CNT * sizeof(int));
+		_snp_chrSNPs[i].chrName = chrNames[i];
+		_snp_chrSNPs[i].locCnt = 0;
+		_snp_chrSNPs[i].locs = getMem(MAX_SNIP_CNT * sizeof(int));
 	}
 
-	_snp_snipMapLength = (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq);
-	_snp_snipMap = getMem(_snp_snipMapLength);
+	_snp_SNPMapLength = (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq);
+	_snp_SNPMap = getMem(_snp_SNPMapLength);
 
+	strcpy(cname, "chr");
 	FILE *fp = fopen(fileName, "rt");
-	while ( fgets(line, maxLineLength, fp) )
+	t = fread(&ccnt, sizeof(int), 1, fp);	// must be 25 for homosapien
+
+	for (i = 1; i <= ccnt; i++)
 	{
-		sscanf(line, "%s %d", cname, &loc);
-		// TODO: speed up lookup by sorting chrNames --> binary search
-		for (i = 0; i < _snp_chrCnt; i++)
+		if (i < 23)
+			sprintf(cname+3, "%d", i);
+		else
 		{
-			if (!strcmp(cname, _snp_chrSnips[i].chrName))
+			switch (i)
 			{
-				_snp_chrSnips[i].locs[_snp_chrSnips[i].locCnt++] = loc;
+				case 23: cname[3] = 'X'; break;
+				case 24: cname[3] = 'Y'; break;
+				case 25: cname[3] = 'M'; break;
+				default: cname[3] = 'T'; break;		// something invalid
+			}
+			cname[4] = '\0';
+		}
+
+		found = 0;
+		for (j = 0; j < _snp_chrCnt; j++)
+		{
+			if (!strcmp(cname, _snp_chrSNPs[j].chrName))
+			{
+				found = 1;
+				t = fread(&_snp_chrSNPs[j].locCnt, sizeof(int), 1, fp);
+				t = fread(_snp_chrSNPs[j].locs, sizeof(int), _snp_chrSNPs[j].locCnt, fp);
 				break;
 			}
 		}
+		if (!found)
+		{
+			t = fread(dummy, sizeof(int), 1, fp);
+			t = fread(dummy+1, sizeof(int), dummy[0], fp);
+		}
 	}
 
-	for (i = 0; i < _snp_chrCnt; i++)
-		qsort(_snp_chrSnips[i].locs, _snp_chrSnips[i].locCnt, sizeof(int), cmp);
-
 	fclose(fp);
+	freeMem(dummy, MAX_SNIP_CNT * sizeof(int));
 }
 /**********************************************/
-void finalizeSnips()
+void finalizeSNPs()
 {
 	int i;
 	for (i = 0; i < _snp_chrCnt; i++)
-		freeMem(_snp_chrSnips[i].locs, MAX_SNIP_CNT * sizeof(int));
-	freeMem(_snp_chrSnips, _snp_chrCnt * sizeof(ChrSnips));
-	freeMem(_snp_snipMap, _snp_snipMapLength);
+		freeMem(_snp_chrSNPs[i].locs, MAX_SNIP_CNT * sizeof(int));
+	freeMem(_snp_chrSNPs, _snp_chrCnt * sizeof(ChrSNPs));
+	freeMem(_snp_SNPMap, _snp_SNPMapLength);
 }
 /**********************************************/
-CompressedSeq *loadSnipMap(char *chrName, int contigStartIndex, int contigLength)
+CompressedSeq *loadSNPMap(char *chrName, int contigStartIndex, int contigLength)
 {
-	memset(_snp_snipMap, -1, calculateCompressedLen(contigLength) * sizeof(CompressedSeq));
-	//memset(_snp_snipMap, -1, _snp_snipMapLength);
+	//memset(_snp_SNPMap, -1, calculateCompressedLen(contigLength) * sizeof(CompressedSeq));
+	memset(_snp_SNPMap, -1, _snp_SNPMapLength);
 	int contigEnd = contigStartIndex + contigLength;
 	int loc, offset;
 	CompressedSeq *snp, mask;
 
-	if ( strcmp(chrName, _snp_chrSnips[_snp_currentChr].chrName) )		// new chr
+	if ( strcmp(chrName, _snp_chrSNPs[_snp_currentChr].chrName) )		// new chr
 	{
 		_snp_currentChr++;
 		_snp_currentLoc = 0;
 	}
 
-	if (_snp_chrSnips[_snp_currentChr].locCnt)
+	if (_snp_chrSNPs[_snp_currentChr].locCnt)
 	{
 		int i = _snp_currentChr;		// just to make the code more readable
 		int pos = _snp_currentLoc;
 
-		while ( pos < _snp_chrSnips[i].locCnt && _snp_chrSnips[i].locs[pos] < contigStartIndex )	// this should never happen!
+		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].locs[pos] < contigStartIndex )	// this should never happen!
 			pos ++;
 
-		while ( pos < _snp_chrSnips[i].locCnt && _snp_chrSnips[i].locs[pos] < contigEnd )
+		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].locs[pos] < contigEnd )
 		{
-			loc = _snp_chrSnips[i].locs[pos] - contigStartIndex - 1;
+			loc = _snp_chrSNPs[i].locs[pos] - contigStartIndex - 1;
 			offset = loc % 21;
 			mask = 0x7000000000000000;
 			mask = ~(mask >> offset*3);
 			
-			snp = _snp_snipMap + (loc/21);
+			snp = _snp_SNPMap + (loc/21);
 			*snp &= mask;
 
 			pos ++;
 		}
 
-		_snp_currentChr = i;
 		_snp_currentLoc = pos;
 	}
-	return _snp_snipMap;
+	return _snp_SNPMap;
 }

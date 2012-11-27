@@ -49,7 +49,7 @@ int						pairedEndMode;
 int						pairedEndDiscordantMode;
 int						pairedEndProfilingMode = 0;
 int						bestMappingMode = 0;
-int						snipMode = 0;
+int						SNPMode = 0;
 int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
@@ -92,7 +92,7 @@ int parseCommandLine (int argc, char *argv[])
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
-	char *snipFile = NULL;
+	char *SNPFile = NULL;
 
 	mappingOutput = getMem(FILE_NAME_LENGTH);
 	mappingOutputPath = getMem(FILE_NAME_LENGTH);
@@ -188,8 +188,8 @@ int parseCommandLine (int argc, char *argv[])
 				MAX_MEMORY = atoi(optarg);
 				break;
 			case 'p':
-				snipMode = 1;
-				snipFile = optarg;
+				SNPMode = 1;
+				SNPFile = optarg;
 				break;
 		}
 
@@ -295,8 +295,8 @@ int parseCommandLine (int argc, char *argv[])
 
 	sprintf(fileName[0], "%s", fastaFile);
 	sprintf(fileName[1], "%s.index", fileName[0]);
-	if (snipMode)
-		sprintf(fileName[2], "%s", snipFile);
+	if (SNPMode)
+		sprintf(fileName[2], "%s", SNPFile);
 
 	if (!indexingMode)
 	{

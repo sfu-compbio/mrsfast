@@ -398,7 +398,7 @@ int initLoadingHashTable(char *fileName)
 	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
 	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
 	_ih_refGenName[0] = '\0';
-	if (!snipMode)
+	if (!SNPMode)
 		_ih_alphCnt = getMem(CONTIG_MAX_SIZE * 4);
 
 	_ih_contigStartPos = ftell(_ih_fp);
@@ -417,7 +417,7 @@ void finalizeLoadingHashTable()
 		freeMem(_ih_crefGen, (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq));
 	freeMem(_ih_hashTable, sizeof(IHashTable)* _ih_maxHashTableSize);
 	freeMem(_ih_refGenName, CONTIG_NAME_SIZE);	
-	if (!snipMode)
+	if (!SNPMode)
 		freeMem(_ih_alphCnt, CONTIG_MAX_SIZE * 4);
 	for (i = 0; i < _ih_chrCnt; i++)
 		freeMem(_ih_chrNames[i], CONTIG_NAME_SIZE);
@@ -566,7 +566,7 @@ int  loadHashTable(double *loadTime)
 	}
 
 	// calculate alphabet count for each location in genome
-	if (!snipMode)
+	if (!SNPMode)
 	{
 		cnext = _ih_crefGen;
 		cdata = *(cnext++);
