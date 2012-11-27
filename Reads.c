@@ -382,6 +382,9 @@ int initRead(char *fileName1, char *fileName2)
 		SEQ_LENGTH++;
 	}
 	
+	if (cropSize > 0)
+		SEQ_LENGTH = cropSize;
+
 	if ( SEQ_LENGTH == SEQ_MAX_LENGTH )
 	{
 		fprintf(stdout, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
