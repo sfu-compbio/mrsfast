@@ -172,8 +172,17 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
-		fprintf(stdout, "%-30s%10.0f\n\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
-		fprintf(stdout, "%lld\n", memUsage);
+		fprintf(stdout, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
+		if (pairedEndProfilingMode)
+		{
+			if (pairedEndDiscordantMode)
+			{
+				minPairEndedDistance = minPairEndedDiscordantDistance;
+				maxPairEndedDistance = maxPairEndedDiscordantDistance;
+			}
+			fprintf(stdout, "Calculated min max range: %d - %d\n", minPairEndedDistance+SEQ_LENGTH-1, maxPairEndedDistance+SEQ_LENGTH-1);
+		}
+		fprintf(stdout, "\n%lld\n", memUsage);
 	}
 
 	return 0;

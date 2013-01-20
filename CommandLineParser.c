@@ -88,7 +88,7 @@ int parseCommandLine (int argc, char *argv[])
 {
 
 	int o;
-	int index;
+	int index, len;
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
@@ -97,7 +97,7 @@ int parseCommandLine (int argc, char *argv[])
 	mappingOutput = getMem(FILE_NAME_LENGTH);
 	mappingOutputPath = getMem(FILE_NAME_LENGTH);
 	unmappedOutput = getMem(FILE_NAME_LENGTH);
-	strcpy(mappingOutput, "output.sam");
+	strcpy(mappingOutput, "output");
 	strcpy(unmappedOutput, "output.nohit");
 	mappingOutputPath[0] = '\0';
 
@@ -157,6 +157,9 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'o':
 				stripPath (optarg, &mappingOutputPath, &mappingOutput);
+				len = strlen(mappingOutput);
+				if (len > 4 && !strcmp(mappingOutput + len - 4, ".sam" ))
+					mappingOutput[len - 4] = '\0';
 				sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
 				break;
 			case 'n':
@@ -318,7 +321,6 @@ int parseCommandLine (int argc, char *argv[])
 	// Why is this one here?
 	if (pairedEndMode)
 	{
-
 		sprintf(fname1, "%s__%s__1", mappingOutputPath, mappingOutput);
 		sprintf(fname2, "%s__%s__2", mappingOutputPath, mappingOutput);
 		sprintf(fname3, "%s__%s__disc", mappingOutputPath, mappingOutput);

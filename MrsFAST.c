@@ -579,7 +579,7 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 	char *op = *opSeq;
 	int pp = 0;
 
-	if (err>0 || err == -1 )
+	if (SNPMode || err>0 || err == -1 )		// in SNPmode some errors might have been masked by SNPs. We might have md erros even if value of err == 0
 	{
 		int mod = index % 21;
 		int refALS = mod * 3;
@@ -644,7 +644,7 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 
 		}
 	}
-	if (err == 0)
+	else if (err == 0)
 	{
 		matchCnt = SEQ_LENGTH;
 	}
@@ -1000,7 +1000,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				if ( genLoc < _msf_refGenBeg || genLoc > _msf_refGenEnd )
 					continue;
 
-				int err = -1;
+				int mderr, err = -1;
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
@@ -1022,7 +1022,30 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 					}
 					else if (err == _msf_bestMapping[r].err)
 					{
-						_msf_bestMapping[r].hits ++;
+						if (SNPMode)
+						{
+							mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
+							if (mderr < _msf_bestMapping[r].mderr)
+							{
+								_msf_bestMapping[r].loc = _msf_refGenOffset + genLoc;
+								_msf_bestMapping[r].dir = d;
+								_msf_bestMapping[r].secondBestErrors = _msf_bestMapping[r].err;
+								_msf_bestMapping[r].secondBestHits = _msf_bestMapping[r].hits;
+								_msf_bestMapping[r].err = err;
+								_msf_bestMapping[r].hits = 1;
+								_msf_bestMapping[r].mderr = mderr;
+								memcpy(_msf_bestMapping[r].md, _msf_op[id], 40);
+								memcpy(_msf_bestMapping[r].chr, _msf_refGenName, 40);
+							}
+							else
+							{
+								_msf_bestMapping[r].hits ++;
+							}
+						}
+						else
+						{
+							_msf_bestMapping[r].hits ++;
+						}
 					}
 					else if (err < _msf_bestMapping[r].secondBestErrors)
 					{
@@ -2751,6 +2774,8 @@ void outputPairedEndDiscPP()
 	char fname4[FILE_NAME_LENGTH];
 	char fname5[FILE_NAME_LENGTH];
 	char fname6[FILE_NAME_LENGTH];
+	char fname7[FILE_NAME_LENGTH];
+	char line[FILE_NAME_LENGTH];
 	char l;
 	int loc1, loc2;
 	char err1, err2;
@@ -2759,7 +2784,7 @@ void outputPairedEndDiscPP()
 	int flag = 0;
 	int rNo,lrNo = -1;
 	int tmp;
-	FILE *in, *in1, *in2, *out, *out1, *out2;
+	FILE *in, *in1, *in2, *out, *out1, *out2, *out3;
 
 	sprintf(fname1, "%s__%s__disc", mappingOutputPath, mappingOutput);
 	sprintf(fname2, "%s__%s__oea1", mappingOutputPath, mappingOutput);
@@ -2767,6 +2792,7 @@ void outputPairedEndDiscPP()
 	sprintf(fname4, "%s%s_DIVET.vh", mappingOutputPath, mappingOutput);
 	sprintf(fname5, "%s%s_OEA1.vh", mappingOutputPath, mappingOutput);
 	sprintf(fname6, "%s%s_OEA2.vh", mappingOutputPath, mappingOutput);
+	sprintf(fname7, "%s%s_sample.lib", mappingOutputPath, mappingOutput);
 
 	in   = fileOpen(fname1, "r");
 	in1  = fileOpen(fname2, "r");
@@ -2774,6 +2800,12 @@ void outputPairedEndDiscPP()
 	out  = fileOpen(fname4, "w");
 	out1 = fileOpen(fname5, "w");
 	out2 = fileOpen(fname6, "w");
+	out3 = fileOpen(fname7, "w");
+
+	// write the sample.lib file, input to VH
+	sprintf(line, "%s %s %d %d %d\n", individualName, fname4, minPairEndedDiscordantDistance+SEQ_LENGTH-1, maxPairEndedDiscordantDistance+SEQ_LENGTH-1, SEQ_LENGTH);
+	fputs(line, out3);
+
 	if (in != NULL)
 	{
 		flag = fread(&rNo, sizeof(int), 1, in);
@@ -2883,8 +2915,10 @@ void outputPairedEndDiscPP()
 				}
 			}
 			_msf_seqList[rNo*2].hits[0] = 2;
-			fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%0.20f\n",
-					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
+			fprintf(out, "%s\t%s\t%d\t%d\t%c\t=\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%e\n",
+					_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
+			//fprintf(out, "%s\t%s\t%d\t%d\t%c\t%s\t%d\t%d\t%c\t%c\t%d\t%0.0f\t%0.20f\n",
+			//		_msf_seqList[rNo*2].name, genName, loc1, (loc1+SEQ_LENGTH-1), dir1, genName, loc2, (loc2+SEQ_LENGTH-1), dir2, event, (err1+err2), lsc, sc1*sc2);
 		}
 		flag = fread(&rNo, sizeof(int), 1, in);
 
@@ -3145,6 +3179,7 @@ fclose(in2);
 fclose(out);
 fclose(out1);
 fclose(out2);
+fclose(out3);
 
 unlink(fname1);
 unlink(fname2);
@@ -3273,8 +3308,18 @@ void calculateConcordantDistances()
 	}
 	sigma = sqrt(sigma/cnt);
 
-	minPairEndedDistance = mu - 3*sigma;
-	maxPairEndedDistance = mu + 3*sigma;
+	if (cnt == 0)  // probably the data has been small and no read has had a single best mapping
+	{
+		minPairEndedDistance = 100;
+		maxPairEndedDistance = 500;
+	}
+	else
+	{
+		minPairEndedDistance = (int)(mu - 3*sigma);
+		maxPairEndedDistance = (int)(mu + 3*sigma);
+	}
+	//fprintf(stdout, "cnt %d  mu %lf  sig %lf  min %d  max %d\n", cnt, mu, sigma, minPairEndedDistance, maxPairEndedDistance);
+	
 	modifyMinMaxDistances();
 
 	_msf_profilingCompleted = 1;
@@ -3282,6 +3327,9 @@ void calculateConcordantDistances()
 /**********************************************/
 void modifyMinMaxDistances()
 {
+	//Switching to Inferred Size 
+	minPairEndedDistance += (- SEQ_LENGTH + 1);
+	maxPairEndedDistance += (- SEQ_LENGTH + 1);
 	
 	if (pairedEndDiscordantMode)
 	{
@@ -3289,15 +3337,5 @@ void modifyMinMaxDistances()
 		maxPairEndedDiscordantDistance = maxPairEndedDistance;
 		minPairEndedDistance = 0;
 		maxPairEndedDistance = getMaxChrLength();
-	}
-
-	//Switching to Inferred Size 
-	minPairEndedDistance = minPairEndedDistance - SEQ_LENGTH + 1;
-	maxPairEndedDistance = maxPairEndedDistance - SEQ_LENGTH + 1;
-	
-	if (pairedEndDiscordantMode)
-	{
-		maxPairEndedDiscordantDistance = maxPairEndedDiscordantDistance - SEQ_LENGTH + 1;
-		minPairEndedDiscordantDistance = minPairEndedDiscordantDistance - SEQ_LENGTH + 1;
 	}
 }
