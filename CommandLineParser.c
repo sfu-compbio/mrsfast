@@ -88,7 +88,7 @@ int parseCommandLine (int argc, char *argv[])
 {
 
 	int o;
-	int index, len;
+	int index;
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
@@ -157,9 +157,6 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'o':
 				stripPath (optarg, &mappingOutputPath, &mappingOutput);
-				len = strlen(mappingOutput);
-				if (len > 4 && !strcmp(mappingOutput + len - 4, ".sam" ))
-					mappingOutput[len - 4] = '\0';
 				sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
 				break;
 			case 'n':

@@ -85,7 +85,7 @@ extern char				*seqUnmapped;
 extern char				*mappingOutput;
 extern char 			*mappingOutputPath;
 extern char				*unmappedOutput;
-extern char				*individualName;
+extern char				*libraryName;
 extern unsigned char	seqFastq;
 extern int				errThreshold;
 extern short			maxHits;	

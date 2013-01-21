@@ -2775,7 +2775,7 @@ void outputPairedEndDiscPP()
 	char fname5[FILE_NAME_LENGTH];
 	char fname6[FILE_NAME_LENGTH];
 	char fname7[FILE_NAME_LENGTH];
-	char line[FILE_NAME_LENGTH];
+	char libInfoTmp[FILE_NAME_LENGTH];
 	char l;
 	int loc1, loc2;
 	char err1, err2;
@@ -2792,7 +2792,7 @@ void outputPairedEndDiscPP()
 	sprintf(fname4, "%s%s_DIVET.vh", mappingOutputPath, mappingOutput);
 	sprintf(fname5, "%s%s_OEA1.vh", mappingOutputPath, mappingOutput);
 	sprintf(fname6, "%s%s_OEA2.vh", mappingOutputPath, mappingOutput);
-	sprintf(fname7, "%s%s_sample.lib", mappingOutputPath, mappingOutput);
+	sprintf(fname7, "%s%s.lib", mappingOutputPath, mappingOutput);
 
 	in   = fileOpen(fname1, "r");
 	in1  = fileOpen(fname2, "r");
@@ -2802,9 +2802,9 @@ void outputPairedEndDiscPP()
 	out2 = fileOpen(fname6, "w");
 	out3 = fileOpen(fname7, "w");
 
-	// write the sample.lib file, input to VH
-	sprintf(line, "%s %s %d %d %d\n", individualName, fname4, minPairEndedDiscordantDistance+SEQ_LENGTH-1, maxPairEndedDiscordantDistance+SEQ_LENGTH-1, SEQ_LENGTH);
-	fputs(line, out3);
+	// write the lib file, input to VH
+	sprintf(libInfoTmp, "%s %s %d %d %d\n", libraryName, fname4, minPairEndedDiscordantDistance+SEQ_LENGTH-1, maxPairEndedDiscordantDistance+SEQ_LENGTH-1, SEQ_LENGTH);
+	fputs(libInfoTmp, out3);
 
 	if (in != NULL)
 	{
@@ -3308,10 +3308,10 @@ void calculateConcordantDistances()
 	}
 	sigma = sqrt(sigma/cnt);
 
-	if (cnt == 0)  // probably the data has been small and no read has had a single best mapping
+	if (cnt == 0)  // the data has been small and no read has had a single best mapping
 	{
-		minPairEndedDistance = 100;
-		maxPairEndedDistance = 500;
+		fprintf(stderr, "ERROR: The sample size is too small for calculating template lengths. Please either manually set the min max values, or provide a larger sample");
+		exit(EXIT_FAILURE);
 	}
 	else
 	{

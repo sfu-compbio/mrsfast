@@ -66,7 +66,7 @@ int _r_maxSeqCnt;
 int	_r_firstIteration = 1;
 long long _r_readMemUsage = 0;
 char *_r_alphIndex = NULL;
-char *individualName = NULL;
+char *libraryName = NULL;
 char checkSumLength = 0;
 
 /**********************************************/
@@ -310,7 +310,7 @@ void calculateSamplingLocations()
 int initRead(char *fileName1, char *fileName2)
 {
 	char dummy[SEQ_MAX_LENGTH];
-	individualName = getMem(SEQ_MAX_LENGTH);
+	libraryName = getMem(SEQ_MAX_LENGTH);
 	char ch;
 	int i, maxCnt=0;
 
@@ -372,12 +372,12 @@ int initRead(char *fileName1, char *fileName2)
 	else
 		_r_fastq = 1;
 	
-	readFirstSeq(individualName);
-	int nameLen = strlen(individualName);
+	readFirstSeq(libraryName);
+	int nameLen = strlen(libraryName);
 	for (i = 0; i < nameLen; i++)
-		if (individualName[i] == '.' || individualName[i] == ' ')
+		if (libraryName[i] == '.' || libraryName[i] == ' ')
 		{
-			individualName[i] = '\0';
+			libraryName[i] = '\0';
 		}
 
 	readFirstSeq(dummy);
@@ -894,7 +894,7 @@ void finalizeReads()
 	freeMem(_r_samplingLocsLen, size);
 	freeMem(_r_samplingLocsLenFull, size);
 	freeMem(_r_alphIndex, 128);
-	freeMem(individualName, SEQ_MAX_LENGTH);
+	freeMem(libraryName, SEQ_MAX_LENGTH);
 
 	if (!bestMappingMode)
 	{
