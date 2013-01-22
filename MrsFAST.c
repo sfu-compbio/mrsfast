@@ -3330,6 +3330,8 @@ void modifyMinMaxDistances()
 	//Switching to Inferred Size 
 	minPairEndedDistance += (- SEQ_LENGTH + 1);
 	maxPairEndedDistance += (- SEQ_LENGTH + 1);
+	if (minPairEndedDistance < 0)
+		minPairEndedDistance = 0;
 	
 	if (pairedEndDiscordantMode)
 	{
