@@ -2803,7 +2803,7 @@ void outputPairedEndDiscPP()
 	out3 = fileOpen(fname7, "w");
 
 	// write the lib file, input to VH
-	sprintf(libInfoTmp, "%s %s %d %d %d\n", libraryName, fname4, minPairEndedDiscordantDistance+SEQ_LENGTH-1, maxPairEndedDiscordantDistance+SEQ_LENGTH-1, SEQ_LENGTH);
+	sprintf(libInfoTmp, "LIB_NAME IND_NAME %s %d %d %d\n", fname4, minPairEndedDiscordantDistance+SEQ_LENGTH-1, maxPairEndedDiscordantDistance+SEQ_LENGTH-1, SEQ_LENGTH);
 	fputs(libInfoTmp, out3);
 
 	if (in != NULL)
