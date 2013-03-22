@@ -403,7 +403,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-//_r_maxSeqCnt = 2000;
+//_r_maxSeqCnt = 1000;
 
 	if (!seqCompressed)
 	{
@@ -436,7 +436,7 @@ int initRead(char *fileName1, char *fileName2)
 	calculateSamplingLocations();
 
 
-	if (!bestMappingMode)
+	if (!nohitDisabled)
 	{
 		_r_umfp = fopen(unmappedOutput, "w");
 	}
@@ -791,7 +791,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 /**********************************************/
 void outputUnmapped()
 {
-	if (bestMappingMode)
+	if (nohitDisabled)
 		return;
 
 	if (pairedEndMode)
@@ -887,7 +887,7 @@ void finalizeReads()
 	freeMem(_r_samplingLocsLenFull, size);
 	freeMem(_r_alphIndex, 128);
 
-	if (!bestMappingMode)
+	if (!nohitDisabled)
 	{
 		fclose(_r_umfp);
 	}
