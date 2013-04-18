@@ -54,6 +54,7 @@ int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
 int						progressRep = 0;
+int						nohitDisabled = 0;
 int						minPairEndedDistance=-1;
 int						maxPairEndedDistance=-1;
 int						minPairEndedDiscordantDistance=-1;
@@ -110,6 +111,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"outcomp",			no_argument,		&outCompressed,		1},
 		{"progress",		no_argument,		&progressRep,		1},
 		{"best",			no_argument,		&bestMappingMode,	1},
+		{"disable-nohits",	no_argument,		&nohitDisabled,		1},
 		{"index",			required_argument,	0, 					'i'},
 		{"search",			required_argument,	0,					's'},
 		{"help",			no_argument,		0,					'h'},
@@ -208,6 +210,11 @@ int parseCommandLine (int argc, char *argv[])
 	if (searchingMode)
 		fprintf(stdout, "==> Your machine has SSE4 insruction set, to take advantage of it, update your GCC version to >4.4<==\n");
 #endif
+
+	if (bestMappingMode)
+	{
+		nohitDisabled = 1;
+	}
 
 	if (indexingMode + searchingMode != 1)
 	{
