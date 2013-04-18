@@ -70,6 +70,7 @@ unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
 unsigned int			CONTIG_MAX_SIZE;
 unsigned int			THREAD_COUNT = 1;
+unsigned short			DISCORDANT_CUT_OFF = 300;
 double					MAX_MEMORY = 4;// GB
 int						THREAD_ID[255];
 extern char 			_binary_HELP_start;
@@ -123,6 +124,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"threads",			required_argument,  0,					't'},
 		{"mem",				required_argument,  0,					'z'},
 		{"snp",				required_argument,  0,					'p'},
+		{"maxdis",          required_argument,  0,                  'd'},
 		{0,0,0,0}
 	};
 
@@ -186,6 +188,9 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'z':
 				MAX_MEMORY = atoi(optarg);
+				break;
+			case 'd':
+				DISCORDANT_CUT_OFF = atoi(optarg);
 				break;
 			case 'p':
 				SNPMode = 1;

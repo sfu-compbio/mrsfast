@@ -403,7 +403,7 @@ int initRead(char *fileName1, char *fileName2)
 		_r_maxSeqCnt ++;
 	_r_maxSeqCnt -= _r_maxSeqCnt % THREAD_COUNT;
 
-//_r_maxSeqCnt = 2000;
+//_r_maxSeqCnt = 1000;
 
 	if (!seqCompressed)
 	{
@@ -747,7 +747,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seqCnt++;
 		}
 
-		if (_r_seqCnt == _r_maxSeqCnt)
+		if (_r_seqCnt >= _r_maxSeqCnt)
 			break;
 	}
 
@@ -761,13 +761,6 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		}
 	}
 
-/*	if (pairedEndMode)
-	{
-		_r_seqCnt /= 2;
-	}*/
-
-
-	// Closing Files
 	*seqList = _r_seq;
 	*seqListSize = _r_seqCnt;
 

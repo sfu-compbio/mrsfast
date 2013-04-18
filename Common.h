@@ -52,7 +52,6 @@
 #define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	400			// Filename Max Length
-#define DISCORDANT_CUT_OFF  800
 
 
 typedef uint64_t CompressedSeq;
@@ -67,6 +66,7 @@ extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
 extern unsigned short	QUAL_LENGTH;
 extern unsigned short	CMP_SEQ_LENGTH;
+extern unsigned short	DISCORDANT_CUT_OFF;
 
 extern int				indexingMode;
 extern int				searchingMode;

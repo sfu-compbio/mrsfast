@@ -236,6 +236,11 @@ void initializeFAST(int seqListSize)
 
 		for (i=0; i<_msf_seqListSize/2; i++)
 			_msf_seqHits[i] = 0;
+
+		// delete possible old output file with the same name
+		char fname[FILE_NAME_LENGTH];
+		sprintf(fname, "%s%s_DIVET.vh", mappingOutputPath, mappingOutput);
+		unlink(fname);
 	}
 
 	// Required data structure for best mapping mode.
@@ -2797,7 +2802,7 @@ void outputPairedEndDiscPP()
 	in   = fileOpen(fname1, "r");
 	in1  = fileOpen(fname2, "r");
 	in2  = fileOpen(fname3, "r");
-	out  = fileOpen(fname4, "w");
+	out  = fileOpen(fname4, "a");
 	out1 = fileOpen(fname5, "w");
 	out2 = fileOpen(fname6, "w");
 	out3 = fileOpen(fname7, "w");
