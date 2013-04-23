@@ -2870,52 +2870,59 @@ void outputPairedEndDiscPP()
 
 			//fprintf(stdout, "%c %c ", dir1, dir2);
 
-			if ( dir1 == dir2 )
+			if (loc1 == loc2)
 			{
-				event = 'V';
-				//fprintf(stdout, "Inverstion \n");
+				event = '-';
 			}
 			else
 			{
-				if (loc1 < loc2)
+				if ( dir1 == dir2 )
 				{
-
-					//fprintf(stdout, "< %d ", loc2-loc1-SEQ_LENGTH);
-
-					if (dir1 == 'R' && dir2 == 'F')
-					{
-						event = 'E';
-
-						//fprintf(stdout, "Everted \n");
-					}
-					else if ( loc2 - loc1 >= maxPairEndedDiscordantDistance )
-					{
-						event = 'D';
-						//fprintf(stdout, "Deletion \n");
-					}
-					else
-					{
-						event = 'I';
-						//fprintf(stdout, "Insertion \n");
-					}
+					event = 'V';
+					//fprintf(stdout, "Inverstion \n");
 				}
-				else if (loc2 < loc1)
+				else
 				{
-					//fprintf(stdout, "> %d ", loc1-loc2-SEQ_LENGTH);
-					if (dir2 == 'R' && dir1 == 'F')
+					if (loc1 < loc2)
 					{
-						event = 'E';
-						//fprintf(stdout, "Everted \n");
+
+						//fprintf(stdout, "< %d ", loc2-loc1-SEQ_LENGTH);
+
+						if (dir1 == 'R' && dir2 == 'F')
+						{
+							event = 'E';
+
+							//fprintf(stdout, "Everted \n");
+						}
+						else if ( loc2 - loc1 >= maxPairEndedDiscordantDistance )
+						{
+							event = 'D';
+							//fprintf(stdout, "Deletion \n");
+						}
+						else
+						{
+							event = 'I';
+							//fprintf(stdout, "Insertion \n");
+						}
 					}
-					else if ( loc1 - loc2 >= maxPairEndedDiscordantDistance )
+					else if (loc2 < loc1)
 					{
-						event = 'D';
-						//fprintf(stdout, "Deletion \n");
-					}
-					else
-					{
-						event = 'I';
-						//fprintf(stdout, "Insertion \n");
+						//fprintf(stdout, "> %d ", loc1-loc2-SEQ_LENGTH);
+						if (dir2 == 'R' && dir1 == 'F')
+						{
+							event = 'E';
+							//fprintf(stdout, "Everted \n");
+						}
+						else if ( loc1 - loc2 >= maxPairEndedDiscordantDistance )
+						{
+							event = 'D';
+							//fprintf(stdout, "Deletion \n");
+						}
+						else
+						{
+							event = 'I';
+							//fprintf(stdout, "Insertion \n");
+						}
 					}
 				}
 			}
