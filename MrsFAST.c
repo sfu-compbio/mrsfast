@@ -264,12 +264,6 @@ void initializeFAST(int seqListSize)
 
 	}
 
-	if (maxHits)
-	{
-		sprintf(_msf_hitsTempFileName, "%s__%s__%s__1",mappingOutputPath, mappingOutput, "hits");
-		_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "w");
-	}
-
 #ifndef MRSFAST_SSE4
 	// pre loading popcount
 	int x;
@@ -313,6 +307,12 @@ void initFASTChunk(Read *seqList, int seqListSize)
 			}
 		}
 	}
+	else if (maxHits)
+	{
+		sprintf(_msf_hitsTempFileName, "%s__%s__%s__1",mappingOutputPath, mappingOutput, "hits");
+		_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "w");
+	}
+
 }
 /**********************************************/
 void initFASTContig()
