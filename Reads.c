@@ -166,9 +166,11 @@ void *preProcessReads(int *idp)
 				tmp[pos].seqInfo = pos +(div*id*2*_r_samplingLocsSize);
 				pos++;
 			}
+
+			reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
+
 			for (j=0; j<_r_samplingLocsSize; j++)
 			{
-				reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
 				hvtmp = hashVal(rseq+_r_samplingLocs[j]);
 				cstmp = checkSumVal(rseq+_r_samplingLocs[j]+WINDOW_SIZE);
 				
