@@ -535,9 +535,6 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 	verificationCnt++;
 	err = 0; 
 
-	refCurSeg = refSeg;
-	refCurOff = refOff;
-
 	for (curOff = 0; curOff < offset; curOff++)
 	{
 		sampleErrors=0;
@@ -566,9 +563,6 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 			refCurOff-=21;
 		}
 		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors);	// this offset to the end
-		
-		if (err > errThreshold)
-			return -1;
 	}
 
 	if (err > errThreshold)
