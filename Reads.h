@@ -39,7 +39,7 @@
 typedef struct
 {
 	int32_t hv;
-	uint8_t checksum;
+	CheckSumType checksum;
 	int32_t seqInfo;
 
 } Pair;

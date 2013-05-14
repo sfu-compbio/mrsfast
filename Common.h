@@ -55,6 +55,7 @@
 
 
 typedef uint64_t CompressedSeq;
+typedef uint8_t CheckSumType;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
@@ -102,7 +103,7 @@ extern char				checkSumLength;
 #pragma pack(push, 1)
 typedef struct
 {
-	uint8_t  checksum; 
+	CheckSumType  checksum;
 	uint32_t info;				// ReadIndex => seqInfo | GenomeIndex ==> Loc
 } GeneralIndex;
 #pragma pack(pop)

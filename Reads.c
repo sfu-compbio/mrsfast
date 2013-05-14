@@ -167,12 +167,10 @@ void *preProcessReads(int *idp)
 				pos++;
 			}
 
-			reverseComplete(_r_seq[i].seq, rseq, SEQ_LENGTH);
-
 			for (j=0; j<_r_samplingLocsSize; j++)
 			{
-				hvtmp = hashVal(rseq+_r_samplingLocs[j]);
-				cstmp = checkSumVal(rseq+_r_samplingLocs[j]+WINDOW_SIZE);
+				hvtmp = hashVal(_r_seq[i].rseq+_r_samplingLocs[j]);
+				cstmp = checkSumVal(_r_seq[i].rseq+_r_samplingLocs[j]+WINDOW_SIZE);
 				
 				if (hvtmp == -1  || cstmp == -1)
 				{
@@ -432,8 +430,8 @@ int initRead(char *fileName1, char *fileName2)
 
 
 	checkSumLength = (SEQ_LENGTH / (errThreshold+1)) - WINDOW_SIZE;
-	if (checkSumLength > 4)
-		checkSumLength = 4;
+	if (checkSumLength > sizeof(CheckSumType)*4)
+		checkSumLength = sizeof(CheckSumType)*4;
 
 	calculateSamplingLocations();
 
