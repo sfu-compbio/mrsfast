@@ -181,7 +181,10 @@ int initOutput ( char *fileName, int compressed)
 		output = &outputQ;
 		outputMeta = &outputMetaQ;
 	}
-	outputMeta("@HD\tVN:1.4\tSO:unsorted");
+	
+	if (!noSamHeader)
+		outputMeta("@HD\tVN:1.4\tSO:unsorted");
+	
 	return 1;
 }
 

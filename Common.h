@@ -81,6 +81,7 @@ extern int				outCompressed;
 extern int				cropSize;
 extern int				progressRep;
 extern int				nohitDisabled;
+extern int				noSamHeader;
 extern char 			*seqFile1;
 extern char				*seqFile2;
 extern char				*seqUnmapped;
