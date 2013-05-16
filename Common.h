@@ -55,7 +55,7 @@
 
 
 typedef uint64_t CompressedSeq;
-typedef uint8_t CheckSumType;
+typedef uint16_t CheckSumType;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
