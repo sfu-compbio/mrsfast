@@ -1506,7 +1506,6 @@ void outputBestSingleMapping()
 				_msf_output[0].SEQ = _msf_seqList[r].rseq;
 				reverse(_msf_seqList[r].qual, revQual, QUAL_LENGTH);
 				_msf_output[0].QUAL = revQual;
-				_msf_output[0].QUAL = _msf_seqList[r].qual;
 			}
 			else
 			{

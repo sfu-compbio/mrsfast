@@ -146,7 +146,7 @@ void gzOutputMetaQ(char* str)
 	gzprintf(_out_gzfp, "%s\n", str);
 }
 
-
+void doNothing(char *str) {}
 
 int initOutput ( char *fileName, int compressed)
 {
@@ -181,7 +181,12 @@ int initOutput ( char *fileName, int compressed)
 		output = &outputQ;
 		outputMeta = &outputMetaQ;
 	}
+	
+	if (noSamHeader)
+		outputMeta = &doNothing;
+
 	outputMeta("@HD\tVN:1.4\tSO:unsorted");
+	
 	return 1;
 }
 
