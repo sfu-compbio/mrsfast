@@ -373,11 +373,8 @@ int initLoadingHashTable(char *fileName)
 		_ih_chrNames[i][nameLen] = '\0';
 		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
 		
-		if (!noSamHeader)
-		{
-			sprintf(strtmp,"@SQ\tSN:%s\tLN:%d\0", _ih_chrNames[i], _ih_refGenLen);
-			outputMeta(strtmp);
-		}
+		sprintf(strtmp,"@SQ\tSN:%s\tLN:%d\0", _ih_chrNames[i], _ih_refGenLen);
+		outputMeta(strtmp);
 		
 		if (_ih_refGenLen > _ih_maxChrLength)
 			_ih_maxChrLength = _ih_refGenLen;
