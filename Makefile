@@ -36,4 +36,5 @@ clean:
 	rm -rf *.o
 
 HELP.o:
+	groff -Tascii -man ./HELP.man > HELP
 	ld -r -b binary -o HELP.o HELP
