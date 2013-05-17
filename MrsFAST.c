@@ -137,13 +137,13 @@ void outputMaxHitsSingleMapping();
 void updateMaxHitsPairedEnd();
 void outputMaxHitsPairedEnd();
 
-inline int countErrorsSNP (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
-inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
+inline int countErrorsSNP (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
+inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void calculateConcordantDistances();
 void updateDistance();
 void modifyMinMaxDistances();
 
-int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp);
+int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 
 /**********************************************/
@@ -390,7 +390,7 @@ void finalizeFAST()
 #endif
 }
 /**********************************************/
-inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp)
+inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr)
 {
 	int refALS = refOff * 3;
 	int segALS = seqOff * 3;
@@ -398,7 +398,7 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 
 	int refARS = typeSize - refALS;
 	int segARS = typeSize - segALS;	
-	
+
 	CompressedSeq tmpref, tmpseq, diff;
 	int err = 0;
 
@@ -417,7 +417,7 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 		err += _msf_errCnt[diff & 0xffffff] + _msf_errCnt[(diff>>24)&0xffffff] + _msf_errCnt[(diff>>48)&0xfffff];
 #endif
 
-		if (err > errThreshold)
+		if (err > allowedErr)
 			return errThreshold+1;
 		len -= 21;
 	}
@@ -427,10 +427,10 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 		tmpref = (*ref << refALS) | (*(++ref) >> refARS);
 		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
 		diff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
-		
+
 		diff >>= (typeSize - len*3);
 		tmpseq  >>= (typeSize - len*3);
-		
+
 		*errSamp |= (tmpseq & _msf_NMASK);
 
 #ifdef MRSFAST_SSE4
@@ -439,8 +439,7 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 		err += _msf_errCnt[diff & 0xffffff] + _msf_errCnt[(diff>>24)&0xffffff] + _msf_errCnt[(diff>>48)&0xfffff];
 #endif
 
-		
-		if (err > errThreshold)
+		if (err > allowedErr)
 			return errThreshold+1;
 	}
 
@@ -448,7 +447,7 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 	return err;
 }
 /**********************************************/
-inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp)
+inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr)
 {
 	CompressedSeq *snp = _msf_SNPMap + (ref - _msf_crefGen);	// SNPMap offset is exactly the same as crefGen
 
@@ -477,7 +476,7 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 		err += _msf_errCnt[diff & 0xffffff] + _msf_errCnt[(diff>>24)&0xffffff] + _msf_errCnt[(diff>>48)&0xfffff];
 #endif
 
-		if (err > errThreshold)
+		if (err > allowedErr)
 			return errThreshold+1;
 		len -= 21;
 	}
@@ -489,7 +488,7 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
 		tmpdiff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
 		diff = tmpdiff & tmpsnp;
-		
+
 		tmpdiff >>= (typeSize - len*3);
 		diff >>= (typeSize - len*3);
 		tmpseq  >>= (typeSize - len*3);
@@ -502,14 +501,13 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 		err += _msf_errCnt[diff & 0xffffff] + _msf_errCnt[(diff>>24)&0xffffff] + _msf_errCnt[(diff>>48)&0xfffff];
 #endif
 
-		if (err > errThreshold)
+		if (err > allowedErr)
 			return errThreshold+1;
 	}
 
 	*errSamp |= err;
 	return err;
 }
-
 /**********************************************/
 inline int verifySeq(int index, CompressedSeq *seq, int offset)
 {
@@ -528,7 +526,7 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 		refCurOff-=21;
 	}
 
-	err = countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLen[offset], &sampleErrors);	// segment corresponding to this offset
+	err = countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLen[offset], &sampleErrors, errThreshold);	// segment corresponding to this offset
 	if (sampleErrors || err)
 		return -1;
 
@@ -547,7 +545,7 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 			refCurOff-=21;
 		}
 
-		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[curOff], _msf_samplingLocsOffset[curOff], _msf_samplingLocsLen[curOff], &sampleErrors);	// for all segments before offset
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[curOff], _msf_samplingLocsOffset[curOff], _msf_samplingLocsLen[curOff], &sampleErrors, errThreshold);	// for all segments before offset
 		if (err > errThreshold || sampleErrors==0)
 			return -1;
 	}
@@ -562,7 +560,71 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 			refCurSeg++;
 			refCurOff-=21;
 		}
-		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors);	// this offset to the end
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors, errThreshold);	// this offset to the end
+	}
+
+	if (err > errThreshold)
+		return -1;
+	return err;
+}
+/**********************************************/
+inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSegment)
+{
+	int segLen, cmpSegLen, curOff, sampleErrors=0, err = 0, refLoc, segLoc;
+	index--;
+
+	CompressedSeq *refSeg = _msf_crefGen+index/21;
+	int refOff = index % 21;
+
+	CompressedSeq *refCurSeg = refSeg+_msf_samplingLocsSeg[offset];
+
+	int refCurOff=refOff+_msf_samplingLocsOffset[offset];
+	if (refCurOff>=21)
+	{
+		refCurSeg++;
+		refCurOff-=21;
+	}
+
+	if (finalSegment)
+		err = countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors, 0);	// the whole final segment: this offset to the end
+	else
+		err = countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLen[offset], &sampleErrors, 0);	// segment corresponding to this offset
+
+	if (sampleErrors || err)
+		return -1;
+
+	verificationCnt++;
+	err = 0; 
+
+	for (curOff = 0; curOff < offset; curOff++)
+	{
+		sampleErrors=0;
+
+		refCurSeg = refSeg+_msf_samplingLocsSeg[curOff];
+		refCurOff = refOff+_msf_samplingLocsOffset[curOff];
+		if(refCurOff>=21)
+		{
+			refCurSeg++;
+			refCurOff-=21;
+		}
+
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[curOff], _msf_samplingLocsOffset[curOff], _msf_samplingLocsLen[curOff], &sampleErrors, errThreshold-err);	// for all segments before offset
+
+		if (err > errThreshold || sampleErrors==0)
+			return -1;
+	}
+
+	if (!finalSegment)
+	{
+		offset++;
+		refCurSeg = refSeg+_msf_samplingLocsSeg[offset];
+		refCurOff = refOff+_msf_samplingLocsOffset[offset];
+		if(refCurOff>=21)
+		{
+			refCurSeg++;
+			refCurOff-=21;
+		}
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors, errThreshold-err);	// this offset to the end
 	}
 
 	if (err > errThreshold)
@@ -972,7 +1034,11 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
 			char d = (x/_msf_samplingLocsSize)?1:0;
-
+			
+			if (_msf_bestMapping[r].secondBestHits > 0 && o > _msf_bestMapping[r].secondBestErrors)
+				continue;
+			if (_msf_bestMapping[r].secondBestHits > 255 && o >= _msf_bestMapping[r].secondBestErrors)
+				continue;
 			if (_msf_bestMapping[r].hits > 1 && _msf_bestMapping[r].err == 0)
 				continue;
 
@@ -1003,7 +1069,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySeq(genLoc, _tmpCmpSeq, o);
+					err = verifySeqBest(genLoc, _tmpCmpSeq, o, (_msf_bestMapping[r].secondBestHits > 0 && o == _msf_bestMapping[r].secondBestErrors));
 				
 				if (err != -1)
 				{
