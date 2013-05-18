@@ -208,11 +208,6 @@ int parseCommandLine (int argc, char *argv[])
 	if (searchingMode)
 		fprintf(stdout, "==> This version is compiled without any SSE4 optimization <==\n");
 #endif
-#ifdef GCC_UPDATE
-	if (searchingMode)
-		fprintf(stdout, "==> Your machine has SSE4 insruction set, to take advantage of it, update your GCC version to >4.4<==\n");
-#endif
-
 	if (bestMappingMode)
 	{
 		nohitDisabled = 1;

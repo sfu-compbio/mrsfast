@@ -11,7 +11,6 @@ build: clean-executable SSE_FLAGS compile mrsfast snp_indexer clean
 LDFLAGS=-static
 LIBS=-lz -lm -pthread -lpthread
 CFLAGS=-DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\"
-#CFLAGS=-DMRSFAST_VERSION=0 -DBUILD_DATE=0
 
 objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o HELP.o 
 

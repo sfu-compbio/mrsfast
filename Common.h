@@ -36,12 +36,8 @@
 #ifndef __COMMON__
 #define __COMMON__
 
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >=4 && SSE4==1 
+#if SSE4==1 
 #define MRSFAST_SSE4
-#endif
-
-#if SSE4==1 && (__GNUC__ < 4 || __GNUC_MINOR < 4)
-#define GCC_UPDATE
 #endif
 
 #include <zlib.h>
