@@ -51,6 +51,7 @@
 #include <nmmintrin.h>
 #endif
 
+#define min(a,b) (a<b)?a:b;
 long long			verificationCnt = 0;
 long long 			mappingCnt = 0;
 long long			mappedSeqCnt = 0;
@@ -121,6 +122,9 @@ unsigned char		*_msf_refCheckSum = NULL;
 char				_msf_hitsTempFileName[100];
 FILE				*_msf_hitsTempFile;
 int					_msf_initialized = 0;
+char				**_msf_buffer;
+int 				*_msf_buffer_size;
+long long			*_msf_verificationCnt;
 
 float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
 void outputPairedEnd();
@@ -154,12 +158,22 @@ void initializeFAST(int seqListSize)
 
 	_msf_initialized = 1;
 	int i;
+
 	_msf_seqListSize = seqListSize;
 	// ----------- GENERAL  ----------- 
 	// initliazing output variables
 	_msf_threads = getMem(sizeof(pthread_t) * THREAD_COUNT);
 	_msf_mappingCnt = getMem(sizeof(int) * THREAD_COUNT);
 	_msf_mappedSeqCnt = getMem(sizeof(int) * THREAD_COUNT);
+	_msf_verificationCnt = getMem(sizeof(long long) * THREAD_COUNT);
+	_msf_buffer = getMem(sizeof(char*) * THREAD_COUNT);
+	_msf_buffer_size = getMem(sizeof(int)*THREAD_COUNT);
+	for (i = 0 ; i< THREAD_COUNT; i++)
+	{
+		_msf_buffer[i] = getMem(5*1024*1024);
+		_msf_buffer_size[i] = 0;
+	}
+
 
 	_msf_output = getMem(THREAD_COUNT * sizeof(SAM));
 	_msf_op = getMem(THREAD_COUNT * sizeof(char *));
@@ -351,10 +365,16 @@ void finalizeFAST()
 	freeMem(_msf_output, THREAD_COUNT * sizeof(SAM));
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
+		outputBuffer(_msf_buffer[i], _msf_buffer_size[i]);
+		freeMem(_msf_buffer[i], 5*1024*1024);
+		
 		freeMem(_msf_op[i], SEQ_LENGTH);
 		freeMem(_msf_optionalFields[i], ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS) );
 		//freeMem(_msf_optionalFields[i], (((pairedEndMode)?4:2) + ((SNPMode) ?1 :0)) * sizeof(OPT_FIELDS) );
 	}
+	freeMem(_msf_verificationCnt, sizeof(long long) * THREAD_COUNT);
+	freeMem(_msf_buffer, THREAD_COUNT * sizeof(char*));
+	freeMem(_msf_buffer_size, THREAD_COUNT * sizeof(int));
 	freeMem(_msf_op, THREAD_COUNT * sizeof(char *));
 	freeMem(_msf_optionalFields, THREAD_COUNT * sizeof(OPT_FIELDS *));
 	freeMem(_msf_refGenName, CONTIG_NAME_SIZE);
@@ -509,7 +529,7 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 	return err;
 }
 /**********************************************/
-inline int verifySeq(int index, CompressedSeq *seq, int offset)
+inline int verifySeq(int index, CompressedSeq *seq, int offset, int id)
 {
 	int segLen, cmpSegLen, curOff, sampleErrors=0, err = 0, refLoc, segLoc;
 	index--;
@@ -529,9 +549,9 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 	err = countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLen[offset], &sampleErrors, errThreshold);	// segment corresponding to this offset
 	if (sampleErrors || err)
 		return -1;
-
-	verificationCnt++;
-	err = 0; 
+	
+//	_msf_verificationCnt[id]++;
+//	err = 0; 
 
 	for (curOff = 0; curOff < offset; curOff++)
 	{
@@ -545,7 +565,7 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 			refCurOff-=21;
 		}
 
-		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[curOff], _msf_samplingLocsOffset[curOff], _msf_samplingLocsLen[curOff], &sampleErrors, errThreshold);	// for all segments before offset
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[curOff], _msf_samplingLocsOffset[curOff], _msf_samplingLocsLen[curOff], &sampleErrors, errThreshold-err);	// for all segments before offset
 		if (err > errThreshold || sampleErrors==0)
 			return -1;
 	}
@@ -560,7 +580,7 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 			refCurSeg++;
 			refCurOff-=21;
 		}
-		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors, errThreshold);	// this offset to the end
+		err += countErrors(refCurSeg, refCurOff, seq+_msf_samplingLocsSeg[offset], _msf_samplingLocsOffset[offset], _msf_samplingLocsLenFull[offset], &sampleErrors, errThreshold-err);	// this offset to the end
 	}
 
 	if (err > errThreshold)
@@ -568,7 +588,7 @@ inline int verifySeq(int index, CompressedSeq *seq, int offset)
 	return err;
 }
 /**********************************************/
-inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSegment)
+inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSegment, int id)
 {
 	int segLen, cmpSegLen, curOff, sampleErrors=0, err = 0, refLoc, segLoc;
 	index--;
@@ -593,8 +613,8 @@ inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSeg
 	if (sampleErrors || err)
 		return -1;
 
-	verificationCnt++;
-	err = 0; 
+	//_msf_verificationCnt[id]++;
+	//err = 0; 
 
 	for (curOff = 0; curOff < offset; curOff++)
 	{
@@ -801,7 +821,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
 				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySeq(genLoc, _tmpCmpSeq, o);
+					err = verifySeq(genLoc, _tmpCmpSeq, o, id);
 
 				if (err != -1)
 				{
@@ -851,7 +871,10 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 			mapSeqListBal(l2, tmp2, l1, tmp1, -dir, id);
 	}
 }
-
+inline int mmin(int a, int b)
+{
+	return (a<b)? a :b;
+}
 /**********************************************/
 void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id)
 {
@@ -859,7 +882,9 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 	{
 		return;
 	}
-	else if (s1 == s2 && s1 <= 200)
+	else
+	if (s1 == s2 && s1 <= 200)
+	//if  (  s1 <= 200 || s2 <= 200  )
 	{
 		int j = 0;
 		int z = 0;
@@ -889,12 +914,13 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 
 		for (j=0; j<s2; j++)
 		{
-			int re = _msf_samplingLocsSize * 2;
+			int re = _msf_samplingLocsSize << 1;
 			int r = seqInfo[j].info/re;
 			int x = seqInfo[j].info % re;
 			int o = x % _msf_samplingLocsSize;
-			char d = (x/_msf_samplingLocsSize)?1:0;
+			char d = (x/_msf_samplingLocsSize);//?1:0;
 
+			read = _msf_seqList[r];
 			if (d)
 			{
 				reverse(_msf_seqList[r].qual, rqual, QUAL_LENGTH);
@@ -915,7 +941,6 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				alph = _msf_seqList[r].alphCnt;
 			}
 
-
 			for (z=0; z<s1; z++)
 			{
 				
@@ -927,50 +952,64 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				int err = -1;
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 
-				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySeq(genLoc, _tmpCmpSeq, o);
+				if ( SNPMode || mmin(gl[0],alph[0]) + mmin(gl[1],alph[1]) + mmin(gl[2],alph[2]) + mmin(gl[3],alph[3]) >= SEQ_LENGTH - errThreshold)
+				//if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
+					err = verifySeq(genLoc, _tmpCmpSeq, o, id);
 
 				if (err != -1)
 				{
+
 					mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
-				
+
 					_msf_mappingCnt[id]++;
 					_msf_seqList[r].hits[0]++;
 
-					_msf_output[id].QNAME		= _msf_seqList[r].name;
-					_msf_output[id].FLAG		= 16 * d;
-					_msf_output[id].RNAME		= _msf_refGenName;
-					_msf_output[id].POS			= genLoc + _msf_refGenOffset;
-					_msf_output[id].MAPQ		= 255;
-					_msf_output[id].CIGAR		= _msf_cigar;
-					_msf_output[id].MRNAME		= "*";
-					_msf_output[id].MPOS		= 0;
-					_msf_output[id].ISIZE		= 0;
-					_msf_output[id].SEQ			= _tmpSeq;
-					_msf_output[id].QUAL		= _tmpQual;
-
-					_msf_output[id].optSize		= (SNPMode) ?3 :2;
-					_msf_output[id].optFields	= _msf_optionalFields[id];
-
-					_msf_optionalFields[id][0].tag = "NM";
-					_msf_optionalFields[id][0].type = 'i';
-					_msf_optionalFields[id][0].iVal = mderr;
-
-					_msf_optionalFields[id][1].tag = "MD";
-					_msf_optionalFields[id][1].type = 'Z';
-					_msf_optionalFields[id][1].sVal = _msf_op[id];
-
-					if (SNPMode)
+					if (_msf_buffer_size[id] >= 4999000-id*1000)
 					{
-						_msf_optionalFields[id][2].tag = "XS";
-						_msf_optionalFields[id][2].type = 'i';
-						_msf_optionalFields[id][2].iVal = mderr - err;
+						pthread_mutex_lock(&_msf_writeLock);
+						outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+						pthread_mutex_unlock(&_msf_writeLock);
+						_msf_buffer_size[id] = 0;
 					}
 
-					pthread_mutex_lock(&_msf_writeLock);
-					output(_msf_output[id]);
-					pthread_mutex_unlock(&_msf_writeLock);
+					
+					if(SNPMode)
+					{
+						_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[r].name, 
+						16*d,
+						_msf_refGenName, 
+						genLoc + _msf_refGenOffset,
+						255,
+						_msf_cigar,
+						"*",
+						0,
+						0,
+						_tmpSeq,
+						_tmpQual, 
+						mderr,
+						_msf_op[id],
+						mderr - err);
 
+					}
+					else
+					{
+						_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[r].name, 
+						16*d,
+						_msf_refGenName, 
+						genLoc + _msf_refGenOffset,
+						255,
+						_msf_cigar,
+						"*",
+						0,
+						0,
+						_tmpSeq,
+						_tmpQual, 
+						mderr,
+						_msf_op[id]);
+					}
+				
 					if (_msf_seqList[r].hits[0] == 1)
 					{
 						_msf_mappedSeqCnt[id]++;
@@ -988,12 +1027,13 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 	else
 	{
 		int tmp1=s1/2, tmp2= s2/2;
-		if (tmp1 != 0)
+		if (tmp1 != 0 && (s2-tmp2) != 0)
 			mapSeqListBal(l1, tmp1, l2+tmp2, s2-tmp2, dir, id);
-		mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir, id);
-		if (tmp2 !=0)
+		if ( (s2-tmp2) != 0 && (s1-tmp1) != 0)
+			mapSeqListBal(l2+tmp2, s2-tmp2, l1+tmp1, s1-tmp1, -dir, id);
+		if ((s1-tmp1)!=0 && tmp2 !=0)
 			mapSeqListBal(l1+tmp1, s1-tmp1, l2, tmp2, dir, id);
-		if (tmp1 + tmp2 != 0)
+		if (tmp1 != 0 && tmp2!= 0)
 			mapSeqListBal(l2, tmp2, l1, tmp1, -dir, id);
 	}
 }
@@ -1069,7 +1109,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySeqBest(genLoc, _tmpCmpSeq, o, (_msf_bestMapping[r].secondBestHits > 0 && o == _msf_bestMapping[r].secondBestErrors));
+					err = verifySeqBest(genLoc, _tmpCmpSeq, o, (_msf_bestMapping[r].secondBestHits > 0 && o == _msf_bestMapping[r].secondBestErrors), id);
 				
 				if (err != -1)
 				{
@@ -1210,7 +1250,7 @@ int mapSeq(unsigned char cf)
 	contigFlag = cf;
 
 	for (i = 0; i < THREAD_COUNT; i++)
-		_msf_mappingCnt[i] = _msf_mappedSeqCnt[i] = 0;
+		_msf_verificationCnt[i]=_msf_mappingCnt[i] = _msf_mappedSeqCnt[i] = 0;
 
 	for (i = 0; i < THREAD_COUNT; i++)
 		pthread_create(_msf_threads + i, NULL, (void*)mapSeqMT, THREAD_ID + i);
@@ -1222,6 +1262,7 @@ int mapSeq(unsigned char cf)
 	{
 		mappingCnt += _msf_mappingCnt[i];
 		mappedSeqCnt += _msf_mappedSeqCnt[i];
+		verificationCnt += _msf_verificationCnt[i];
 	}
 
 	if (!pairedEndMode)	// single end
@@ -1702,7 +1743,7 @@ void mapPairedEndSeqListBal(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, 
 
 				gl = _msf_alphCnt + ((genLoc-1)<<2);
 				if ( SNPMode || abs(gl[0]-alph[0]) + abs(gl[1]-alph[1]) + abs(gl[2]-alph[2]) + abs(gl[3]-alph[3]) <= _msf_maxDistance )
-					err = verifySeq(genLoc, _tmpCmpSeq, o);
+					err = verifySeq(genLoc, _tmpCmpSeq, o, id);
 
 				if (err != -1)
 				{

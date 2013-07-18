@@ -71,6 +71,7 @@ int initOutput(char *fileName, int compressed);
 void (*finalizeOutput)();
 void (*output)(SAM map);
 void (*outputMeta)(char*);
+void (*outputBuffer)(char *, int);
 
 
 #endif

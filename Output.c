@@ -136,6 +136,16 @@ void outputQ(SAM map)
 	fprintf(_out_fp, "\n");
 }
 
+void outputBufferTxT(char *str, int size)
+{
+	fwrite(str, 1, size, _out_fp);
+}
+
+void outputBufferGZ(char *str, int size)
+{
+	gzwrite(_out_gzfp, str, size);
+}
+
 void outputMetaQ(char* str)
 {
 	fprintf(_out_fp, "%s\n", str);
@@ -153,7 +163,7 @@ int initOutput ( char *fileName, int compressed)
 	if (compressed)
 	{
 		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+4];
-		sprintf(newFileName, "%s%s.gz", mappingOutputPath, fileName);
+		sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
 		_out_gzfp = fileOpenGZ(newFileName, "w1f");
 		if (_out_gzfp == Z_NULL)
 		{
@@ -164,6 +174,7 @@ int initOutput ( char *fileName, int compressed)
 
 		output = &gzOutputQ;
 		outputMeta =&gzOutputMetaQ;
+		outputBuffer = &outputBufferGZ;
 	}
 	else
 	{
@@ -180,6 +191,7 @@ int initOutput ( char *fileName, int compressed)
 		finalizeOutput = &finalizeTXOutput;
 		output = &outputQ;
 		outputMeta = &outputMetaQ;
+		outputBuffer = &outputBufferTxT;
 	}
 	
 	if (noSamHeader)
