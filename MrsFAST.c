@@ -899,6 +899,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 		rseq[SEQ_LENGTH]='\0';
 		unsigned char tmp[4];
 		unsigned char *alph, *gl;
+		Read read;
 		
 		if (dir > 0)
 		{
