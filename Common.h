@@ -114,6 +114,7 @@ FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
 double	getTime(void);
 inline void	reverseComplete (char *seq, char *rcSeq , int length);
+inline char reverseCompleteChar(char);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
@@ -123,4 +124,5 @@ void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
 inline int 	calculateCompressedLen(int normalLen);
 int	hashVal(char *seq);
 int	checkSumVal(char *seq);
+void initCommon();
 #endif

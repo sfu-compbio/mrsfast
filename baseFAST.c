@@ -81,7 +81,6 @@ int main(int argc, char *argv[])
 
 		// Loading Sequences & Sampling Locations
 		startTime = getTime();
-
 		if (!checkHashTable(fileName[1]))
 			return 1;
 
@@ -172,8 +171,9 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
 		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
-		fprintf(stdout, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
-		fprintf(stdout, "\n%lld\n", memUsage);
+		//fprintf(stdout, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
+		if (memUsage > 0)
+		fprintf(stdout, "Memory Leak: %lld Bytes\n", memUsage);
 	}
 
 	return 0;

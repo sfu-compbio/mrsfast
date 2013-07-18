@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
@@ -47,6 +47,11 @@ unsigned short 			QUAL_LENGTH = 0;
 unsigned short			CMP_SEQ_LENGTH = 0;
 long long				memUsage = 0;
 char					*alphabet = "ACGTN";
+char 					nVal[128];
+char 					nRev[128];
+char 					nHVal[128];
+pthread_mutex_t 		_common_lock;
+
 
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
@@ -85,46 +90,18 @@ double getTime(void)
 /**********************************************/
 inline char reverseCompleteChar(char c)
 {
-	char ret;
-	switch (c)
-	{
-		case 'A': 
-					ret = 'T';
-					break;
-		case 'T':
-					ret = 'A';
-					break;
-		case 'C':	
-					ret = 'G';
-					break;
-		case 'G':
-					ret = 'C';
-					break;
-		default:
-					ret = 'N';
-					break;
-	}
-	return ret;
+	return nRev[c];
 }
 /**********************************************/
 inline void reverseComplete (char *seq, char *rcSeq , int length)		// TODO: efficiency check
 {
-	char rc[100];
-	memset(rc, 'N', 100);
-	rc['A']='T';
-	rc['T']='A';
-	rc['C']='G';
-	rc['G']='C';
-	rc['N']='N';
 	int i;
 	seq+=length-1;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=rc[*(seq--)];
-		//rcSeq[i]=reverseCompleteChar (seq[length-1-i]) ;
+		rcSeq[i]=nRev[*(seq--)];
 	}
 }
-pthread_mutex_t _common_lock;
 /**********************************************/
 void * getMem(size_t size)			// TODO: if malloc is unsuccessfull, return an error message
 {
@@ -154,8 +131,7 @@ inline void reverse (char *seq, char *rcSeq , int length)
 	seq += length-1;
 	for (i=0; i<length; i++)
 	{
-		//rcSeq[i]=seq[length-1-i];
-		rcSeq[i]=*(seq--);
+		(*rcSeq++)=*(seq--);
 	}
 }
 /**********************************************/
@@ -200,27 +176,7 @@ void compressSequence(char *seq, int seqLen, CompressedSeq *cseq)
 	*cseq = 0;
 	while (pos < seqLen)
 	{
-		*cseq <<= 3;
-		switch (seq[pos++])
-		{
-			case 'A':
-				break;
-			case 'C':
-				*cseq |= 1;				
-				break;
-			case 'G':
-				*cseq |= 2;
-				break;
-			case 'T':
-				*cseq |= 3;
-				break;
-			case 'N':
-				*cseq |= 4;
-				break;
-			default:
-				*cseq |= 4;
-				break;
-		}
+		*cseq = ((*cseq) << 3) | nVal[seq[pos++]];
 
 		if (++i == 21)
 		{
@@ -244,22 +200,9 @@ int hashVal(char *seq)
 
 	while(i<WINDOW_SIZE)
 	{
-		switch (seq[i])
-		{
-			case 'A':
-				numericVal = 0; break;
-			case 'C':
-				numericVal = 1; break;
-			case 'G' :
-				numericVal = 2; break;
-			case 'T':
-				numericVal = 3; break;
-			default:
-				return -1;
-				break;
-		}
-		val = (val << 2)|numericVal;
-		i++;
+		if (nHVal[seq[i]] == -1)
+			return -1; 
+		val = (val << 2) | nHVal[seq[i++]]; 
 	}
 	return val;
 }
@@ -271,22 +214,30 @@ int checkSumVal(char *seq)
 
 	while(i<checkSumLength)
 	{
-		switch (seq[i])
-		{
-			case 'A':
-				numericVal = 0; break;
-			case 'C':
-				numericVal = 1; break;
-			case 'G' :
-				numericVal = 2; break;
-			case 'T':
-				numericVal = 3; break;
-			default:
-				return -1;
-				break;
-		}
-		val = (val << 2)|numericVal;
-		i++;
+		if (nHVal[seq[i]] == -1)
+			return -1; 
+		val = (val << 2) | nHVal[seq[i++]]; 
 	}
 	return val;
+}
+/**********************************************/
+void initCommon()
+{
+	memset(nVal, 4, 128);
+	nVal['A']=0;
+	nVal['C']=1;
+	nVal['G']=2;
+	nVal['T']=3;
+
+	memset(nRev, 'N', 128);
+	nRev['A']='T';
+	nRev['C']='G';
+	nRev['T']='A';
+	nRev['G']='C';
+
+	memset(nHVal, -1, 128);
+	nHVal['A']=0;
+	nHVal['C']=1;
+	nHVal['G']=2;
+	nHVal['T']=3;
 }

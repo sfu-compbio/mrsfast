@@ -5,7 +5,7 @@ BUILD_DATE := "$(shell date)"
 
 all: OPTIMIZE_FLAGS build
 debug: DEBUG_FLAGS build
-profile: SSE_FLAGS build
+profile: PROFILE_FLAGS build
 build: clean-executable SSE_FLAGS compile mrsfast snp_indexer clean
 
 LDFLAGS=-static
@@ -41,7 +41,7 @@ OPTIMIZE_FLAGS:
 
 PROFILE_FLAGS:
 	$(eval CFLAGS = $(CFLAGS) -pg -g)
-	$(eval LIBGS = $(LIBS) -pg -g)
+	$(eval LIBS = $(LIBS) -pg -g)
 
 SSE_FLAGS:
 	$(eval CFLAGS = $(CFLAGS) \

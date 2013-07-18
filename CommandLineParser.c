@@ -338,7 +338,7 @@ int parseCommandLine (int argc, char *argv[])
 		unlink(fname4);
 		unlink(fname5);
 	}
-
+	initCommon();
 	return 1;
 }
 /**********************************************/
