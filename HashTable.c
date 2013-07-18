@@ -64,6 +64,10 @@ unsigned char	*_ih_alphCnt			= NULL;
 long int		_ih_contigStartPos		= 0;
 int				_ih_chrCnt				= 0;
 char			**_ih_chrNames			= 0;
+pthread_t		*_ih_threads = NULL;
+pthread_mutex_t	_ih_writeLock;
+
+
 
 /**********************************************/
 inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
@@ -348,6 +352,8 @@ int initLoadingHashTable(char *fileName)
 	unsigned char magicNumber;
 	int tmp;
 
+	_ih_threads = getMem(sizeof(pthread_t) * THREAD_COUNT);
+
 	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
 	tmp = fread(&WINDOW_SIZE, sizeof(WINDOW_SIZE), 1, _ih_fp);
 	tmp = fread(&_ih_hashTableMemSize, sizeof(_ih_hashTableMemSize), 1, _ih_fp);
@@ -409,6 +415,8 @@ int initLoadingHashTable(char *fileName)
 void finalizeLoadingHashTable()
 {
 	int i;
+	freeMem(_ih_threads, sizeof(pthread_t) * THREAD_COUNT);
+
 	freeMem(_ih_hashTableMem, _ih_hashTableMemSize * sizeof(GeneralIndex));
 	freeMem(_ih_IOBuffer, _ih_IOBufferSize);
 	if (pairedEndMode)
@@ -423,6 +431,157 @@ void finalizeLoadingHashTable()
 		freeMem(_ih_chrNames[i], CONTIG_NAME_SIZE);
 	freeMem(_ih_chrNames, _ih_chrCnt * sizeof(char *));
 	fclose(_ih_fp);
+}
+/**********************************************/
+void *calculateHashTableOnFly(int *idp)
+{
+	int id = *idp;
+
+	int windowMaskSize = WINDOW_SIZE + checkSumLength;
+	unsigned long long windowMask =   0xffffffffffffffff >> (sizeof(unsigned long long)*8 - windowMaskSize*2);
+	unsigned long long checkSumMask = 0xffffffffffffffff >> (sizeof(unsigned long long)*8 - (checkSumLength)*2);
+	if (checkSumLength == 0)
+		checkSumMask = 0;
+
+	CompressedSeq *cnext = (_ih_crefGen);
+	CompressedSeq cdata = *(cnext++);
+
+	int i = 0;
+	unsigned long long hv = 0;
+	unsigned long long hvtemp;
+	int pos, val, t = 0, stack = 1;
+	int loc = -WINDOW_SIZE - checkSumLength + 1 ;
+	int x;
+	// calculate refGen hashValues
+	while (i++ < _ih_refGenLen ) // BORDER LINE CHECK
+	{
+		loc++;
+		val = (cdata >> 60) & 7;
+		if (++t == 21)
+		{
+			t = 0;
+			cdata = *(cnext++);
+		}
+		else
+		{
+			cdata <<= 3;
+		}
+
+		if (val != 4 && stack == windowMaskSize)
+		{
+			hv = ((hv << 2)|val)&windowMask;
+			hvtemp = hv >> (checkSumLength<<1);
+
+			if (hvtemp % THREAD_COUNT == id)
+			{
+				++_ih_hashTable[hvtemp].list;
+				_ih_hashTable[hvtemp].list->info= loc;
+				_ih_hashTable[hvtemp].list->checksum= hv & checkSumMask;
+			}
+		}
+		else
+		{
+			if (val == 4)		// N
+			{
+				stack = 1;
+				hv = 0;
+			}
+			else
+			{
+				stack ++;
+				hv = (hv <<2)|val;
+			}
+
+		}
+	}
+}
+/**********************************************/
+void *sortHashTable(int *id)
+{
+	int cnt;
+	int i;
+	for (i=*id; i<_ih_maxHashTableSize;i+=THREAD_COUNT)
+	{
+		if (_ih_hashTable[i].list == NULL) continue;
+		cnt = 0;
+		while (_ih_hashTable[i].list->info != _ih_refGenLen+1)
+		{
+			_ih_hashTable[i].list--;
+			cnt++;
+		}
+		_ih_hashTable[i].list[0].info=cnt;
+		if (cnt)
+			introSortGI(_ih_hashTable[i].list, 1 , _ih_hashTable[i].list[0].info);
+	}	
+}
+/**********************************************/
+void *countQGrams(int *idp)
+{
+	int id = *idp;
+
+	CompressedSeq *cnext, cdata;
+	int i, t, val;
+
+	int rgBlockSize = _ih_crefGenLen / THREAD_COUNT;
+	int rgBlockStart = rgBlockSize * id * 21;
+	int rgBlockLen = rgBlockSize * 21;
+	int rgBlockIt = rgBlockLen + SEQ_LENGTH - 1;
+	if (id == THREAD_COUNT - 1)
+	{
+		rgBlockLen = _ih_refGenLen - id*rgBlockSize*21;
+		rgBlockIt = rgBlockLen;
+	}
+
+	cnext = _ih_crefGen+(id*rgBlockSize);
+	cdata = *(cnext++);
+	t = 0;
+	char outgoingChar[SEQ_LENGTH];
+	unsigned int *copy = (unsigned int *)(_ih_alphCnt+4*rgBlockStart);
+	unsigned char *cur = (char *)copy;		// current loc
+	*copy = 0;
+
+	for (i = 0; i < SEQ_LENGTH; i++)
+	{
+		val = (cdata >> 60) & 7;
+		outgoingChar[i] = val;
+
+		if (++t == 21)
+		{
+			t = 0;
+			cdata = *(cnext++);
+		}
+		else
+		{
+			cdata <<= 3;
+		}
+		if (val != 4)
+			(*(cur+val)) ++;
+	}
+
+	int o = 0;
+
+	while (++i < rgBlockIt) // BORDER LINE CHECK
+	{
+		cur = (char *)++copy;
+		val = (cdata >> 60) & 7;
+		if (++t == 21)
+		{
+			t = 0;
+			cdata = *(cnext++);
+		}
+		else
+		{
+			cdata <<= 3;
+		}
+
+		*copy = *(copy-1);	// copies all 4 bytes at once
+		if (val != 4)
+			(*(cur + val)) ++;
+		if (outgoingChar[o]!= 4)
+			(*(cur + outgoingChar[o])) --;
+		outgoingChar[o] = val;
+		o = (++o == SEQ_LENGTH) ?0 :o;
+	}
 }
 /**********************************************/
 int  loadHashTable(double *loadTime)
@@ -494,129 +653,25 @@ int  loadHashTable(double *loadTime)
 		}
 	}
 
-	// creating hash table
-	int windowMaskSize = WINDOW_SIZE + checkSumLength;
-	unsigned long long windowMask =   0xffffffffffffffff >> (sizeof(unsigned long long)*8 - windowMaskSize*2);
-	unsigned long long checkSumMask = 0xffffffffffffffff >> (sizeof(unsigned long long)*8 - (checkSumLength)*2);
-	if (checkSumLength == 0)
-		checkSumMask = 0;
-	CompressedSeq *cnext = _ih_crefGen;
-	CompressedSeq cdata = *(cnext++);
-	i = 0;
-	hv = 0;
-	unsigned int hvtemp;
-	int pos, val, t = 0, stack = 1;
-	int loc = -WINDOW_SIZE - checkSumLength + 1;
-	int x;
-	// calculate refGen hashValues
-	while (i++ < _ih_refGenLen) // BORDER LINE CHECK
-	{
-		loc++;
-		val = (cdata >> 60) & 7;
-		if (++t == 21)
-		{
-			t = 0;
-			cdata = *(cnext++);
-		}
-		else
-		{
-			cdata <<= 3;
-		}
+	// // creating hash table
+	for (i = 0; i < THREAD_COUNT; i++)
+		pthread_create(_ih_threads + i, NULL, (void*)calculateHashTableOnFly, THREAD_ID + i);
+	for (i = 0; i < THREAD_COUNT; i++)
+		pthread_join(_ih_threads[i], NULL);
 
-		if (val != 4 && stack == windowMaskSize)
-		{
-			hv = ((hv << 2)|val)&windowMask;
-			hvtemp = hv >> (checkSumLength<<1);
-
-			++_ih_hashTable[hvtemp].list;
-			_ih_hashTable[hvtemp].list->info= loc;
-			_ih_hashTable[hvtemp].list->checksum= hv & checkSumMask;
-		}
-		else
-		{
-			if (val == 4)		// N
-			{
-				stack = 1;
-				hv = 0;
-			}
-			else
-			{
-				stack ++;
-				hv = (hv <<2)|val;
-			}
-
-		}
-	}
-
-	//fprintf(stdout,"%0.2f\n", (getTime()-startTime));
-	int cnt;
-	for (i=0; i<_ih_maxHashTableSize;i++)
-	{
-		if (_ih_hashTable[i].list == NULL) continue;
-		cnt = 0;
-		while (_ih_hashTable[i].list->info != _ih_refGenLen+1)
-		{
-			_ih_hashTable[i].list--;
-			cnt++;
-		}
-		_ih_hashTable[i].list[0].info=cnt;
-		if (cnt)
-//			qsort(_ih_hashTable[i].list + 1, _ih_hashTable[i].list[0].info, sizeof(GeneralIndex), compareCheckSumHT);
-			introSortGI(_ih_hashTable[i].list, 1 , _ih_hashTable[i].list[0].info);
-	}
+	// sorting based on checksum
+	for (i = 0; i < THREAD_COUNT; i++)
+		pthread_create(_ih_threads + i, NULL, (void*)sortHashTable, THREAD_ID + i);
+	for (i = 0; i < THREAD_COUNT; i++)
+		pthread_join(_ih_threads[i], NULL);
 
 	// calculate alphabet count for each location in genome
 	if (!SNPMode)
 	{
-		cnext = _ih_crefGen;
-		cdata = *(cnext++);
-		t = 0;
-		char outgoingChar[SEQ_LENGTH];
-		unsigned int *copy = (unsigned int *)_ih_alphCnt;
-		*copy = 0;
-
-		for (i = 0; i < SEQ_LENGTH; i++)
-		{
-			val = (cdata >> 60) & 7;
-			outgoingChar[i] = val;
-
-			if (++t == 21)
-			{
-				t = 0;
-				cdata = *(cnext++);
-			}
-			else
-			{
-				cdata <<= 3;
-			}
-
-			_ih_alphCnt[val] ++;
-		}
-
-		int o = 0, endIndex = _ih_refGenLen - SEQ_LENGTH + 1;
-		unsigned char *cur;		// current loc
-		i = 0;
-
-		while (++i < endIndex) // BORDER LINE CHECK
-		{
-			cur = (char *)++copy;
-			val = (cdata >> 60) & 7;
-			if (++t == 21)
-			{
-				t = 0;
-				cdata = *(cnext++);
-			}
-			else
-			{
-				cdata <<= 3;
-			}
-
-			*copy = *(copy-1);	// copies all 4 bytes at once
-			(*(cur + val)) ++;
-			(*(cur + outgoingChar[o])) --;
-			outgoingChar[o] = val;
-			o = (++o == SEQ_LENGTH) ?0 :o;
-		}
+		for (i = 0; i < THREAD_COUNT; i++)
+			pthread_create(_ih_threads + i, NULL, (void*)countQGrams, THREAD_ID + i);
+		for (i = 0; i < THREAD_COUNT; i++)
+			pthread_join(_ih_threads[i], NULL);
 	}
 
 	*loadTime = getTime()-startTime;
