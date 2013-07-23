@@ -1,3 +1,6 @@
+2013-07-23	Faraz Hach	<fhach@cs.sfu.ca>
+	* Patch sent by J.K Teer is applied on Reads.c for gzip PE input.
+
 2012-11-14	Faraz Hach	<fhach@cs.sfu.ca>
 	* Bug fix with respect to quality end null characters.
 
