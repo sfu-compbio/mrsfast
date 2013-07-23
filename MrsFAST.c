@@ -177,12 +177,11 @@ void initializeFAST(int seqListSize)
 
 	_msf_output = getMem(THREAD_COUNT * sizeof(SAM));
 	_msf_op = getMem(THREAD_COUNT * sizeof(char *));
-	_msf_optionalFields = getMem(THREAD_COUNT * sizeof(OPT_FIELDS *));
+	//_msf_optionalFields = getMem(THREAD_COUNT * sizeof(OPT_FIELDS *));
 	for (i = 0; i < THREAD_COUNT; i++)
 	{
 		_msf_op[i] = getMem(SEQ_LENGTH);  // THREADING
-		_msf_optionalFields[i] = getMem( ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS)); // THREADING
-		//_msf_optionalFields[i] = getMem( (((pairedEndMode)?4:2) + ((SNPMode) ?1 :0)) * sizeof(OPT_FIELDS)); // THREADING
+		//_msf_optionalFields[i] = getMem( ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS)); // THREADING
 	}
 	_msf_maxDistance = errThreshold << 1;
 
@@ -369,14 +368,13 @@ void finalizeFAST()
 		freeMem(_msf_buffer[i], 5*1024*1024);
 		
 		freeMem(_msf_op[i], SEQ_LENGTH);
-		freeMem(_msf_optionalFields[i], ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS) );
-		//freeMem(_msf_optionalFields[i], (((pairedEndMode)?4:2) + ((SNPMode) ?1 :0)) * sizeof(OPT_FIELDS) );
+//		freeMem(_msf_optionalFields[i], ((SNPMode) ?3 :2) * sizeof(OPT_FIELDS) );
 	}
 	freeMem(_msf_verificationCnt, sizeof(long long) * THREAD_COUNT);
 	freeMem(_msf_buffer, THREAD_COUNT * sizeof(char*));
 	freeMem(_msf_buffer_size, THREAD_COUNT * sizeof(int));
 	freeMem(_msf_op, THREAD_COUNT * sizeof(char *));
-	freeMem(_msf_optionalFields, THREAD_COUNT * sizeof(OPT_FIELDS *));
+	//freeMem(_msf_optionalFields, THREAD_COUNT * sizeof(OPT_FIELDS *));
 	freeMem(_msf_refGenName, CONTIG_NAME_SIZE);
 
 	if (pairedEndMode)
@@ -871,6 +869,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 			mapSeqListBal(l2, tmp2, l1, tmp1, -dir, id);
 	}
 }
+
 inline int mmin(int a, int b)
 {
 	return (a<b)? a :b;
@@ -965,6 +964,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 					_msf_mappingCnt[id]++;
 					_msf_seqList[r].hits[0]++;
 
+					// OUTPUT
 					if (_msf_buffer_size[id] >= 4999000-id*1000)
 					{
 						pthread_mutex_lock(&_msf_writeLock);
@@ -973,42 +973,41 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 						_msf_buffer_size[id] = 0;
 					}
 
-					
 					if(SNPMode)
 					{
 						_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
-						_msf_seqList[r].name, 
-						16*d,
-						_msf_refGenName, 
-						genLoc + _msf_refGenOffset,
-						255,
-						_msf_cigar,
-						"*",
-						0,
-						0,
-						_tmpSeq,
-						_tmpQual, 
-						mderr,
-						_msf_op[id],
-						mderr - err);
+						_msf_seqList[r].name, 		// READ NAME
+						16*d,						// FLAG
+						_msf_refGenName, 			// CHR NAME
+						genLoc + _msf_refGenOffset,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						_tmpSeq,					// SEQ
+						_tmpQual, 					// QUAL
+						mderr,						// ERR
+						_msf_op[id],				// MD
+						mderr - err);				// SNP
 
 					}
 					else
 					{
 						_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
-						_msf_seqList[r].name, 
-						16*d,
-						_msf_refGenName, 
-						genLoc + _msf_refGenOffset,
-						255,
-						_msf_cigar,
-						"*",
-						0,
-						0,
-						_tmpSeq,
-						_tmpQual, 
-						mderr,
-						_msf_op[id]);
+						_msf_seqList[r].name,		// READ NAME
+						16*d,						// FLAG
+						_msf_refGenName, 			// CHR NAME
+						genLoc + _msf_refGenOffset,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						_tmpSeq,					// SEQ
+						_tmpQual, 					// QUAL
+						mderr,						// ERR
+						_msf_op[id]);				// MD
 					}
 				
 					if (_msf_seqList[r].hits[0] == 1)
@@ -1325,6 +1324,7 @@ int getBestMappingQuality(FullMappingInfo *map)
 /**********************************************/
 void outputMaxHitsPairedEnd()
 {
+	int id = 0;
 	int tmpOut, r, f1, f2, loc1, loc2;
 	unsigned char mderr1, mderr2, err1, err2, d1, d2, mdlen;
 	char md1[SEQ_LENGTH], md2[SEQ_LENGTH];
@@ -1420,7 +1420,53 @@ void outputMaxHitsPairedEnd()
 				qual = qual1;
 			}
 
-			_msf_output[0].POS			= loc1;
+			// OUTPUT
+			if (_msf_buffer_size[id] >= 4999000-id*1000)
+			{
+				pthread_mutex_lock(&_msf_writeLock);
+				outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+				pthread_mutex_unlock(&_msf_writeLock);
+				_msf_buffer_size[id] = 0;
+			}
+
+			if(SNPMode)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[r].name, 		// NAME
+						f1,							// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc1,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"=",						// MRNAME
+						loc2,						// MPOS
+						isize,						// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						mderr1,						// ERR
+						md1,						// MD
+						mderr1 - err1);				// SNP
+
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[r].name, 		// NAME
+						f1,							// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc1,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"=",						// MRNAME
+						loc2,						// MPOS
+						isize,						// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						mderr1,						// ERR
+						md1);						// MD
+			}
+
+/*			_msf_output[0].POS			= loc1;
 			_msf_output[0].MPOS			= loc2;
 			_msf_output[0].FLAG			= f1;
 			_msf_output[0].ISIZE		= isize;
@@ -1450,7 +1496,7 @@ void outputMaxHitsPairedEnd()
 				_msf_optionalFields[0][2].iVal = mderr1 - err1;
 			}
 
-			output(_msf_output[0]);
+			output(_msf_output[0]);		*/
 
 			if ( d2 )
 			{
@@ -1463,7 +1509,44 @@ void outputMaxHitsPairedEnd()
 				qual = qual2;
 			}
 
-			_msf_output[0].POS			= loc2;
+			if(SNPMode)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[r].name, 		// NAME
+						f2,							// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc2,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"=",						// MRNAME
+						loc2,						// MPOS
+						-isize,						// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						mderr2,						// ERR
+						md2,						// MD
+						mderr2 - err2);				// SNP
+
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[r].name, 		// NAME
+						f2,							// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc2,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"=",						// MRNAME
+						loc2,						// MPOS
+						-isize,						// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						mderr2,						// ERR
+						md2);						// MD
+			}
+					
+/*			_msf_output[0].POS			= loc2;
 			_msf_output[0].MPOS			= loc1;
 			_msf_output[0].FLAG			= f2;
 			_msf_output[0].ISIZE		= -isize;
@@ -1493,7 +1576,7 @@ void outputMaxHitsPairedEnd()
 				_msf_optionalFields[0][2].iVal = mderr2 - err2;
 			}
 
-			output(_msf_output[0]);
+			output(_msf_output[0]);		*/
 
 		}
 	}
@@ -1504,6 +1587,7 @@ void outputMaxHitsPairedEnd()
 /**********************************************/
 void outputMaxHitsSingleMapping()
 {
+	int id = 0;
 	int tmpOut, r, flag, loc;
 	unsigned char mderr, err, mdlen;
 	char md[SEQ_LENGTH];
@@ -1554,7 +1638,53 @@ void outputMaxHitsSingleMapping()
 				_tmpSeq = _msf_seqList[r].seq;
 			}
 
-			_msf_output[0].QNAME		= _msf_seqList[r].name;
+
+			// OUTPUT
+			if (_msf_buffer_size[id] >= 4999000-id*1000)
+			{
+				pthread_mutex_lock(&_msf_writeLock);
+				outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+				pthread_mutex_unlock(&_msf_writeLock);
+				_msf_buffer_size[id] = 0;
+			}
+
+			if(SNPMode)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[r].name, 		// READ NAME
+						flag,						// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						_tmpSeq,					// SEQ
+						_tmpQual, 					// QUAL
+						mderr,						// ERR
+						md,							// MD
+						mderr - err);				// SNP
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[r].name, 		// READ NAME
+						flag,						// FLAG
+						_msf_refGenName, 			// CHR NAME
+						loc,						// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						_tmpSeq,					// SEQ
+						_tmpQual, 					// QUAL
+						mderr,						// ERR
+						md);						// MD
+			}
+
+	/*		_msf_output[0].QNAME		= _msf_seqList[r].name;
 			_msf_output[0].FLAG			= flag;
 			_msf_output[0].RNAME		= _msf_refGenName;
 			_msf_output[0].POS			= loc;
@@ -1584,7 +1714,7 @@ void outputMaxHitsSingleMapping()
 				_msf_optionalFields[0][2].iVal = mderr - err;
 			}
 
-			output(_msf_output[0]);
+			output(_msf_output[0]);		*/
 		}
 	}
 
@@ -1594,13 +1724,73 @@ void outputMaxHitsSingleMapping()
 /**********************************************/
 void outputBestSingleMapping()
 {
+	int id = 0;
 	int r;
 	char *revQual = getMem(QUAL_LENGTH + 1);
+	char *seq, *qual;
+
 	for (r = 0; r < _msf_seqListSize; r++)
 	{
 		if (_msf_bestMapping[r].err <= errThreshold)
 		{
-			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			if (_msf_bestMapping[r].dir)
+			{
+				seq = _msf_seqList[r].rseq;
+				reverse(_msf_seqList[r].qual, revQual, QUAL_LENGTH);
+				qual = revQual;
+			}
+			else
+			{
+				seq = _msf_seqList[r].seq;
+				qual = _msf_seqList[r].qual;
+			}
+
+			// OUTPUT
+			if (_msf_buffer_size[id] >= 4999000-id*1000)
+			{
+				pthread_mutex_lock(&_msf_writeLock);
+				outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+				pthread_mutex_unlock(&_msf_writeLock);
+				_msf_buffer_size[id] = 0;
+			}
+
+			if(SNPMode)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[r].name, 		// READ NAME
+						16*_msf_bestMapping[r].dir,	// FLAG
+						_msf_bestMapping[r].chr,	// CHR NAME
+						_msf_bestMapping[r].loc,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						_msf_bestMapping[r].mderr,	// ERR
+						_msf_bestMapping[r].md,		// MD
+						_msf_bestMapping[r].mderr - _msf_bestMapping[r].err);
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[r].name, 		// READ NAME
+						16*_msf_bestMapping[r].dir,	// FLAG
+						_msf_bestMapping[r].chr,	// CHR NAME
+						_msf_bestMapping[r].loc,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						"*",						// MRNAME
+						0,							// MPOS
+						0,							// ISIZE
+						seq,						// SEQ
+						qual,	 					// QUAL
+						_msf_bestMapping[r].mderr,	// ERR
+						_msf_bestMapping[r].md);	// MD
+			}
+
+/*			_msf_output[0].QNAME		= _msf_seqList[r].name;
 			_msf_output[0].FLAG			= 16 * _msf_bestMapping[r].dir;
 			_msf_output[0].RNAME		= _msf_bestMapping[r].chr;
 			_msf_output[0].POS			= _msf_bestMapping[r].loc;
@@ -1609,6 +1799,7 @@ void outputBestSingleMapping()
 			_msf_output[0].MRNAME		= "*";
 			_msf_output[0].MPOS			= 0;
 			_msf_output[0].ISIZE		= 0;
+
 			if (_msf_bestMapping[r].dir)
 			{
 				_msf_output[0].SEQ = _msf_seqList[r].rseq;
@@ -1639,11 +1830,24 @@ void outputBestSingleMapping()
 				_msf_optionalFields[0][2].iVal = _msf_bestMapping[r].mderr - _msf_bestMapping[r].err;
 			}
 
-			output(_msf_output[0]);
+			output(_msf_output[0]);*/
 		}
 		else
 		{
-			_msf_output[0].QNAME		= _msf_seqList[r].name;
+			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n", 
+					_msf_seqList[r].name, 		// READ NAME
+					4,							// FLAG
+					"*",						// CHR NAME
+					0,							// LOC
+					255,						// MAPQ
+					"*",						// CIGAR
+					"*",						// MRNAME
+					0,							// MPOS
+					0,							// ISIZE
+					_msf_seqList[r].seq,		// SEQ
+					_msf_seqList[r].qual);		// QUAL
+
+/*			_msf_output[0].QNAME		= _msf_seqList[r].name;
 			_msf_output[0].FLAG			= 4;
 			_msf_output[0].RNAME		= "*";
 			_msf_output[0].POS			= 0;
@@ -1658,7 +1862,7 @@ void outputBestSingleMapping()
 
 			_msf_output[0].optSize		= 0;
 
-			output(_msf_output[0]);
+			output(_msf_output[0]);	*/
 		}
 	}
 	freeMem(revQual, QUAL_LENGTH + 1);
@@ -1802,6 +2006,7 @@ void mapPairedEndSeqListBal(GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, 
 /**********************************************/
 void outputPairedEnd()
 {
+	int id = 0;
 	char *curGen;
 	char *curGenName;
 	int tmpOut;
@@ -2082,8 +2287,53 @@ void outputPairedEnd()
 							proper = 0;
 						}
 
+						// OUTPUT
+						if (_msf_buffer_size[id] >= 4999000-id*1000)
+						{
+							pthread_mutex_lock(&_msf_writeLock);
+							outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+							pthread_mutex_unlock(&_msf_writeLock);
+							_msf_buffer_size[id] = 0;
+						}
 
-						_msf_output[0].POS			= mi1[j].loc;
+						if(SNPMode)
+						{
+							_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+									_msf_seqList[i*2].name,		// READ NAME
+									1+proper+16*d1+32*d2+64,	// FLAG
+									_msf_refGenName, 			// CHR NAME
+									mi1[j].loc,					// LOC
+									255,						// MAPQ
+									_msf_cigar,					// CIGAR
+									"=",						// MRNAME
+									mi2[k].loc,					// MPOS
+									isize,						// ISIZE
+									seq,						// SEQ
+									qual,	 					// QUAL
+									mi1[j].mderr,				// ERR
+									mi1[j].md,					// MD
+									mi1[j].mderr - mi1[j].err);	// SNP
+
+						}
+						else
+						{
+							_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+									_msf_seqList[i*2].name,		// READ NAME
+									1+proper+16*d1+32*d2+64,	// FLAG
+									_msf_refGenName, 			// CHR NAME
+									mi1[j].loc,					// LOC
+									255,						// MAPQ
+									_msf_cigar,					// CIGAR
+									"=",						// MRNAME
+									mi2[k].loc,					// MPOS
+									isize,						// ISIZE
+									seq,						// SEQ
+									qual,	 					// QUAL
+									mi1[j].mderr,				// ERR
+									mi1[j].md);					// MD
+						}
+
+/*						_msf_output[0].POS			= mi1[j].loc;
 						_msf_output[0].MPOS			= mi2[k].loc;
 						_msf_output[0].FLAG			= 1+proper+16*d1+32*d2+64;
 						_msf_output[0].ISIZE		= isize;
@@ -2113,7 +2363,7 @@ void outputPairedEnd()
 							_msf_optionalFields[0][2].iVal = mi1[j].mderr - mi1[j].err;
 						}
 
-						output(_msf_output[0]);
+						output(_msf_output[0]);	*/
 
 						if ( d2 )
 						{
@@ -2126,7 +2376,52 @@ void outputPairedEnd()
 							qual = qual2;
 						}
 
-						_msf_output[0].POS			= mi2[k].loc;
+						if (_msf_buffer_size[id] >= 4999000-id*1000)
+						{
+							pthread_mutex_lock(&_msf_writeLock);
+							outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+							pthread_mutex_unlock(&_msf_writeLock);
+							_msf_buffer_size[id] = 0;
+						}
+
+						if(SNPMode)
+						{
+							_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+									_msf_seqList[i*2].name,		// READ NAME
+									1+proper+16*d2+32*d1+128,	// FLAG
+									_msf_refGenName, 			// CHR NAME
+									mi2[k].loc,					// LOC
+									255,						// MAPQ
+									_msf_cigar,					// CIGAR
+									"=",						// MRNAME
+									mi1[j].loc,					// MPOS
+									-isize,						// ISIZE
+									seq,						// SEQ
+									qual,	 					// QUAL
+									mi2[k].mderr,				// ERR
+									mi2[k].md,					// MD
+									mi2[k].mderr - mi2[k].err);	// SNP
+						}
+						else
+						{
+							_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+									_msf_seqList[i*2].name,		// READ NAME
+									1+proper+16*d2+32*d1+128,	// FLAG
+									_msf_refGenName, 			// CHR NAME
+									mi2[k].loc,					// LOC
+									255,						// MAPQ
+									_msf_cigar,					// CIGAR
+									"=",						// MRNAME
+									mi1[j].loc,					// MPOS
+									-isize,						// ISIZE
+									seq,						// SEQ
+									qual,	 					// QUAL
+									mi2[k].mderr,				// ERR
+									mi2[k].md);					// MD
+						}
+
+
+/*						_msf_output[0].POS			= mi2[k].loc;
 						_msf_output[0].MPOS			= mi1[j].loc;
 						_msf_output[0].FLAG			= 1+proper+16*d2+32*d1+128;
 						_msf_output[0].ISIZE		= -isize;
@@ -2156,7 +2451,7 @@ void outputPairedEnd()
 							_msf_optionalFields[0][2].iVal = mi2[k].mderr - mi2[k].err;
 						}
 
-						output(_msf_output[0]);
+						output(_msf_output[0]);		*/
 
 
 						_msf_seqList[i*2].hits[0]++;
@@ -2202,6 +2497,7 @@ void outputPairedEnd()
 /**********************************************/
 void outputBestPairedEnd()
 {
+	int id = 0;
 	int i;
 	char *seq1, *seq2, *qual1, *qual2, *rseq1, *rseq2;
 	char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
@@ -2284,7 +2580,52 @@ void outputBestPairedEnd()
 			qual2 = rqual2;
 		}
 
-		_msf_output[0].POS			= _msf_bestMappingPE[i].loc1;
+		// OUTPUT
+		if (_msf_buffer_size[id] >= 4999000-id*1000)
+		{
+			pthread_mutex_lock(&_msf_writeLock);
+			outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+			pthread_mutex_unlock(&_msf_writeLock);
+			_msf_buffer_size[id] = 0;
+		}
+
+		if(SNPMode)
+		{
+			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+					_msf_seqList[i*2].name,		// READ NAME
+					f1,							// FLAG
+					_msf_bestMappingPE[i].chr1,	// CHR NAME
+					_msf_bestMappingPE[i].loc1,	// LOC
+					255,						// MAPQ
+					_msf_cigar,					// CIGAR
+					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+					_msf_bestMappingPE[i].loc2,	// MPOS
+					isize,						// ISIZE
+					seq1,						// SEQ
+					qual1,	 					// QUAL
+					_msf_bestMappingPE[i].mderr1,	// ERR
+					_msf_bestMappingPE[i].md1,		// MD
+					_msf_bestMappingPE[i].mderr1 - _msf_bestMappingPE[i].err1);				// SNP
+		}
+		else
+		{
+			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+					_msf_seqList[i*2].name,		// READ NAME
+					f1,							// FLAG
+					_msf_bestMappingPE[i].chr1,	// CHR NAME
+					_msf_bestMappingPE[i].loc1,	// LOC
+					255,						// MAPQ
+					_msf_cigar,					// CIGAR
+					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+					_msf_bestMappingPE[i].loc2,	// MPOS
+					isize,						// ISIZE
+					seq1,						// SEQ
+					qual1,	 					// QUAL
+					_msf_bestMappingPE[i].mderr1,	// ERR
+					_msf_bestMappingPE[i].md1);		// MD
+		}
+
+/*		_msf_output[0].POS			= _msf_bestMappingPE[i].loc1;
 		_msf_output[0].MPOS			= _msf_bestMappingPE[i].loc2;
 		_msf_output[0].FLAG			= f1;
 		_msf_output[0].ISIZE		= isize;
@@ -2314,10 +2655,53 @@ void outputBestPairedEnd()
 			_msf_optionalFields[0][2].iVal = _msf_bestMappingPE[i].mderr1 - _msf_bestMappingPE[i].err1;
 		}
 
-		output(_msf_output[0]);
+		output(_msf_output[0]);*/
 
+		if (_msf_buffer_size[id] >= 4999000-id*1000)
+		{
+			pthread_mutex_lock(&_msf_writeLock);
+			outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+			pthread_mutex_unlock(&_msf_writeLock);
+			_msf_buffer_size[id] = 0;
+		}
 
-		_msf_output[0].POS			= _msf_bestMappingPE[i].loc2;
+		if(SNPMode)
+		{
+			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+					_msf_seqList[i*2+1].name,		// READ NAME
+					f2,							// FLAG
+					_msf_bestMappingPE[i].chr2,	// CHR NAME
+					_msf_bestMappingPE[i].loc2,	// LOC
+					255,						// MAPQ
+					_msf_cigar,					// CIGAR
+					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+					_msf_bestMappingPE[i].loc1,	// MPOS
+					-isize,						// ISIZE
+					seq2,						// SEQ
+					qual2,	 					// QUAL
+					_msf_bestMappingPE[i].mderr2,	// ERR
+					_msf_bestMappingPE[i].md2,		// MD
+					_msf_bestMappingPE[i].mderr2 - _msf_bestMappingPE[i].err2);				// SNP
+		}
+		else
+		{
+			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+					_msf_seqList[i*2+1].name,		// READ NAME
+					f2,							// FLAG
+					_msf_bestMappingPE[i].chr2,	// CHR NAME
+					_msf_bestMappingPE[i].loc2,	// LOC
+					255,						// MAPQ
+					_msf_cigar,					// CIGAR
+					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+					_msf_bestMappingPE[i].loc1,	// MPOS
+					-isize,						// ISIZE
+					seq2,						// SEQ
+					qual2,	 					// QUAL
+					_msf_bestMappingPE[i].mderr2,	// ERR
+					_msf_bestMappingPE[i].md2);		// MD
+		}
+
+/*		_msf_output[0].POS			= _msf_bestMappingPE[i].loc2;
 		_msf_output[0].MPOS			= _msf_bestMappingPE[i].loc1;
 		_msf_output[0].FLAG			= f2;
 		_msf_output[0].ISIZE		= -isize;
@@ -2347,7 +2731,7 @@ void outputBestPairedEnd()
 			_msf_optionalFields[0][2].iVal = _msf_bestMappingPE[i].mderr2 - _msf_bestMappingPE[i].err2;
 		}
 
-		output(_msf_output[0]);
+		output(_msf_output[0]);		*/
 	}
 
 }
