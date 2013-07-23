@@ -147,8 +147,8 @@ int readAllReads(char *fileName1,
 
 		if ( pairedEnd && fileName2 != NULL )
 		{
-			_r_fp2 = fileOpenGZ ( fileName2, "r" );
-			if (_r_fp2 == NULL)
+			_r_gzfp2 = fileOpenGZ ( fileName2, "r" );
+			if (_r_gzfp2 == NULL)
 			{
 				return 0;
 			}
