@@ -180,7 +180,15 @@ int initOutput ( char *fileName, int compressed)
 	{
 	
 		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+strlen(".sam")+1];
-		sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+		if ( !strcmp(mappingOutputPath, "/dev/") && !strcmp(fileName, "null") )
+		{
+			sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+			nohitDisabled = 1;
+		}
+		else
+		{
+			sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+		}
 
 		_out_fp = fileOpen(newFileName, "w");
 		if (_out_fp == NULL)
