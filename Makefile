@@ -47,5 +47,5 @@ SSE_FLAGS:
 	$(eval CFLAGS = $(CFLAGS) \
 	$(shell gv=`gcc -dumpversion`; \
 		sc=`grep -c "sse4" /proc/cpuinfo`; \
-		echo $$sc.$$gv | awk -F. '{if($$1>0) print "-DSSE4=1"; else print "-DSSE4=0";  if ($$1>0 && $$2>=4 && $$3>=0) print "-msse4.2" }'))
+		echo $$sc.$$gv | awk -F. '{if($$1>0 && $$2>=4 && $$3>=4) print "-DSSE4=1 -msse4.2"; else print "-DSSE4=0"}'))
 
