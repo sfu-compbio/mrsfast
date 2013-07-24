@@ -4,6 +4,15 @@ mrsfast-ultra
 .SH DESCRIPTION
 mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of mapping single and paired end reads to the reference genome. Bisulfite treated  sequences are not supported in this version.
 
+.SH INSTALLATION
+To install mrsFAST-ultra, please download the source zip package from http://sourceforge.net/projects/mrsfast/. After unzipping the downloaded file "mrsfast-ultra-3.X.X.zip", change the current directory to the source directory "mrsfast-ultra-3.X.X", and run "make" in the terminal. The binary file "mrsfast" will be created, which is ready to use.
+.br
+$ unzip mrsfast-ultra-3.X.X.zip
+.br
+$ cd mrsfast-ultra-3.X.X
+.br
+$ make
+
 .SH SYNOPSIS
 mrsfast-ultra --index [file] [OPTIONS]
 .br
@@ -157,6 +166,35 @@ option.
 Map the reads in SNP aware mode. Tolerate the mismatches in known SNP locations. 
 .I file
 is the SNP index that should be generate from dbSNP.
+
+.SH EXAMPLES
+
+Indexing reference genome:
+.br
+$ ./mrsfast --index refgen.fasta
+.br
+$ ./mrsfast --index refgen.fasta --ws 14
+
+Single-end mapping:
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 -n 10 --threads 4
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 --best -o output
+
+Paired-end mapping:
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq pe-reads.fastq --min 100 --max 400
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq -e 3 --threads 4
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq --min 100 --max 400 --best -o output
+
+Discordant mapping:
+.br
+$ ./mrsfast --search refgen.fasta --pe --discordant-vh --seq reads.fastq --min 100 --max 400
+
 
 .SH BUGS
 Please report the bugs through mrsfast's web page at http://mrsfast.sourceforge.net
