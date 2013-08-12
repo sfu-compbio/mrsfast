@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "Common.h"
+
 #define FILE_NAME_LENGTH 400
 #define MAX_LINE_LENGTH 2000
 #define MAX_SNP_PER_CHR 4030000
@@ -10,9 +12,9 @@
 
 int cmp(const void *a, const void *b)
 {
-	int *x = (int *)a;
-	int *y = (int *)b;
-	return (*x - *y);
+	SNPLoc *x = (SNPLoc *) a;
+	SNPLoc *y = (SNPLoc *) b;
+	return (x->loc - y->loc);
 }
 /**************************************/
 
@@ -20,7 +22,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 3)
 	{
-		fprintf(stderr, "ERROR: Too few input arguments\nInputs must be:\n\t1. Input vcf file name\n\t2. Output file name\n");
+		fprintf(stderr, "Too few input arguments\nInputs must be:\n\t1. Input vcf (version 4) file name\n\t2. Output file name\n");
 		return 0;
 	}
 	FILE *inFile = 0, *outFile = 0;
@@ -29,12 +31,13 @@ int main(int argc, char *argv[])
 	char line[MAX_LINE_LENGTH], chr[MAX_LINE_LENGTH], ref[MAX_LINE_LENGTH], alt[MAX_LINE_LENGTH], dummy[MAX_LINE_LENGTH];
 	int i, loc, index;
 	unsigned int snpCnt;
-	unsigned int **chrSNPs = malloc(NUM_OF_CHRS * sizeof(char *));
+	int len[NUM_OF_CHRS];
+	SNPLoc **chrSNPs = malloc(NUM_OF_CHRS * sizeof(SNPLoc *));
 	
 	for (i = 0; i < NUM_OF_CHRS; i++)
 	{
-		chrSNPs[i] = malloc(MAX_SNP_PER_CHR * sizeof(int));
-		chrSNPs[i][0] = 0;		// num of locs
+		chrSNPs[i] = malloc(MAX_SNP_PER_CHR * sizeof(SNPLoc));
+		len[i] = 0;
 	}
 	
 	inFile = fopen(argv[1], "r");
@@ -49,6 +52,7 @@ int main(int argc, char *argv[])
 
 	snpCnt = 0;
 	i = 0;
+
 	while ( fgets(line, MAX_LINE_LENGTH, inFile) )
 	{
 		if (++i == 2000000)
@@ -62,7 +66,7 @@ int main(int argc, char *argv[])
 		sscanf(line, "%s%d%s%s%s", chr, &loc, dummy, ref, alt);
 		if (strlen(ref) != 1 || strlen(alt) != 1)
 			continue;
-
+		
 		index = atoi(chr);
 		if (index)		// a number
 		{
@@ -96,16 +100,20 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		chrSNPs[index][++chrSNPs[index][0]] = loc;
+		//chrSNPs[index][++chrSNPs[index][0]] = loc;
+		chrSNPs[index][len[index]].loc = loc;
+		chrSNPs[index][len[index]].alt = alt[0];
+		len[index] ++;
 		snpCnt++;
 	}
+
 	fprintf(stdout, ".\nReformatting data\n");
 	fclose(inFile);
 
 	for (i = 0; i < NUM_OF_CHRS; i++)
 	{
-		if (chrSNPs[i][0])
-			qsort(chrSNPs[i]+1, chrSNPs[i][0], sizeof(int), cmp);
+		if (len[i])
+			qsort(chrSNPs[i], len[i], sizeof(SNPLoc), cmp);
 	}
 
 	// -------- write to output file ------- //
@@ -116,7 +124,10 @@ int main(int argc, char *argv[])
 	fwrite(&n, sizeof(int), 1, outFile);
 
 	for (i = 0; i < NUM_OF_CHRS; i++)
-		fwrite(chrSNPs[i], sizeof(int), chrSNPs[i][0]+1, outFile);
+	{
+		fwrite(len + i, sizeof(int), 1, outFile);		// length of list for this chr
+		fwrite(chrSNPs[i], sizeof(SNPLoc), len[i], outFile);
+	}
 
 	fclose(outFile);
 	
@@ -124,4 +135,6 @@ int main(int argc, char *argv[])
 		free(chrSNPs[i]);
 	free(chrSNPs);
 	fprintf(stdout, "%lld SNP locations registered successfully\n", snpCnt);
+
+	return 0;
 }

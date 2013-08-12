@@ -52,11 +52,11 @@ int				_snp_currentLoc	= 0;
 /**********************************************/
 void initLoadingSNPs(char *fileName)
 {
-	int i, j, loc, t, found;
+	int i, j, loc, t, found, count;
 	char cname[CONTIG_NAME_SIZE];	// chromosome name
 	int ccnt;						// chr count in the file
 	char **chrNames;
-	int *dummy = getMem(MAX_SNIP_CNT * sizeof(int));
+	SNPLoc *dummy = getMem(MAX_SNIP_CNT * sizeof(SNPLoc));
 
 	_snp_chrCnt = getChrCnt();
 	chrNames = getChrNames();
@@ -66,7 +66,7 @@ void initLoadingSNPs(char *fileName)
 	{
 		_snp_chrSNPs[i].chrName = chrNames[i];
 		_snp_chrSNPs[i].locCnt = 0;
-		_snp_chrSNPs[i].locs = getMem(MAX_SNIP_CNT * sizeof(int));
+		_snp_chrSNPs[i].snpLocs = getMem(MAX_SNIP_CNT * sizeof(SNPLoc));
 	}
 
 	_snp_SNPMapLength = (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq);
@@ -99,31 +99,31 @@ void initLoadingSNPs(char *fileName)
 			{
 				found = 1;
 				t = fread(&_snp_chrSNPs[j].locCnt, sizeof(int), 1, fp);
-				t = fread(_snp_chrSNPs[j].locs, sizeof(int), _snp_chrSNPs[j].locCnt, fp);
+				t = fread(_snp_chrSNPs[j].snpLocs, sizeof(SNPLoc), _snp_chrSNPs[j].locCnt, fp);
 				break;
 			}
 		}
 		if (!found)
 		{
-			t = fread(dummy, sizeof(int), 1, fp);
-			t = fread(dummy+1, sizeof(int), dummy[0], fp);
+			t = fread(&count, sizeof(int), 1, fp);
+			t = fread(dummy, sizeof(SNPLoc), count, fp);
 		}
 	}
 
 	fclose(fp);
-	freeMem(dummy, MAX_SNIP_CNT * sizeof(int));
+	freeMem(dummy, MAX_SNIP_CNT * sizeof(SNPLoc));
 }
 /**********************************************/
 void finalizeSNPs()
 {
 	int i;
 	for (i = 0; i < _snp_chrCnt; i++)
-		freeMem(_snp_chrSNPs[i].locs, MAX_SNIP_CNT * sizeof(int));
+		freeMem(_snp_chrSNPs[i].snpLocs, MAX_SNIP_CNT * sizeof(SNPLoc));
 	freeMem(_snp_chrSNPs, _snp_chrCnt * sizeof(ChrSNPs));
 	freeMem(_snp_SNPMap, _snp_SNPMapLength);
 }
 /**********************************************/
-CompressedSeq *loadSNPMap(char *chrName, int contigStartIndex, int contigLength)
+CompressedSeq *loadSNPMap(char *chrName, int contigStartIndex, int contigLength, char *alt)
 {
 	//memset(_snp_SNPMap, -1, calculateCompressedLen(contigLength) * sizeof(CompressedSeq));
 	memset(_snp_SNPMap, -1, _snp_SNPMapLength);
@@ -142,12 +142,13 @@ CompressedSeq *loadSNPMap(char *chrName, int contigStartIndex, int contigLength)
 		int i = _snp_currentChr;		// just to make the code more readable
 		int pos = _snp_currentLoc;
 
-		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].locs[pos] < contigStartIndex )	// this should never happen!
+		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].snpLocs[pos].loc < contigStartIndex )	// this should never happen!
 			pos ++;
 
-		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].locs[pos] < contigEnd )
+		while ( pos < _snp_chrSNPs[i].locCnt && _snp_chrSNPs[i].snpLocs[pos].loc < contigEnd )
 		{
-			loc = _snp_chrSNPs[i].locs[pos] - contigStartIndex - 1;
+			loc = _snp_chrSNPs[i].snpLocs[pos].loc - contigStartIndex - 1;
+			alt[loc] = _snp_chrSNPs[i].snpLocs[pos].alt;
 			offset = loc % 21;
 			mask = 0x7000000000000000;
 			mask = ~(mask >> offset*3);

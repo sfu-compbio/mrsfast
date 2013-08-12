@@ -125,6 +125,9 @@ int					_msf_initialized = 0;
 char				**_msf_buffer;
 int 				*_msf_buffer_size;
 long long			*_msf_verificationCnt;
+char				*_msf_snpAlternative;
+
+int QUAL_THRESHOLD = 53;		// TODO: move it from here
 
 float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
 void outputPairedEnd();
@@ -146,9 +149,12 @@ inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq
 void calculateConcordantDistances();
 void updateDistance();
 void modifyMinMaxDistances();
+int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
+int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
 
 int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
+int (*calculateMD) (int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
 
 /**********************************************/
 void initializeFAST(int seqListSize)
@@ -201,9 +207,17 @@ void initializeFAST(int seqListSize)
 	getSamplingLocsInfo(&_msf_samplingLocs, &_msf_samplingLocsSeg, &_msf_samplingLocsOffset, &_msf_samplingLocsLen, &_msf_samplingLocsLenFull, &_msf_samplingLocsSize);
 
 	if (SNPMode)
+	{
 		countErrors = & countErrorsSNP;
+		_msf_snpAlternative = getMem(CONTIG_MAX_SIZE*sizeof(char));
+	}
 	else
+	{
 		countErrors = & countErrorsNormal;
+	}
+	
+	calculateMD = (SNPMode && QUAL_LENGTH == SEQ_LENGTH)?(&calculateMD_SNP) :(&calculateMD_Normal);
+	//calculateMD = &calculateMD_Normal;		// used when I don't want the quality filter to be effective
 
 	if (!pairedEndMode)
 	{
@@ -338,7 +352,7 @@ void initFASTContig()
 	_msf_alphCnt = getAlphabetCount();
 	sprintf(_msf_refGenName,"%s%c", getRefGenomeName(), '\0');
 	if (SNPMode)
-		_msf_SNPMap = loadSNPMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength);
+		_msf_SNPMap = loadSNPMap(_msf_refGenName, _msf_refGenOffset, _msf_refGenLength, _msf_snpAlternative);
 	if (maxHits)
 	{
 		int tmpOut, m = -1;
@@ -395,6 +409,9 @@ void finalizeFAST()
 		else
 			freeMem(_msf_bestMapping, _msf_bestMappingMemSize);
 	}
+
+	if (SNPMode)
+		freeMem(_msf_snpAlternative, CONTIG_MAX_SIZE*sizeof(char));
 
 	/*int i;
 	  for (i=0; i<_msf_rIndexSize; i++)
@@ -650,7 +667,118 @@ inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSeg
 	return err;
 }
 /**********************************************/
-int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
+int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq)
+{
+	index--;
+	int i, isSNP;
+	int snpAwareError = 0;		// number of errors ignoring those caused by SNPs. Only locations in dbSNP that have quality above threshold T are actually taken as SNPs
+	short matchCnt = 0;
+	char *op = *opSeq;
+	char ch;
+	int pp = 0;
+
+	int mod = index % 21;
+	int refALS = mod * 3;
+	int refARS = typeSize - refALS;
+	CompressedSeq tmpref, *refPos = _msf_crefGen + index/21;
+	CompressedSeq *ref = refPos;
+	CompressedSeq tmpsnp, *snp = _msf_SNPMap + index/21;
+
+	CompressedSeq diffMask = 7;
+	int shifts = (20 - mod) * 3;
+	CompressedSeq diff;
+
+	err = 0;
+
+	for (i=0; i < SEQ_LENGTH; i++)
+	{
+		if (diffMask == 7)
+		{
+			diffMask = 0x7000000000000000;
+			tmpref = (*ref << refALS) | (*(++ref) >> refARS);
+			diff = (tmpref ^ *(cmpSeq++));
+
+			tmpsnp = (*snp << refALS) | (*(++snp) >> refARS);
+			tmpsnp = ~tmpsnp;
+		}
+		else
+			diffMask >>= 3;
+
+		if (diff & diffMask)		// ref[index + i - 1 ] != ver[i]
+		{
+			ch = alphabet[ (*refPos >> shifts) & 7 ];
+			// if quality is above the threshold, this location is reported as SNP, and the sequence character is identical to the SNP alternative
+			isSNP = ( (qual[i] >= QUAL_THRESHOLD) && (tmpsnp & diffMask) && (ch == _msf_snpAlternative[index + i]) );	// this mismatch should be ignored
+
+			if (!isSNP)
+				snpAwareError ++;
+
+			err++;
+			if (matchCnt)
+			{
+				if (matchCnt < 10)
+				{
+					op[pp++]=_msf_numbers[matchCnt][0];
+				}
+				else if (matchCnt < 100)
+				{
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
+				}
+				else
+				{
+					op[pp++]=_msf_numbers[matchCnt][0];
+					op[pp++]=_msf_numbers[matchCnt][1];
+					op[pp++]=_msf_numbers[matchCnt][2];
+				}
+
+				matchCnt = 0;
+			}
+			op[pp++] = ch;
+		}
+		else
+		{
+			matchCnt++;
+		}
+
+		if (shifts == 0)
+		{
+			refPos++;
+			shifts = 60;
+		}
+		else
+			shifts -= 3;
+
+	}
+
+	if (matchCnt>0)
+	{
+		if (matchCnt < 10)
+		{
+			op[pp++]=_msf_numbers[matchCnt][0];
+		}
+		else if (matchCnt < 100)
+		{
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
+		}
+		else
+		{
+			op[pp++]=_msf_numbers[matchCnt][0];
+			op[pp++]=_msf_numbers[matchCnt][1];
+			op[pp++]=_msf_numbers[matchCnt][2];
+		}
+
+		op[pp]='\0';
+	}
+
+	if (snpAwareError > errThreshold)
+		err = -1;
+
+	return err;
+}
+/**********************************************/
+int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq)
 {
 	index--;
 	int i;
@@ -658,7 +786,7 @@ int calculateMD(int index, CompressedSeq *cmpSeq, int err, char **opSeq)
 	char *op = *opSeq;
 	int pp = 0;
 
-	if (SNPMode || err>0 || err == -1 )		// in SNPmode some errors might have been masked by SNPs. We might have md erros even if value of err == 0
+	if (err>0 || err == -1 )
 	{
 		int mod = index % 21;
 		int refALS = mod * 3;
@@ -766,6 +894,9 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 		CompressedSeq *_tmpCmpSeq;
 		unsigned char tmp[4];
 		unsigned char *alph, *gl;
+		char rqual[QUAL_LENGTH];
+		rqual[QUAL_LENGTH] = '\0';
+		char *_tmpQual;
 		
 		if (dir > 0)
 		{
@@ -799,11 +930,14 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 				tmp[2]=_msf_seqList[r].alphCnt[1];
 				tmp[3]=_msf_seqList[r].alphCnt[0];
 				alph = tmp;
+				_tmpQual = &rqual[0];
+				reverse(_msf_seqList[r].qual, _tmpQual, QUAL_LENGTH);
 			}
 			else
 			{
 				_tmpCmpSeq = _msf_seqList[r].cseq;
 				alph = _msf_seqList[r].alphCnt;
+				_tmpQual = _msf_seqList[r].qual;
 			}
 
 
@@ -823,6 +957,11 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 
 				if (err != -1)
 				{
+					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					unsigned char mdlen = strlen(_msf_op[id]);
+					if (mderr < 0)
+						continue;
+
 					_msf_mappingCnt[id]++;
 					_msf_seqList[r].hits[0]++;
 
@@ -839,8 +978,6 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 					int tmpOut;
 					int flag = 16 * d;
 					int loc = genLoc + _msf_refGenOffset;
-					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
-					unsigned char mdlen = strlen(_msf_op[id]);
 
 					pthread_mutex_lock(&_msf_writeLock);
 					tmpOut = fwrite(&r, sizeof(int), 1, _msf_hitsTempFile);
@@ -959,7 +1096,9 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				if (err != -1)
 				{
 
-					mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
+					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					if (mderr < 0)
+						continue;
 
 					_msf_mappingCnt[id]++;
 					_msf_seqList[r].hits[0]++;
@@ -1054,6 +1193,9 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 		CompressedSeq *_tmpCmpSeq;
 		unsigned char tmp[4];
 		unsigned char *alph, *gl;
+		char rqual[QUAL_LENGTH];
+		rqual[QUAL_LENGTH] = '\0';
+		char *_tmpQual;
 
 		if (dir > 0)
 		{
@@ -1090,11 +1232,14 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				tmp[2]=_msf_seqList[r].alphCnt[1];
 				tmp[3]=_msf_seqList[r].alphCnt[0];
 				alph = tmp;
+				_tmpQual = &rqual[0];
+				reverse(_msf_seqList[r].qual, _tmpQual, QUAL_LENGTH);
 			}
 			else
 			{
 				_tmpCmpSeq = _msf_seqList[r].cseq;
 				alph = _msf_seqList[r].alphCnt;
+				_tmpQual = _msf_seqList[r].qual;
 			}
 
 			for (z=0; z<s1; z++)
@@ -1113,6 +1258,9 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				
 				if (err != -1)
 				{
+					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					if (mderr < 0)
+						continue;
 					if (err < _msf_bestMapping[r].err)
 					{
 						_msf_bestMapping[r].loc = _msf_refGenOffset + genLoc;
@@ -1121,7 +1269,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 						_msf_bestMapping[r].secondBestHits = _msf_bestMapping[r].hits;
 						_msf_bestMapping[r].err = err;
 						_msf_bestMapping[r].hits = 1;
-						_msf_bestMapping[r].mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
+						_msf_bestMapping[r].mderr = mderr;
 						memcpy(_msf_bestMapping[r].md, _msf_op[id], 40);
 						memcpy(_msf_bestMapping[r].chr, _msf_refGenName, 40);
 					}
@@ -1129,7 +1277,6 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 					{
 						if (SNPMode)
 						{
-							mderr = calculateMD(genLoc, _tmpCmpSeq, err, &_msf_op[id]);
 							if (mderr < _msf_bestMapping[r].mderr)
 							{
 								_msf_bestMapping[r].loc = _msf_refGenOffset + genLoc;
@@ -2190,13 +2337,13 @@ void outputPairedEnd()
 		{
 			for (k=0; k<size1; k++)
 			{
-				mi1[k].mderr = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+				mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 				sprintf(mi1[k].md, "%s", _msf_op[0]);
 			}
 
 			for (k=0; k<size2; k++)
 			{
-				mi2[k].mderr = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+				mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 				sprintf(mi2[k].md, "%s", _msf_op[0]);
 			}
 		}
@@ -2823,16 +2970,22 @@ void updateMaxHitsPairedEnd()
 		crseq1 = _msf_seqList[i*2].crseq;
 		cseq2 = _msf_seqList[i*2+1].cseq;
 		crseq2 = _msf_seqList[i*2+1].crseq;
+		char *qual1, *rqual1, *qual2, *rqual2;
+		qual1 = _msf_seqList[i*2].qual;
+		reverse(qual1, rqual1, QUAL_LENGTH);
+		qual2 = _msf_seqList[i*2+1].qual;
+		reverse(qual2, rqual2, QUAL_LENGTH);
 
 		for (k=0; k<size1; k++)
 		{
-			mi1[k].mderr = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+			// TODO: in SNP mode, in order to get the correct value for X:S, calculdateMD_SNP should be used. Problem: SNP mask is not available here.
+			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 			sprintf(mi1[k].md, "%s", _msf_op[0]);
 		}
 
 		for (k=0; k<size2; k++)
 		{
-			mi2[k].mderr = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 			sprintf(mi2[k].md, "%s", _msf_op[0]);
 		}
 		
@@ -3039,16 +3192,22 @@ void updateBestPairedEnd()
 		crseq1 = _msf_seqList[i*2].crseq;
 		cseq2 = _msf_seqList[i*2+1].cseq;
 		crseq2 = _msf_seqList[i*2+1].crseq;
+		char *qual1, *rqual1, *qual2, *rqual2;
+		qual1 = _msf_seqList[i*2].qual;
+		reverse(qual1, rqual1, QUAL_LENGTH);
+		qual2 = _msf_seqList[i*2+1].qual;
+		reverse(qual2, rqual2, QUAL_LENGTH);
 
 		for (k=0; k<size1; k++)
 		{
-			mi1[k].mderr = calculateMD(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, -1, &_msf_op[0]);
+			// TODO: in SNP mode, in order to get the correct value for X:S, calculdateMD_SNP should be used. Problem: SNP mask is not available here.
+			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 			sprintf(mi1[k].md, "%s", _msf_op[0]);
 		}
 
 		for (k=0; k<size2; k++)
 		{
-			mi2[k].mderr = calculateMD(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, -1, &_msf_op[0]);
+			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 			sprintf(mi2[k].md, "%s", _msf_op[0]);
 		}
 

@@ -110,6 +110,12 @@ typedef struct
 	GeneralIndex *list;
 } ReadIndexTable;
 
+typedef struct
+{
+	int loc;
+	char alt;
+} SNPLoc;
+
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
 double	getTime(void);

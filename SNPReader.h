@@ -36,15 +36,15 @@
 #ifndef __SNIP_READER__
 #define __SNIP_READER__
 
-CompressedSeq	*loadSNPMap(char *chrName, int contigStartIndex, int contigLength);
+CompressedSeq	*loadSNPMap(char *chrName, int contigStartIndex, int contigLength, char *snpAlternatives);
 void 			initLoadingSNPs(char *fileName);
 void 			finalizeSNPs();
 
-typedef struct snp
+typedef struct
 {
 	char *chrName;
 	int locCnt;
-	int *locs;
+	SNPLoc *snpLocs;
 } ChrSNPs;
 
 #endif
