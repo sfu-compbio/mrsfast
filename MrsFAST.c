@@ -149,12 +149,12 @@ inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq
 void calculateConcordantDistances();
 void updateDistance();
 void modifyMinMaxDistances();
-int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
-int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
+int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq);
+int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq);
 
 int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
-int (*calculateMD) (int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq);
+int (*calculateMD) (int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq);
 
 /**********************************************/
 void initializeFAST(int seqListSize)
@@ -667,14 +667,13 @@ inline int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSeg
 	return err;
 }
 /**********************************************/
-int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq)
+int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq)
 {
 	index--;
 	int i, isSNP;
 	int snpAwareError = 0;		// number of errors ignoring those caused by SNPs. Only locations in dbSNP that have quality above threshold T are actually taken as SNPs
 	short matchCnt = 0;
 	char *op = *opSeq;
-	char ch;
 	int pp = 0;
 
 	int mod = index % 21;
@@ -706,10 +705,9 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char 
 
 		if (diff & diffMask)		// ref[index + i - 1 ] != ver[i]
 		{
-			ch = alphabet[ (*refPos >> shifts) & 7 ];
 			// if quality is above the threshold, this location is reported as SNP, and the sequence character is identical to the SNP alternative
-			isSNP = ( (qual[i] >= QUAL_THRESHOLD) && (tmpsnp & diffMask) && (ch == _msf_snpAlternative[index + i]) );	// this mismatch should be ignored
-
+			isSNP = ( (qual[i] >= QUAL_THRESHOLD) && (tmpsnp & diffMask) && (seq[i] == _msf_snpAlternative[index + i]) );	// this mismatch should be ignored
+			
 			if (!isSNP)
 				snpAwareError ++;
 
@@ -734,7 +732,7 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char 
 
 				matchCnt = 0;
 			}
-			op[pp++] = ch;
+			op[pp++] = alphabet[ (*refPos >> shifts) & 7 ];
 		}
 		else
 		{
@@ -778,7 +776,7 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *qual, int err, char 
 	return err;
 }
 /**********************************************/
-int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *qual, int err, char **opSeq)
+int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq)
 {
 	index--;
 	int i;
@@ -896,7 +894,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 		unsigned char *alph, *gl;
 		char rqual[QUAL_LENGTH];
 		rqual[QUAL_LENGTH] = '\0';
-		char *_tmpQual;
+		char *_tmpQual, *_tmpSeq;
 		
 		if (dir > 0)
 		{
@@ -932,12 +930,14 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 				alph = tmp;
 				_tmpQual = &rqual[0];
 				reverse(_msf_seqList[r].qual, _tmpQual, QUAL_LENGTH);
+				_tmpSeq = _msf_seqList[r].rseq;
 			}
 			else
 			{
 				_tmpCmpSeq = _msf_seqList[r].cseq;
 				alph = _msf_seqList[r].alphCnt;
 				_tmpQual = _msf_seqList[r].qual;
+				_tmpSeq = _msf_seqList[r].seq;
 			}
 
 
@@ -957,7 +957,7 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 
 				if (err != -1)
 				{
-					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					unsigned char mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpSeq, _tmpQual, err, &_msf_op[id]);
 					unsigned char mdlen = strlen(_msf_op[id]);
 					if (mderr < 0)
 						continue;
@@ -1096,7 +1096,7 @@ void mapSingleEndSeqListBalMultiple(GeneralIndex *l1, int s1, GeneralIndex *l2, 
 				if (err != -1)
 				{
 
-					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpSeq, _tmpQual, err, &_msf_op[id]);
 					if (mderr < 0)
 						continue;
 
@@ -1195,7 +1195,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 		unsigned char *alph, *gl;
 		char rqual[QUAL_LENGTH];
 		rqual[QUAL_LENGTH] = '\0';
-		char *_tmpQual;
+		char *_tmpQual, *_tmpSeq;
 
 		if (dir > 0)
 		{
@@ -1234,12 +1234,14 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				alph = tmp;
 				_tmpQual = &rqual[0];
 				reverse(_msf_seqList[r].qual, _tmpQual, QUAL_LENGTH);
+				_tmpSeq = _msf_seqList[r].rseq;
 			}
 			else
 			{
 				_tmpCmpSeq = _msf_seqList[r].cseq;
 				alph = _msf_seqList[r].alphCnt;
 				_tmpQual = _msf_seqList[r].qual;
+				_tmpSeq = _msf_seqList[r].seq;
 			}
 
 			for (z=0; z<s1; z++)
@@ -1258,7 +1260,7 @@ void mapSingleEndSeqListBalBest(GeneralIndex *l1, int s1, GeneralIndex *l2, int 
 				
 				if (err != -1)
 				{
-					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpQual, err, &_msf_op[id]);
+					mderr = calculateMD(genLoc, _tmpCmpSeq, _tmpSeq, _tmpQual, err, &_msf_op[id]);
 					if (mderr < 0)
 						continue;
 					if (err < _msf_bestMapping[r].err)
@@ -2337,13 +2339,13 @@ void outputPairedEnd()
 		{
 			for (k=0; k<size1; k++)
 			{
-				mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
+				mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rseq1:seq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 				sprintf(mi1[k].md, "%s", _msf_op[0]);
 			}
 
 			for (k=0; k<size2; k++)
 			{
-				mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
+				mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi2[k].dir==-1)?rseq2:seq2, (mi2[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 				sprintf(mi2[k].md, "%s", _msf_op[0]);
 			}
 		}
@@ -2965,6 +2967,11 @@ void updateMaxHitsPairedEnd()
 		int lm, ll, rl, rm;
 		int pos = 0;
 
+		char *seq1, *rseq1, *seq2, *rseq2;
+		seq1 = _msf_seqList[i*2].seq;
+		rseq1 = _msf_seqList[i*2].rseq;
+		seq2 = _msf_seqList[i*2+1].seq;
+		rseq2 = _msf_seqList[i*2+1].rseq;
 		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
 		cseq1 = _msf_seqList[i*2].cseq;
 		crseq1 = _msf_seqList[i*2].crseq;
@@ -2979,13 +2986,13 @@ void updateMaxHitsPairedEnd()
 		for (k=0; k<size1; k++)
 		{
 			// TODO: in SNP mode, in order to get the correct value for X:S, calculdateMD_SNP should be used. Problem: SNP mask is not available here.
-			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
+			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rseq1:seq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 			sprintf(mi1[k].md, "%s", _msf_op[0]);
 		}
 
 		for (k=0; k<size2; k++)
 		{
-			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
+			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi2[k].dir==-1)?rseq2:seq2, (mi2[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 			sprintf(mi2[k].md, "%s", _msf_op[0]);
 		}
 		
@@ -3187,6 +3194,11 @@ void updateBestPairedEnd()
 		int lm, ll, rl, rm;
 		int pos = 0;
 
+		char *seq1, *rseq1, *seq2, *rseq2;
+		seq1 = _msf_seqList[i*2].seq;
+		rseq1 = _msf_seqList[i*2].rseq;
+		seq2 = _msf_seqList[i*2+1].seq;
+		rseq2 = _msf_seqList[i*2+1].rseq;
 		CompressedSeq *cseq1, *cseq2, *crseq1, *crseq2;
 		cseq1 = _msf_seqList[i*2].cseq;
 		crseq1 = _msf_seqList[i*2].crseq;
@@ -3201,13 +3213,13 @@ void updateBestPairedEnd()
 		for (k=0; k<size1; k++)
 		{
 			// TODO: in SNP mode, in order to get the correct value for X:S, calculdateMD_SNP should be used. Problem: SNP mask is not available here.
-			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
+			mi1[k].mderr = calculateMD_Normal(mi1[k].loc, (mi1[k].dir==-1)?crseq1:cseq1, (mi1[k].dir==-1)?rseq1:seq1,(mi1[k].dir==-1)?rqual1:qual1, -1, &_msf_op[0]);
 			sprintf(mi1[k].md, "%s", _msf_op[0]);
 		}
 
 		for (k=0; k<size2; k++)
 		{
-			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi1[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
+			mi2[k].mderr = calculateMD_Normal(mi2[k].loc, (mi2[k].dir==-1)?crseq2:cseq2, (mi2[k].dir==-1)?rseq2:seq2, (mi2[k].dir==-1)?rqual2:qual2, -1, &_msf_op[0]);
 			sprintf(mi2[k].md, "%s", _msf_op[0]);
 		}
 
