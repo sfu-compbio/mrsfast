@@ -167,6 +167,11 @@ Map the reads in SNP aware mode. Tolerate the mismatches in known SNP locations.
 .I file
 is the SNP index that should be generate from dbSNP.
 
+.TP
+.BI -q " quality-threshold"
+In SNP-aware mode, a mismatch at a reported SNP location will be ignored only if the corresponding read location has a quality higher than or equal to the
+.I quality-threshold
+
 .SH EXAMPLES
 
 Indexing reference genome:

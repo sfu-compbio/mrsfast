@@ -75,6 +75,7 @@ unsigned int			THREAD_COUNT = 1;
 unsigned short			DISCORDANT_CUT_OFF = 300;
 double					MAX_MEMORY = 4;// GB
 int						THREAD_ID[255];
+int						SNP_QUAL_THRESHOLD = 53;
 extern char 			_binary_HELP_start;
 extern char				_binary_HELP_end;
 
@@ -170,6 +171,9 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'e':
 				errThreshold = atoi(optarg);
+				break;
+			case 'q':
+				SNP_QUAL_THRESHOLD = atoi(optarg);
 				break;
 			case 'l':
 				minPairEndedDistance = atoi(optarg);

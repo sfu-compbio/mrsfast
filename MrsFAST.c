@@ -127,8 +127,6 @@ int 				*_msf_buffer_size;
 long long			*_msf_verificationCnt;
 char				*_msf_snpAlternative;
 
-int QUAL_THRESHOLD = 53;		// TODO: move it from here
-
 float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err);
 void outputPairedEnd();
 void outputBestPairedEnd();
@@ -706,7 +704,7 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int
 		if (diff & diffMask)		// ref[index + i - 1 ] != ver[i]
 		{
 			// if quality is above the threshold, this location is reported as SNP, and the sequence character is identical to the SNP alternative
-			isSNP = ( (qual[i] >= QUAL_THRESHOLD) && (tmpsnp & diffMask) && (seq[i] == _msf_snpAlternative[index + i]) );	// this mismatch should be ignored
+			isSNP = ( (qual[i] >= SNP_QUAL_THRESHOLD) && (tmpsnp & diffMask) && (seq[i] == _msf_snpAlternative[index + i]) );	// this mismatch should be ignored
 			
 			if (!isSNP)
 				snpAwareError ++;

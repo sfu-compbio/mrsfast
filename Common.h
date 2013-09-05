@@ -64,6 +64,7 @@ extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
 extern unsigned short	QUAL_LENGTH;
 extern unsigned short	CMP_SEQ_LENGTH;
 extern unsigned short	DISCORDANT_CUT_OFF;
+extern int				SNP_QUAL_THRESHOLD;
 
 extern int				indexingMode;
 extern int				searchingMode;
