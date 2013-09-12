@@ -1,4 +1,4 @@
-.TH mrsFAST-Ultra 1 "Last Updated: May 17th, 2013" mrsFAST-Ultra "mrsfast-Ultra Manual"
+.TH mrsFAST-Ultra 1 "Last Updated: Sep 11, 2013" mrsFAST-Ultra "mrsfast-Ultra Manual"
 .SH NAME
 mrsfast-ultra
 .SH DESCRIPTION
@@ -48,7 +48,9 @@ GB of memory (default: 4).
 .BI --threads " t"
 Use 
 .I t
-number of cores for mapping the sequences (default: 1).
+number of cores for mapping the sequences (default: 1). Use
+.I 0
+to use all the available cores in the system.
 
 .TP
 .BI --seq " file"
@@ -151,7 +153,7 @@ for maximum length of concordant mapping. Paired-end option only.
  
 .TP 
 .B --discordant-vh
-Map the reads in discordant fashion that can be processed by Variation Hunter / Commong Law. Output will be generate in DIVET format.
+Map the reads in discordant fashion that can be processed by Variation Hunter / Common Law. Output will be generate in DIVET format.
 
 .TP
 .BI --max-discordant-cutoff " m"
@@ -161,7 +163,7 @@ discordant mappings per read. Should be only used with
 .B --discordant-vh
 option.
 
-TP
+.TP
 .BI --snp " snp-file"
 Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tolerates the mismatches in known SNP locations reported by the provided SNP database. The SNP index
 .I snp-file
@@ -171,6 +173,9 @@ Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tolerates the mismat
 .BI --snp-qual " quality-threshold"
 In SNP-aware mode, a mismatch at a reported SNP location will be ignored only if the corresponding read location has a quality higher than or equal to the
 .I quality-threshold
+.
+.I quality-threshold 
+is a Phred-Value base 33. The default is 53 (base call error 0.01).
 
 .SH EXAMPLES
 
