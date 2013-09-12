@@ -130,6 +130,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"mem",						required_argument,  0,					'z'},
 		{"snp",						required_argument,  0,					'p'},
 		{"max-discordant-cutoff",	required_argument,  0,                  'd'},
+		{"snp-qual",				required_argument,  0,                  'q'},
 		{0,0,0,0}
 	};
 

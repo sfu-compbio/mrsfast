@@ -22,7 +22,7 @@ mrsfast-ultra --search [index] --seq [file] [OPTIONS]
 .TP
 .B
 -h
-Prints the help file.
+Prints this help file.
 .TP
 .B
 -v, --version
@@ -161,14 +161,14 @@ discordant mappings per read. Should be only used with
 .B --discordant-vh
 option.
 
-.TP
-.BI --snp " file"
-Map the reads in SNP aware mode. Tolerate the mismatches in known SNP locations. 
-.I file
-is the SNP index that should be generate from dbSNP.
+TP
+.BI --snp " snp-file"
+Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tolerates the mismatches in known SNP locations reported by the provided SNP database. The SNP index
+.I snp-file
+ should be created from the dbSNP (.vcf) file using the snp_indexer binary.
 
 .TP
-.BI -q " quality-threshold"
+.BI --snp-qual " quality-threshold"
 In SNP-aware mode, a mismatch at a reported SNP location will be ignored only if the corresponding read location has a quality higher than or equal to the
 .I quality-threshold
 
