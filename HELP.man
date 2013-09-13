@@ -104,7 +104,7 @@ by gzip.
 
 .TP
 .BI -n " cut-off"
-Ouput the mapping for the read sequences that have less than 
+Output the mapping for the read sequences that have less than 
 .I cut-off
 number of mappings. Cannot be used with 
 .B --best
@@ -137,7 +137,7 @@ mix
 and 
 .B
 max
-of tempalte length will be calculated if not provided by corresponding options.
+of template length will be calculated if not provided by corresponding options.
 
 .TP
 .BI --min " min-discordant-length"
