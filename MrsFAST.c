@@ -3202,7 +3202,7 @@ void updateBestPairedEnd()
 		crseq1 = _msf_seqList[i*2].crseq;
 		cseq2 = _msf_seqList[i*2+1].cseq;
 		crseq2 = _msf_seqList[i*2+1].crseq;
-		char *qual1, *rqual1, *qual2, *rqual2;
+		char *qual1, rqual1[QUAL_LENGTH+1], *qual2, rqual2[QUAL_LENGTH+1];
 		qual1 = _msf_seqList[i*2].qual;
 		reverse(qual1, rqual1, QUAL_LENGTH);
 		qual2 = _msf_seqList[i*2+1].qual;
@@ -3964,6 +3964,12 @@ void calculateConcordantDistances()
 			mu += _msf_distance[i];
 		}
 	}
+	
+	if (cnt == 0)  // the data has been small and no read has had a single best mapping
+	{
+		fprintf(stderr, "ERROR: The sample size is too small for calculating template lengths. Please either manually set the min max values, or provide a larger number of paired-end reads\n");
+		exit(EXIT_FAILURE);
+	}
 
 	mu /= cnt;
 	
@@ -3974,16 +3980,8 @@ void calculateConcordantDistances()
 	}
 	sigma = sqrt(sigma/cnt);
 
-	if (cnt == 0)  // the data has been small and no read has had a single best mapping
-	{
-		fprintf(stderr, "ERROR: The sample size is too small for calculating template lengths. Please either manually set the min max values, or provide a larger sample");
-		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		minPairEndedDistance = (int)(mu - 3*sigma);
-		maxPairEndedDistance = (int)(mu + 3*sigma);
-	}
+	minPairEndedDistance = (int)(mu - 3*sigma);
+	maxPairEndedDistance = (int)(mu + 3*sigma);
 	//fprintf(stdout, "cnt %d  mu %lf  sig %lf  min %d  max %d\n", cnt, mu, sigma, minPairEndedDistance, maxPairEndedDistance);
 	
 	modifyMinMaxDistances();
