@@ -12,7 +12,7 @@ LDFLAGS=-static
 LIBS=-lz -lm -pthread -lpthread
 CFLAGS=-DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\"
 
-objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o HELP.o 
+objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o HELP.o
 
 compile: $(objects)
 
@@ -24,6 +24,7 @@ snp_indexer: SNPIndexer.o
 
 clean:
 	@rm -f $(objects)
+	rm -f SNPIndexer.o
 
 clean-executable:
 	@rm -f mrsfast
