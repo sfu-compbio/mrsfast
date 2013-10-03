@@ -523,7 +523,7 @@ void *countQGrams(int *idp)
 	int i, t, val;
 
 	int rgBlockSize = _ih_crefGenLen / THREAD_COUNT;
-	int rgBlockStart = rgBlockSize * id * 21;
+	int rgBlockStart = (rgBlockSize * id * 21);
 	int rgBlockLen = rgBlockSize * 21;
 	int rgBlockIt = rgBlockLen + SEQ_LENGTH - 1;
 	if (id == THREAD_COUNT - 1)
@@ -560,7 +560,7 @@ void *countQGrams(int *idp)
 
 	int o = 0;
 
-	while (++i < rgBlockIt) // BORDER LINE CHECK
+	while (i++ < rgBlockIt) // BORDER LINE CHECK
 	{
 		cur = (char *)++copy;
 		val = (cdata >> 60) & 7;
