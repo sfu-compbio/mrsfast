@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,10 +28,10 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,7 +113,6 @@ void outputQ(SAM map)
 
 	
 	int i;
-
 	for ( i = 0; i < map.optSize; i++)
 	{
 		switch (map.optFields[i].type)
@@ -137,12 +136,34 @@ void outputQ(SAM map)
 	fprintf(_out_fp, "\n");
 }
 
+void outputBufferTxT(char *str, int size)
+{
+	fwrite(str, 1, size, _out_fp);
+}
+
+void outputBufferGZ(char *str, int size)
+{
+	gzwrite(_out_gzfp, str, size);
+}
+
+void outputMetaQ(char* str)
+{
+	fprintf(_out_fp, "%s\n", str);
+}
+
+void gzOutputMetaQ(char* str)
+{
+	gzprintf(_out_gzfp, "%s\n", str);
+}
+
+void noMetaOutput(char *str) {}
+
 int initOutput ( char *fileName, int compressed)
 {
 	if (compressed)
 	{
 		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+4];
-		sprintf(newFileName, "%s%s.gz", mappingOutputPath, fileName);
+		sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
 		_out_gzfp = fileOpenGZ(newFileName, "w1f");
 		if (_out_gzfp == Z_NULL)
 		{
@@ -152,12 +173,22 @@ int initOutput ( char *fileName, int compressed)
 		finalizeOutput = &finalizeGZOutput;
 
 		output = &gzOutputQ;
+		outputMeta =&gzOutputMetaQ;
+		outputBuffer = &outputBufferGZ;
 	}
 	else
 	{
 	
-		char newFileName[strlen(mappingOutputPath)+strlen(fileName)];
-		sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+strlen(".sam")+1];
+		if ( !strcmp(mappingOutputPath, "/dev/") && !strcmp(fileName, "null") )
+		{
+			sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+			nohitDisabled = 1;
+		}
+		else
+		{
+			sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+		}
 
 		_out_fp = fileOpen(newFileName, "w");
 		if (_out_fp == NULL)
@@ -167,7 +198,15 @@ int initOutput ( char *fileName, int compressed)
 
 		finalizeOutput = &finalizeTXOutput;
 		output = &outputQ;
+		outputMeta = &outputMetaQ;
+		outputBuffer = &outputBufferTxT;
 	}
+	
+	if (noSamHeader)
+		outputMeta = &noMetaOutput;
+
+	outputMeta("@HD\tVN:1.4\tSO:unsorted");
+	
 	return 1;
 }
 

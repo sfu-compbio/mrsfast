@@ -1,5 +1,5 @@
-/*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+	/*
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,22 +28,32 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <zlib.h>
 #include <string.h>
+#include <math.h>
+#include <pthread.h>
 #include "Common.h"
 
 
 unsigned short 			SEQ_LENGTH = 0;
 unsigned short 			QUAL_LENGTH = 0;
+unsigned short			CMP_SEQ_LENGTH = 0;
 long long				memUsage = 0;
+char					*alphabet = "ACGTN";
+char 					nVal[128];
+char 					nRev[128];
+char 					nHVal[128];
+pthread_mutex_t 		_common_lock;
+
+
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
 {
@@ -79,48 +89,35 @@ double getTime(void)
 }
 
 /**********************************************/
-char reverseCompleteChar(char c)
+inline char reverseCompleteChar(char c)
 {
-	char ret;
-	switch (c)
-	{
-		case 'A': 
-					ret = 'T';
-					break;
-		case 'T':
-					ret = 'A';
-					break;
-		case 'C':	
-					ret = 'G';
-					break;
-		case 'G':
-					ret = 'C';
-					break;
-		default:
-					ret = 'N';
-					break;
-	}
-	return ret;
+	return nRev[c];
 }
 /**********************************************/
-void reverseComplete (char *seq, char *rcSeq , int length)
+inline void reverseComplete (char *seq, char *rcSeq , int length)		// TODO: efficiency check
 {
 	int i;
+	seq+=length-1;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=reverseCompleteChar (seq[length-1-i]) ;
+		rcSeq[i]=nRev[*(seq--)];
 	}
 }
 /**********************************************/
-void * getMem(size_t size)
+void * getMem(size_t size)			// TODO: if malloc is unsuccessfull, return an error message
 {
+	
+	pthread_mutex_lock(&_common_lock);
 	memUsage+=size;
+	pthread_mutex_unlock(&_common_lock);
 	return malloc(size);
 }
 /**********************************************/
 void freeMem(void *ptr, size_t size)
 {
+	pthread_mutex_lock(&_common_lock);
 	memUsage-=size;
+	pthread_mutex_unlock(&_common_lock);
 	free(ptr);
 }
 /**********************************************/
@@ -129,12 +126,13 @@ double getMemUsage()
 	return memUsage/1048576.0;
 }
 /**********************************************/
-void reverse (char *seq, char *rcSeq , int length)
+inline void reverse (char *seq, char *rcSeq , int length)
 {
 	int i;
+	seq += length-1;
 	for (i=0; i<length; i++)
 	{
-		rcSeq[i]=seq[length-1-i];
+		(*rcSeq++)=*(seq--);
 	}
 }
 /**********************************************/
@@ -164,4 +162,83 @@ void stripPath(char *full, char **path, char **fileName)
 		sprintf(*fileName, "%s%c", full, '\0');
 		sprintf(*path,"%c", '\0');
 	}
+}
+/**********************************************/
+inline int calculateCompressedLen(int normalLen)
+{
+	return (normalLen / 21) + ((normalLen%21)?1:0);
+}
+/**********************************************/
+void compressSequence(char *seq, int seqLen, CompressedSeq *cseq)
+{
+	CompressedSeq val = 0;
+	int i = 0, pos = 0;
+	
+	*cseq = 0;
+	while (pos < seqLen)
+	{
+		*cseq = ((*cseq) << 3) | nVal[seq[pos++]];
+
+		if (++i == 21)
+		{
+			i = 0;
+			cseq++;
+			if (pos < seqLen)	// not to write the adjacent memory in case seqLen % 21 == 0
+				*cseq = 0;
+		}
+	}
+	if (i > 0)
+	{
+		*cseq <<= (3*(21-i));
+	}
+}
+
+/**********************************************/
+int hashVal(char *seq)
+{
+	int i=0;
+	int val=0, numericVal=0;
+
+	while(i<WINDOW_SIZE)
+	{
+		if (nHVal[seq[i]] == -1)
+			return -1; 
+		val = (val << 2) | nHVal[seq[i++]]; 
+	}
+	return val;
+}
+/**********************************************/
+int checkSumVal(char *seq)
+{
+	int i=0;
+	int val=0, numericVal=0;
+
+	while(i<checkSumLength)
+	{
+		if (nHVal[seq[i]] == -1)
+			return -1; 
+		val = (val << 2) | nHVal[seq[i++]]; 
+	}
+	return val;
+}
+/**********************************************/
+void initCommon()
+{
+	memset(nVal, 4, 128);
+	nVal['A']=0;
+	nVal['C']=1;
+	nVal['G']=2;
+	nVal['T']=3;
+
+	memset(nRev, 'N', 128);
+	nRev['A']='T';
+	nRev['C']='G';
+	nRev['T']='A';
+	nRev['G']='C';
+
+	memset(nHVal, -1, 128);
+	nHVal['A']=0;
+	nHVal['C']=1;
+	nHVal['G']=2;
+	nHVal['T']=3;
 }

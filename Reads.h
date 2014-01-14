@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,24 +28,38 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
 
 #ifndef __READ__
 #define __READ__
 
 typedef struct
 {
-	char *name;
+	int32_t hv;
+	CheckSumType checksum;
+	int32_t seqInfo;
+
+} Pair;
+
+typedef struct
+{
+	uint16_t *hits;
 	char *seq;
-	char *rseq;
 	char *qual;
-	char *hits;
+	char *rseq;
+	CompressedSeq *cseq;
+	CompressedSeq *crseq;
+	char *name;
+	unsigned char *alphCnt;
 } Read;
 
-int readAllReads(char *fileName1, char *fileName2, int compressed, unsigned char *fastq, unsigned char pe, Read **seqList, unsigned int *seqListSize);
-void loadSamplingLocations(int **samplingLocs, int *samplingLocsSize);
-void finalizeReads(char *fileName);
+int readChunk(Read **seqList, unsigned int *seqListSize);
+void finalizeReads();
+void getSamplingLocsInfo(int **samplingLocs, int **samplingLocsSeg, int **samplingLocsOffset, int **samplingLocsLen, int **samplingLocsLenFull, int *samplingLocsSize);
+int initRead(char *seqFile1, char *seqFile2);
+void getReadIndex(ReadIndexTable ***rIndex, int **rIndexSize);
+void releaseChunk();
 #endif

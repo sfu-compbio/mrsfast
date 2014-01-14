@@ -1,0 +1,242 @@
+.TH mrsFAST-Ultra 1 "Last Updated: Sep 11, 2013" mrsFAST-Ultra "mrsfast-Ultra Manual"
+.SH NAME
+mrsfast-ultra
+.SH DESCRIPTION
+mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of mapping single and paired end reads to the reference genome. Bisulfite treated  sequences are not supported in this version.
+
+.SH INSTALLATION
+To install mrsFAST-ultra, please download the source zip package from http://sourceforge.net/projects/mrsfast/. After unzipping the downloaded file "mrsfast-ultra-3.X.X.zip", change the current directory to the source directory "mrsfast-ultra-3.X.X", and run "make" in the terminal. The binary file "mrsfast" will be created, which is ready to use.
+.br
+$ unzip mrsfast-ultra-3.X.X.zip
+.br
+$ cd mrsfast-ultra-3.X.X
+.br
+$ make
+
+.SH SYNOPSIS
+mrsfast-ultra --index [file] [OPTIONS]
+.br
+mrsfast-ultra --search [index] --seq [file] [OPTIONS]
+.SH OPTIONS
+.SS GENERAL OPTIONS
+.TP
+.B
+-h
+Prints this help file.
+.TP
+.B
+-v, --version
+Prints the version of software.
+.SS INDEXING OPTIONS
+
+.TP
+.BI --ws " window_size"
+Index the reference genome with sliding a window of size 
+.I
+window_size
+(default: 12).
+
+.SS MAPPING OPTIONS
+
+.TP
+.BI --mem " m"
+Use maximum 
+.I m 
+GB of memory (default: 4).
+
+.TP
+.BI --threads " t"
+Use 
+.I t
+number of cores for mapping the sequences (default: 1). Use
+.I 0
+to use all the available cores in the system.
+
+.TP
+.BI --seq " file"
+Set the input sequence to
+.I file.
+In paired-end mode, 
+.I file
+should be used if the read sequences are interleaved.
+
+.TP
+.BI --seq1 " file"
+Set the input sequence (left mate) to 
+.I file.
+Paired-end option only.
+
+.TP
+.BI --seq2 " file"
+Set the input sequence (right mate) to 
+.I file.
+Paired-end option only.
+
+.TP
+.B --seqcomp
+Input file is compressed through gzip.
+
+.TP
+.BI -o " file"
+Output the mapping record into 
+.I file
+(default: output.sam)
+
+.TP 
+.B --disable-sam-header
+Do not generate SAM header.
+
+.TP
+.BI -u " file"
+Output unmapped reads in 
+.I file
+(default: output.nohit). This file will be generated in all mapping mode.
+
+.TP
+.B --disable-nohits
+Do not output unmapped reads.
+
+.TP
+.B --outcomp
+Compress the output 
+.I file
+by gzip.
+
+.TP
+.BI -n " cut-off"
+Output the mapping for the read sequences that have less than 
+.I cut-off
+number of mappings. Cannot be used with 
+.B --best
+or
+.B --discordant-vh
+options.
+
+
+.TP
+.BI --crop " n"
+Trim the reads to 
+.I n
+base pairs.
+
+.TP
+.BI -e " error-threshold"
+Allow up to 
+.I error-threshold
+mismatches in the mappings.
+
+.TP
+.B --best
+Find the best mapping location of given reads.
+
+.TP
+.B --pe
+Map the reads in Paired-End mode. 
+.B
+mix
+and 
+.B
+max
+of template length will be calculated if not provided by corresponding options.
+
+.TP
+.BI --min " min-discordant-length"
+Use 
+.I min-discordant-length  
+for minimum length of concordant mapping. Paired-end option only.
+
+.TP
+.BI --max " man-discordant-length"
+Use 
+.I max-discordant-length  
+for maximum length of concordant mapping. Paired-end option only.
+ 
+.TP 
+.B --discordant-vh
+Map the reads in discordant fashion that can be processed by Variation Hunter / Common Law. Output will be generate in DIVET format.
+
+.TP
+.BI --max-discordant-cutoff " m"
+Allow 
+.I m
+discordant mappings per read. Should be only used with 
+.B --discordant-vh
+option.
+
+.TP
+.BI --snp " snp-file"
+Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tolerates the mismatches in known SNP locations reported by the provided SNP database. The SNP index
+.I snp-file
+ should be created from the dbSNP (.vcf) file using the snp_indexer binary.
+
+.TP
+.BI --snp-qual " quality-threshold"
+In SNP-aware mode, a mismatch at a reported SNP location will be ignored only if the corresponding read location has a quality higher than or equal to the
+.I quality-threshold
+.
+.I quality-threshold 
+is a Phred-Value base 33. The default is 53 (base call error 0.01).
+
+.SH EXAMPLES
+
+Indexing reference genome:
+.br
+$ ./mrsfast --index refgen.fasta
+.br
+$ ./mrsfast --index refgen.fasta --ws 14
+
+Single-end mapping:
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 -n 10 --threads 4
+.br
+$ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 --best -o output
+
+Paired-end mapping:
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq pe-reads.fastq --min 100 --max 400
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq -e 3 --threads 4
+.br
+$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq --min 100 --max 400 --best -o output
+
+Discordant mapping:
+.br
+$ ./mrsfast --search refgen.fasta --pe --discordant-vh --seq reads.fastq --min 100 --max 400
+
+
+.SH BUGS
+Please report the bugs through mrsfast's web page at http://mrsfast.sourceforge.net
+
+.SH Authors
+Faraz Hach (fhach@sfu.ca) 
+.br
+Iman Sarrafi (isarrafi@sfu.ca)
+
+
+.SH Reference
+
+Please cite the following paper for publications:
+
+Faraz Hach, Fereydoun Hormozdiari, Can Alkan, Farhad Hormozdiari, Inanc Birol, Evan E Eichler and S Cenk Sahinalp, "mrsFAST: a cache-oblivious algorithm for short-read mapping", Nature Methods 7, 576-577 (2010)
+
+
+.SH COPYRIGHT
+
+Copyright (c) <2012-2020>, Simon Fraser University All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+.IP 1
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+.IP 2
+Redistributions in binary form must reproduce the above copyright notice, thislist of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+.IP 3 
+Neither the name of the Simon Fraser University nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+.P
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+

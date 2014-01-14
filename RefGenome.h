@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,16 +28,17 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
 
 
 #ifndef _REF_GENOME_
 #define _REF_GENOME_
 
-int		initLoadingRefGenome(char *fileName);
+int		initLoadingRefGenome(char *fileName, char *genomeInfo, int *genomeInfoSize);
 void	finalizeLoadingRefGenome();
-int		loadRefGenome(char **refGen, char **refGenName, int *refGenOff);
+int		loadRefGenome(char **refGen, char **refGenName, int *refGenOff, int *refGenLen);
 
 #endif

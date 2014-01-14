@@ -1,0 +1,8 @@
+.DS_Store
+/data
+/data/*
+mrsfast
+snp_indexer
+gmon.out
+HELP
+*.o

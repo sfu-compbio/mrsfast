@@ -1,5 +1,5 @@
 /*
- * Copyright (c) <2008 - 2009>, University of Washington, Simon Fraser University
+ * Copyright (c) <2008 - 2020>, University of Washington, Simon Fraser University
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -28,49 +28,58 @@
  */
 
 /*
- * Author         : Faraz Hach
- * Email          : fhach AT cs DOT sfu
+ * Author: 
+ *        Faraz Hach (fhach AT cs DOT sfu DOT ca)
+ *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
-
 
 #ifndef __COMMON__
 #define __COMMON__
 
-#include <zlib.h>
+#if SSE4==1 
+#define MRSFAST_SSE4
+#endif
 
-#define SEQ_MAX_LENGTH		200			// Seq Max Length
-#define CONTIG_OVERLAP		200 		// No. of characters overlapped between contings
+
+#include <zlib.h>
+#include <stdint.h>
+
+#define SEQ_MAX_LENGTH		500			// Seq Max Length
+#define CMP_SEQ_MAX_LENGTH	10			// Compressed Seq Max Length
+#define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	400			// Filename Max Length
-//define DISCORDANT_CUT_OFF  800
 
-extern unsigned int		DISCORDANT_CUT_OFF;
+
+typedef uint64_t CompressedSeq;
+typedef uint16_t CheckSumType;
 
 extern unsigned int		CONTIG_SIZE;
 extern unsigned int		CONTIG_MAX_SIZE;
+extern unsigned int		THREAD_COUNT;
+extern double			MAX_MEMORY;
+extern int				THREAD_ID[255];
 
-
-extern unsigned char	WINDOW_SIZE				;		// WINDOW SIZE for indexing/searching
+extern unsigned char	WINDOW_SIZE;					// WINDOW SIZE for indexing/searching
 extern unsigned short	SEQ_LENGTH;						// Sequence(read) length
 extern unsigned short	QUAL_LENGTH;
+extern unsigned short	CMP_SEQ_LENGTH;
+extern unsigned short	DISCORDANT_CUT_OFF;
+extern int				SNP_QUAL_THRESHOLD;
 
-extern char				*versionNumber;
-extern char				*versionNumberF;
-extern unsigned char	mrFAST;
-
-
-extern int				uniqueMode;
 extern int				indexingMode;
 extern int				searchingMode;
-extern int				bisulfiteMode;
 extern int				pairedEndMode;
 extern int				pairedEndDiscordantMode;
 extern int				pairedEndProfilingMode;
+extern int				bestMappingMode;
+extern int				SNPMode;
 extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
 extern int				progressRep;
-extern char				phredQual;
+extern int				nohitDisabled;
+extern int				noSamHeader;
 extern char 			*seqFile1;
 extern char				*seqFile2;
 extern char				*seqUnmapped;
@@ -78,23 +87,50 @@ extern char				*mappingOutput;
 extern char 			*mappingOutputPath;
 extern char				*unmappedOutput;
 extern unsigned char	seqFastq;
-extern unsigned char	errThreshold;
-extern unsigned char	maxHits;	
+extern int				errThreshold;
+extern short			maxHits;	
 extern int				minPairEndedDiscordantDistance;
 extern int				maxPairEndedDiscordantDistance;
 extern int				minPairEndedDistance;
 extern int				maxPairEndedDistance;
-extern char				fileName[1000][2][FILE_NAME_LENGTH];
+extern char				fileName[3][FILE_NAME_LENGTH];
 extern int				fileCnt;
 extern long long		memUsage;
+extern char				*alphabet;
+extern char				checkSumLength;
+
+#pragma pack(push, 1)
+typedef struct
+{
+	CheckSumType  checksum;
+	uint32_t info;				// ReadIndex => seqInfo | GenomeIndex ==> Loc
+} GeneralIndex;
+#pragma pack(pop)
+typedef struct
+{
+	int hv;
+	GeneralIndex *list;
+} ReadIndexTable;
+
+typedef struct
+{
+	int loc;
+	char alt;
+} SNPLoc;
 
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
 double	getTime(void);
 void	reverseComplete (char *seq, char *rcSeq , int length);
+char reverseCompleteChar(char);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
 void 	reverse (char *seq, char *rcSeq , int length);
 void 	stripPath(char *full, char **path, char **fileName);
+void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
+int 	calculateCompressedLen(int normalLen);
+int	hashVal(char *seq);
+int	checkSumVal(char *seq);
+void initCommon();
 #endif

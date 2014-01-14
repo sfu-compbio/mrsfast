@@ -33,77 +33,18 @@
  *        Iman Sarrafi (isarrafi AT cs DOT sfu DOT ca)
  */
 
-#ifndef __MRS_FAST__
-#define __MRS_FAST__
+#ifndef __SNIP_READER__
+#define __SNIP_READER__
 
-#include "Reads.h"
+CompressedSeq	*loadSNPMap(char *chrName, int contigStartIndex, int contigLength, char *snpAlternatives);
+void 			initLoadingSNPs(char *fileName);
+void 			finalizeSNPs();
 
-#define MAP_CHUNKS 15
-
-enum BestMappingStatus { unset = 0, first_mate, second_mate, trans_loc, improper, proper };
-
-typedef struct mn
+typedef struct
 {
-	int loc;
-	char dir;
-	char err;
-	char mderr;
-	float score;
-	int hits;
-	int secondBestHits;
-	int secondBestErrors;
-	char md[40];
-	char chr[40];
-} FullMappingInfo;
+	char *chrName;
+	int locCnt;
+	SNPLoc *snpLocs;
+} ChrSNPs;
 
-
-typedef struct mnp
-{
-	int loc1;
-	char dir1;
-	char err1;
-	char mderr1;
-	char md1[40];
-	char chr1[40];
-	int loc2;
-	char dir2;
-	char err2;
-	char mderr2;
-	char md2[40];
-	char chr2[40];
-	enum BestMappingStatus status;
-} BestMappingInfoPE;
-
-
-
-typedef struct lc
-{
-	int loc[MAP_CHUNKS];
-	char err[MAP_CHUNKS];
-	struct lc *next;
-} MappingLocations;
-
-typedef struct inf
-{
-	int size;
-	MappingLocations *next;
-} MappingInfo;
-
-typedef struct 
-{
-	FILE * fp;
-	char name[400];
-} FILE_STRUCT;
-
-extern long long			verificationCnt;
-extern long long			mappingCnt;
-extern long long			mappedSeqCnt;
-extern long long			completedSeqCnt;
-
-void initializeFAST(int seqListSize);
-void initFASTChunk(Read *seqList, int seqListSize);
-void initFASTContig();
-void finalizeFAST();
-
-void mapSeq(unsigned char contigFlag);
 #endif
