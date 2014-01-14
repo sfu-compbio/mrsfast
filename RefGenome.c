@@ -47,6 +47,7 @@ char *_rg_name;
 int _rg_offset;
 int _rg_contGen;		// false if this segment is the first contig
 
+int getGenomeMetaInfo(char*, char*, int*);
 
 /**********************************************/
 int initLoadingRefGenome(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoLength)

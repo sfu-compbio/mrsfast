@@ -105,5 +105,5 @@ void initFASTChunk(Read *seqList, int seqListSize);
 void initFASTContig();
 void finalizeFAST();
 
-int mapSeq(unsigned char contigFlag);
+void mapSeq(unsigned char contigFlag);
 #endif

@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < NUM_OF_CHRS; i++)
 		free(chrSNPs[i]);
 	free(chrSNPs);
-	fprintf(stdout, "%lld SNP locations registered successfully\n", snpCnt);
+	fprintf(stdout, "%u SNP locations registered successfully\n", snpCnt);
 
 	return 0;
 }

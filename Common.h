@@ -40,6 +40,7 @@
 #define MRSFAST_SSE4
 #endif
 
+
 #include <zlib.h>
 #include <stdint.h>
 
@@ -120,15 +121,15 @@ typedef struct
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
 double	getTime(void);
-inline void	reverseComplete (char *seq, char *rcSeq , int length);
-inline char reverseCompleteChar(char);
+void	reverseComplete (char *seq, char *rcSeq , int length);
+char reverseCompleteChar(char);
 void	* getMem(size_t size);
 void	freeMem(void * ptr, size_t size);
 double	getMemUsage();
-inline void 	reverse (char *seq, char *rcSeq , int length);
+void 	reverse (char *seq, char *rcSeq , int length);
 void 	stripPath(char *full, char **path, char **fileName);
 void compressSequence(char *seq, int seqLen, CompressedSeq *cseq);
-inline int 	calculateCompressedLen(int normalLen);
+int 	calculateCompressedLen(int normalLen);
 int	hashVal(char *seq);
 int	checkSumVal(char *seq);
 void initCommon();

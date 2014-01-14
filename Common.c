@@ -39,6 +39,7 @@
 #include <zlib.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 #include "Common.h"
 
 

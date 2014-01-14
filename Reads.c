@@ -340,6 +340,7 @@ void *preProcessReads(int *idp)
 		beg = end+1;
 	}
 	freeMem(tmp, sizeof(Pair)*(div*_r_samplingLocsSize*2));
+	return NULL;
 }
 /**********************************************/
 void preProcessReadsMT()
@@ -599,7 +600,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	int i;//, len;
 
 	int namelen;
-	while( namelen = readFirstSeq(name1,1) )
+	while( (namelen = readFirstSeq(name1,1)) )
 	{
 
 		if (pairedEndMode)
@@ -619,7 +620,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		_r_seq[_r_seqCnt].cseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].qual + QUAL_LENGTH + 1);
 		_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + CMP_SEQ_LENGTH);
 		_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + CMP_SEQ_LENGTH);
-		_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + namelen);// + 1);
+		_r_seq[_r_seqCnt].alphCnt = (unsigned char *)(_r_seq[_r_seqCnt].name + namelen);// + 1);
 		_r_seq[_r_seqCnt].hits[0] = 0;
 
 		for (i=1; i<namelen+1; i++)
@@ -653,7 +654,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 			_r_seq[_r_seqCnt].cseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].qual + QUAL_LENGTH + 1);
 			_r_seq[_r_seqCnt].crseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].cseq + CMP_SEQ_LENGTH);
 			_r_seq[_r_seqCnt].name	= (char *)(_r_seq[_r_seqCnt].crseq + CMP_SEQ_LENGTH);
-			_r_seq[_r_seqCnt].alphCnt = (char *)(_r_seq[_r_seqCnt].name + namelen);// + 1);
+			_r_seq[_r_seqCnt].alphCnt = (unsigned char *)(_r_seq[_r_seqCnt].name + namelen);// + 1);
 			_r_seq[_r_seqCnt].hits[0] = 0;
 			
 			readSecondSeq(name2, 1);

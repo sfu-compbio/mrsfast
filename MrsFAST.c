@@ -142,8 +142,8 @@ void outputMaxHitsSingleMapping();
 void updateMaxHitsPairedEnd();
 void outputMaxHitsPairedEnd();
 
-inline int countErrorsSNP (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
-inline int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
+int countErrorsSNP (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
+int countErrorsNormal (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void calculateConcordantDistances();
 void updateDistance();
 void modifyMinMaxDistances();
@@ -153,6 +153,10 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int
 int (*countErrors) (CompressedSeq *ref, int refOff, CompressedSeq *seq, int seqOff, int len, int *errSamp, int allowedErr);
 void (*mapSeqListBal) (GeneralIndex *l1, int s1, GeneralIndex *l2, int s2, int dir, int id);
 int (*calculateMD) (int index, CompressedSeq *cmpSeq, char *seq, char *qual, int err, char **opSeq);
+
+
+int verifySeq(int index, CompressedSeq *seq, int offset, int id);
+int verifySeqBest(int index, CompressedSeq *seq, int offset, int finalSegment, int id);
 
 /**********************************************/
 void initializeFAST(int seqListSize)
@@ -438,8 +442,10 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 
 	while(len >= 21)
 	{
-		tmpref = (*ref << refALS) | (*(++ref) >> refARS);
-		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
+		tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+		tmpseq = (*seq << segALS) | (*(1+seq) >> segARS);
+		ref++; 
+		seq++;
 		diff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
 
 		*errSamp |= (tmpseq & _msf_NMASK);
@@ -457,8 +463,10 @@ inline int countErrorsNormal(CompressedSeq *ref, int refOff, CompressedSeq *seq,
 
 	if (len)
 	{
-		tmpref = (*ref << refALS) | (*(++ref) >> refARS);
-		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
+		tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+		tmpseq = (*seq << segALS) | (*(1+seq) >> segARS);
+		ref++; 
+		seq++;
 		diff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
 
 		diff >>= (typeSize - len*3);
@@ -495,9 +503,12 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 
 	while(len >= 21)
 	{
-		tmpref = (*ref << refALS) | (*(++ref) >> refARS);
-		tmpsnp = (*snp << refALS) | (*(++snp) >> refARS);
-		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
+		tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+		tmpsnp = (*snp << refALS) | (*(1+snp) >> refARS);
+		tmpseq = (*seq << segALS) | (*(1+seq) >> segARS);
+		ref++;
+		snp++;
+		seq++;
 		diff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
 		*errSamp |= (diff != 0);
 		*errSamp |= (tmpseq & _msf_NMASK);
@@ -516,9 +527,13 @@ inline int countErrorsSNP(CompressedSeq *ref, int refOff, CompressedSeq *seq, in
 
 	if (len)
 	{
-		tmpref = (*ref << refALS) | (*(++ref) >> refARS);
-		tmpsnp = (*snp << refALS) | (*(++snp) >> refARS);
-		tmpseq = (*seq << segALS) | (*(++seq) >> segARS);
+		tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+		tmpsnp = (*snp << refALS) | (*(1+snp) >> refARS);
+		tmpseq = (*seq << segALS) | (*(1+seq) >> segARS);
+		ref++;
+		snp++;
+		seq++;
+
 		tmpdiff = (tmpref ^ tmpseq) & 0x7fffffffffffffff;
 		diff = tmpdiff & tmpsnp;
 
@@ -692,10 +707,12 @@ int calculateMD_SNP(int index, CompressedSeq *cmpSeq, char *seq, char *qual, int
 		if (diffMask == 7)
 		{
 			diffMask = 0x7000000000000000;
-			tmpref = (*ref << refALS) | (*(++ref) >> refARS);
+			tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+			ref++;
 			diff = (tmpref ^ *(cmpSeq++));
 
-			tmpsnp = (*snp << refALS) | (*(++snp) >> refARS);
+			tmpsnp = (*snp << refALS) | (*(1+snp) >> refARS);
+			snp++;
 			tmpsnp = ~tmpsnp;
 		}
 		else
@@ -801,7 +818,8 @@ int calculateMD_Normal(int index, CompressedSeq *cmpSeq, char *seq, char *qual, 
 			if (diffMask == 7)
 			{
 				diffMask = 0x7000000000000000;
-				tmpref = (*ref << refALS) | (*(++ref) >> refARS);
+				tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+				ref++;
 				diff = (tmpref ^ *(cmpSeq++));
 			}
 			else
@@ -1004,8 +1022,8 @@ void mapSingleEndSeqListBalMultipleMaxHits(GeneralIndex *l1, int s1, GeneralInde
 			mapSeqListBal(l2, tmp2, l1, tmp1, -dir, id);
 	}
 }
-
-inline int mmin(int a, int b)
+/**********************************************/
+static inline int mmin(int a, int b)
 {
 	return (a<b)? a :b;
 }
@@ -1389,9 +1407,10 @@ void *mapSeqMT(int *idp)
 		}
 		i++;
 	}
+	return NULL;
 }
 /**********************************************/
-int mapSeq(unsigned char cf)
+void mapSeq(unsigned char cf)
 {
 	int i;
 	contigFlag = cf;
@@ -3407,7 +3426,8 @@ float calculateScore(int index, CompressedSeq *cmpSeq, char *qual, int *err)
 		if (diffMask == 7)
 		{
 			diffMask = 0x7000000000000000;
-			tmpref = (*ref << refALS) | (*(++ref) >> refARS);
+			tmpref = (*ref << refALS) | (*(1+ref) >> refARS);
+			ref++;
 			diff = (tmpref ^ *(cmpSeq++));
 		}
 		else

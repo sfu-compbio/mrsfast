@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 #include "Common.h"
 #include "RefGenome.h"
 #include "HashTable.h"
@@ -70,7 +71,7 @@ pthread_mutex_t	_ih_writeLock;
 
 
 /**********************************************/
-inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
+static inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// returns number of bytes written to buffer
 {
 	int t = 0;
 	do {
@@ -81,7 +82,7 @@ inline int encodeVariableByte(unsigned char *buffer, unsigned int value)		// ret
 	return t;
 }
 /**********************************************/
-inline unsigned int decodeVariableByte(unsigned char *buffer, unsigned int *result)		// returns number of bytes read from the buffer
+static inline unsigned int decodeVariableByte(unsigned char *buffer, unsigned int *result)		// returns number of bytes read from the buffer
 {
 	int i = 0;
 	char t;
@@ -379,7 +380,7 @@ int initLoadingHashTable(char *fileName)
 		_ih_chrNames[i][nameLen] = '\0';
 		tmp = fread(&_ih_refGenLen, sizeof(int), 1, _ih_fp);
 		
-		sprintf(strtmp,"@SQ\tSN:%s\tLN:%d\0", _ih_chrNames[i], _ih_refGenLen);
+		sprintf(strtmp,"@SQ\tSN:%s\tLN:%d%c", _ih_chrNames[i], _ih_refGenLen, '\0');
 		outputMeta(strtmp);
 		
 		if (_ih_refGenLen > _ih_maxChrLength)
@@ -494,6 +495,7 @@ void *calculateHashTableOnFly(int *idp)
 
 		}
 	}
+	return NULL;
 }
 /**********************************************/
 void *sortHashTable(int *id)
@@ -512,7 +514,8 @@ void *sortHashTable(int *id)
 		_ih_hashTable[i].list[0].info=cnt;
 		if (cnt)
 			introSortGI(_ih_hashTable[i].list, 1 , _ih_hashTable[i].list[0].info);
-	}	
+	}
+	return NULL;
 }
 /**********************************************/
 void *countQGrams(int *idp)
@@ -537,7 +540,7 @@ void *countQGrams(int *idp)
 	t = 0;
 	char outgoingChar[SEQ_LENGTH];
 	unsigned int *copy = (unsigned int *)(_ih_alphCnt+4*rgBlockStart);
-	unsigned char *cur = (char *)copy;		// current loc
+	unsigned char *cur = (unsigned char *)copy;		// current loc
 	*copy = 0;
 
 	for (i = 0; i < SEQ_LENGTH; i++)
@@ -562,7 +565,7 @@ void *countQGrams(int *idp)
 
 	while (i++ < rgBlockIt) // BORDER LINE CHECK
 	{
-		cur = (char *)++copy;
+		cur = (unsigned char *)++copy;
 		val = (cdata >> 60) & 7;
 		if (++t == 21)
 		{
@@ -582,6 +585,7 @@ void *countQGrams(int *idp)
 		outgoingChar[o] = val;
 		o = (++o == SEQ_LENGTH) ?0 :o;
 	}
+	return NULL;
 }
 /**********************************************/
 int  loadHashTable(double *loadTime)
@@ -633,7 +637,8 @@ int  loadHashTable(double *loadTime)
 
 	tmp = fread(&hashTableSize, sizeof(hashTableSize), 1, _ih_fp);
 
-	int index = 0, diff, bytesToRead;
+	int index = 0, bytesToRead;
+	unsigned int diff;
 	unsigned long long hv=0;
 	i = 0;
 	while (i < hashTableSize)
@@ -716,7 +721,7 @@ int getCmpRefGenLength()
 	return _ih_crefGenLen;
 }
 /**********************************************/
-char *getAlphabetCount()
+unsigned char *getAlphabetCount()
 {
 	return _ih_alphCnt;
 }

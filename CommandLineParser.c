@@ -76,15 +76,29 @@ unsigned short			DISCORDANT_CUT_OFF = 300;
 double					MAX_MEMORY = 4;// GB
 int						THREAD_ID[255];
 int						SNP_QUAL_THRESHOLD = 53;
-extern char 			_binary_HELP_start;
-extern char				_binary_HELP_end;
+
+
+
+#if (defined(__MACH__) && defined(__APPLE__))
+#include <mach-o/getsect.h>
+#else
+extern char _binary_HELP_start;
+extern char _binary_HELP_end;
+#endif
 
 
 void printHelp()
 {
+#if (defined(__MACH__) && defined(__APPLE__))
+	size_t i, sz = getsectbyname("binary", "HELP")->size;
+	const uint8_t *c =  (const uint8_t*) getsectbyname("binary", "HELP")->addr;
+	for (i = 0; i < sz; i++) 
+		putchar(c[i]); 
+#else
 	char *c;
 	for (c = &_binary_HELP_start; c != &_binary_HELP_end; c++)
 		putchar(*c);
+#endif
 	exit(0);
 }
 

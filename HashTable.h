@@ -55,12 +55,17 @@ CompressedSeq	*getCmpRefGenome();
 CompressedSeq	*getCmpRefGenOrigin();
 int				getRefGenLength();
 int				getCmpRefGenLength();
-int				initLoadingHashTable(char *fileName);
+int				initLoadingHashTable(char*);
 HashTable		*getHashTable();
 GeneralIndex	*getCandidates(int hv);
-char			*getAlphabetCount();
+unsigned char	*getAlphabetCount();
 void			rewindHashTable();
 int 			getChrCnt();
 char 			**getChrNames();
 int 			getMaxChrLength();
+int				generateHashTable(char*, char*);
+int				checkHashTable(char*);
+int				loadHashTable(double*);
+void			finalizeLoadingHashTable();
+
 #endif

@@ -38,14 +38,14 @@
 #include "Common.h"
 #include "Reads.h"
 /**********************************************/
-inline int lg( int x ) {
+static inline int lg( int x ) {
 	// floor( log2( x ) )
 	int r = 0;
 	while ( x > 1 ) r++, x >>= 1;
 	return r;
 }
 /**********************************************/
-inline void heapSortGI( GeneralIndex * A, int N ) {
+void heapSortGI( GeneralIndex * A, int N ) {
 	// N - size of the array to be sorted
 	if ( N <= 1 ) return;
 	int i, j, maxi;
@@ -96,7 +96,7 @@ inline void heapSortGI( GeneralIndex * A, int N ) {
 	}
 }
 /**********************************************/
-inline void insertionSortGI( GeneralIndex * A, const int left, const int right ) {
+void insertionSortGI( GeneralIndex * A, const int left, const int right ) {
 	// left, right - starting and ending index of the interval to be sorted
 	int i, j;
 	for ( i = left + 1; i <= right; i++ ) {
@@ -175,9 +175,9 @@ void heapSortPair( Pair * A, int N ) {
 		j = i;
 		// bubble-down
 		while ( 2 * j + 2 < N ) {
-			if ( A[ 2 * j + 1 ].hv > A[ 2 * j + 2 ].hv || A[ 2 * j + 1 ].hv == A[ 2 * j + 2 ].hv && A[ 2 * j + 1 ].checksum > A[ 2 * j + 2 ].checksum ) maxi = 2 * j + 1;
+			if ( A[ 2 * j + 1 ].hv > A[ 2 * j + 2 ].hv || (A[ 2 * j + 1 ].hv == A[ 2 * j + 2 ].hv && A[ 2 * j + 1 ].checksum > A[ 2 * j + 2 ].checksum)  ) maxi = 2 * j + 1;
 			else maxi = 2 * j + 2;
-			if ( A[ maxi ].hv > A[ j ].hv || A[ maxi ].hv == A[ j ].hv && A[ maxi ].checksum > A[ j ].checksum ) {
+			if ( A[ maxi ].hv > A[ j ].hv ||  (A[ maxi ].hv == A[ j ].hv && A[ maxi ].checksum > A[ j ].checksum)  ) {
 				Pair temp = A[ j ];
 				A[ j ] = A[ maxi ];
 				A[ maxi ] = temp;
@@ -185,7 +185,7 @@ void heapSortPair( Pair * A, int N ) {
 			}
 			else break;
 		}
-		if ( 2 * j + 1 < N && ( A[ 2 * j + 1 ].hv > A[ j ].hv || A[ 2 * j + 1 ].hv == A[ j ].hv && A[ 2 * j + 1 ].checksum > A[ j ].checksum ) ) {
+		if ( 2 * j + 1 < N && ( A[ 2 * j + 1 ].hv > A[ j ].hv || (A[ 2 * j + 1 ].hv == A[ j ].hv && A[ 2 * j + 1 ].checksum > A[ j ].checksum) ) ) {
 			Pair temp = A[ j ];
 			A[ j ] = A[ 2 * j + 1 ];
 			A[ 2 * j + 1 ] = temp;
@@ -199,9 +199,9 @@ void heapSortPair( Pair * A, int N ) {
 		j = 0;
 		// bubble-down
 		while ( 2 * j + 2 < N ) {
-			if ( A[ 2 * j + 1 ].hv > A[ 2 * j + 2 ].hv || A[ 2 * j + 1 ].hv == A[ 2 * j + 2 ].hv && A[ 2 * j + 1 ].checksum > A[ 2 * j + 2 ].checksum ) maxi = 2 * j + 1;
+			if ( A[ 2 * j + 1 ].hv > A[ 2 * j + 2 ].hv || (A[ 2 * j + 1 ].hv == A[ 2 * j + 2 ].hv && A[ 2 * j + 1 ].checksum > A[ 2 * j + 2 ].checksum) ) maxi = 2 * j + 1;
 			else maxi = 2 * j + 2;
-			if ( A[ maxi ].hv > A[ j ].hv || A[ maxi ].hv == A[ j ].hv && A[ maxi ].checksum > A[ j ].checksum ) {
+			if ( A[ maxi ].hv > A[ j ].hv || (A[ maxi ].hv == A[ j ].hv && A[ maxi ].checksum > A[ j ].checksum) ) {
 				Pair temp = A[ j ];
 				A[ j ] = A[ maxi ];
 				A[ maxi ] = temp;
@@ -209,7 +209,7 @@ void heapSortPair( Pair * A, int N ) {
 			}
 			else break;
 		}
-		if ( 2 * j + 1 < N && ( A[ 2 * j + 1 ].hv > A[ j ].hv || A[ 2 * j + 1 ].hv == A[ j ].hv && A[ 2 * j + 1 ].checksum > A[ j ].checksum ) ) {
+		if ( 2 * j + 1 < N && ( A[ 2 * j + 1 ].hv > A[ j ].hv || (A[ 2 * j + 1 ].hv == A[ j ].hv && A[ 2 * j + 1 ].checksum > A[ j ].checksum) ) ) {
 			Pair temp = A[ j ];
 			A[ j ] = A[ 2 * j + 1 ];
 			A[ 2 * j + 1 ] = temp;
@@ -223,7 +223,7 @@ void insertionSortPair( Pair * A, const int left, const int right ) {
 	for ( i = left + 1; i <= right; i++ ) {
 		j = i;
 		Pair temp = A[ i ];
-		while ( j > left && ( A[ j - 1 ].hv > temp.hv || A[ j - 1 ].hv == temp.hv && A[ j - 1 ].checksum > temp.checksum ) ) {
+		while ( j > left && ( A[ j - 1 ].hv > temp.hv || (A[ j - 1 ].hv == temp.hv && A[ j - 1 ].checksum > temp.checksum) ) ) {
 			A[ j ] = A[ j - 1 ];
 			j--;
 		}
@@ -243,17 +243,17 @@ void quickSortPair( Pair * A, const int left, const int right, int depth ) {
 		int i;
 		Pair temp;
 		// median of A[ left ], A[ mid ], A[ right ], to be stored in A[ right ]
-		if ( A[ mid ].hv < A[ right ].hv || A[ mid ].hv == A[ right ].hv && A[ mid ].checksum < A[ right ].checksum ) {
+		if ( A[ mid ].hv < A[ right ].hv || (A[ mid ].hv == A[ right ].hv && A[ mid ].checksum < A[ right ].checksum) ) {
 			temp = A[ right ];
 			A[ right ] = A[ mid ];
 			A[ mid ] = temp;
 		}
-		if ( A[ left ].hv < A[ right ].hv || A[ left ].hv == A[ right ].hv && A[ left ].checksum < A[ right ].checksum ) {
+		if ( A[ left ].hv < A[ right ].hv || (A[ left ].hv == A[ right ].hv && A[ left ].checksum < A[ right ].checksum) ) {
 			temp = A[ right ];
 			A[ right ] = A[ left ];
 			A[ left ] = temp;
 		}
-		if ( A[ left ].hv < A[ mid ].hv || A[ left ].hv == A[ mid ].hv && A[ left ].checksum < A[ mid ].checksum ) {
+		if ( A[ left ].hv < A[ mid ].hv || (A[ left ].hv == A[ mid ].hv && A[ left ].checksum < A[ mid ].checksum) ) {
 			temp = A[ right ];
 			A[ right ] = A[ left ];
 			A[ left ] = temp;
@@ -265,7 +265,7 @@ void quickSortPair( Pair * A, const int left, const int right, int depth ) {
 		}
 		// partitioning the array with respect to A[ right ]
 		for ( i = left; i < right; i++ ) {
-			if ( A[ i ].hv < A[ right ].hv || A[ i ].hv == A[ right ].hv && A[ i ].checksum < A[ right ].checksum ) {
+			if ( A[ i ].hv < A[ right ].hv || (A[ i ].hv == A[ right ].hv && A[ i ].checksum < A[ right ].checksum) ) {
 				temp = A[ ++small ];
 				A[ small ] = A[ i ];
 				A[ i ] = temp;
