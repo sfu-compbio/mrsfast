@@ -1,7 +1,26 @@
-2013-07-23	Faraz Hach	<fhach@cs.sfu.ca>
+2014-01-14  Faraz Hach  <fhach@sfu.ca>
+	* Bug related to calculation of q-grams with respect to last character
+	of referencce genome is fiexed..
+	* Code is ported to OS X Mavericks.
+	* Code is compatible with clang.
+	* Make file is modified to handle OS X help file generation.
+	* New GUI is released for use of mrsfast-ultra.
+
+2013-09-13  Faraz Hach  <fhach@cs.sfu.ca>
+	* Bug fixes.
+
+2013-07-23  Faraz Hach  <fhach@cs.sfu.ca>
 	* Patch sent by J.K Teer is applied on Reads.c for gzip PE input.
 
-2012-11-14	Faraz Hach	<fhach@cs.sfu.ca>
+2013-06-07  Faraz Hach  <fhach@cs.sfu.ca>
+	* Bug fixes.
+
+2013-01-16  Faraz Hach  <fhach@cs.sfu.ca>
+	* First Release of mrsfast-ultra BETA. 
+	* New High Performance mapper
+	* SNP-aware mapping mode.
+
+2012-11-14  Faraz Hach  <fhach@cs.sfu.ca>
 	* Bug fix with respect to quality end null characters.
 
 2012-08-18  Faraz Hach  <fhach@cs.sfu.ca>
