@@ -429,7 +429,6 @@ int initRead(char *fileName1, char *fileName2)
 	}
 	else
 	{
-		_r_fp2 = _r_fp1;
 		_r_buf2 = _r_buf1;
 		_r_buf2_pos = _r_buf1_pos;
 		_r_buf2_size = _r_buf1_size;
@@ -444,11 +443,19 @@ int initRead(char *fileName1, char *fileName2)
 			return 0;
 
 		ch = fgetc(_r_fp1);
-		if ( pairedEndMode && fileName2 != NULL )
+
+		if ( pairedEndMode) 
 		{
-			_r_fp2 = fileOpen ( fileName2, "r" );
-			if (_r_fp2 == NULL)
-				return 0;
+			if ( fileName2 == NULL )
+			{
+				_r_fp2 = _r_fp1;
+			}
+			else
+			{
+				_r_fp2 = fileOpen ( fileName2, "r" );
+				if (_r_fp2 == NULL)
+					return 0;
+			}
 		}
 
 		readBuffer1 = &readBufferTxT1;
@@ -791,7 +798,6 @@ void finalizeReads()
 			gzclose(_r_fp2);
 		}
 	}
-
 	freeMem(_r_seq, sizeof(Read)*_r_maxSeqCnt);
 	freeMem(_r_samplingLocs, sizeof(int)*(_r_samplingLocsSize+1));
 	int size = sizeof(int)*_r_samplingLocsSize;
