@@ -104,13 +104,12 @@ void printHelp()
 
 int parseCommandLine (int argc, char *argv[])
 {
-
-	int o;
-	int index;
+	int index, len, o;
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
 	char *SNPFile = NULL;
+	char *fullpath;
 
 	mappingOutput = getMem(FILE_NAME_LENGTH);
 	mappingOutputPath = getMem(FILE_NAME_LENGTH);
@@ -178,7 +177,11 @@ int parseCommandLine (int argc, char *argv[])
 				strcpy(unmappedOutput, optarg);
 				break;
 			case 'o':
-				stripPath (optarg, &mappingOutputPath, &mappingOutput);
+				fullpath = optarg;
+				len = strlen(fullpath);
+				if (len > 4 && !strcmp(fullpath+len-4, ".sam"))
+					fullpath[len - 4] = '\0';
+				stripPath (fullpath, &mappingOutputPath, &mappingOutput);
 				sprintf(unmappedOutput, "%s%s.nohit", mappingOutputPath, mappingOutput );
 				break;
 			case 'n':
