@@ -339,7 +339,7 @@ void initFASTChunk(Read *seqList, int seqListSize)
 	else if (maxHits)
 	{
 		sprintf(_msf_hitsTempFileName, "%s__%s__%s__1",mappingOutputPath, mappingOutput, "hits");
-		_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "w");
+		_msf_hitsTempFile = fileOpen(_msf_hitsTempFileName, "w");
 	}
 
 }
@@ -1503,7 +1503,7 @@ void outputMaxHitsPairedEnd()
 	rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
 	
 	fclose(_msf_hitsTempFile);
-	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
+	_msf_hitsTempFile = fileOpen(_msf_hitsTempFileName, "r");
 	
 	int byteSize = 2*sizeof(int) + sizeof(char) + ((SNPMode) ?sizeof(char) :0);
 
@@ -1763,7 +1763,7 @@ void outputMaxHitsSingleMapping()
 	rqual[QUAL_LENGTH]='\0';
 
 	fclose(_msf_hitsTempFile);
-	_msf_hitsTempFile = fopen(_msf_hitsTempFileName, "r");
+	_msf_hitsTempFile = fileOpen(_msf_hitsTempFileName, "r");
 
 	int byteSize = 2*sizeof(int) + sizeof(char) + ((SNPMode) ?sizeof(char) :0);
 
@@ -2207,7 +2207,6 @@ void outputPairedEnd()
 	FullMappingInfo *mi1 = getMem(sizeof(FullMappingInfo) * _msf_maxLSize);
 	FullMappingInfo *mi2 = getMem(sizeof(FullMappingInfo) * _msf_maxRSize);
 
-
 	for (i=0; i<_msf_openFiles; i++)
 	{
 		sprintf(fname1[i], "%s__%s__%d__1", mappingOutputPath, mappingOutput, i);
@@ -2215,7 +2214,6 @@ void outputPairedEnd()
 		in1[i] = fileOpen(fname1[i], "r");
 		in2[i] = fileOpen(fname2[i], "r");
 	}
-
 
 	int size;
 	int j, k;
@@ -2644,6 +2642,8 @@ void outputPairedEnd()
 	if (pairedEndDiscordantMode)
 	{
 		fclose(out);
+		fclose(out1);
+		fclose(out2);
 	}
 
 
@@ -3402,6 +3402,9 @@ void updateBestPairedEnd()
 		unlink(fname1[i]);
 		unlink(fname2[i]);
 	}
+	fclose(out);
+	fclose(out1);
+	fclose(out2);
 	_msf_openFiles = 0;
 }
 /**********************************************/
@@ -3883,7 +3886,6 @@ void outputTempMapping()
 	int tmpOut;
 	int i, j;
 	int lmax=0, rmax=0;
-
 	sprintf(fname1, "%s__%s__%d__1",mappingOutputPath, mappingOutput, _msf_openFiles);
 	sprintf(fname2, "%s__%s__%d__2",mappingOutputPath, mappingOutput, _msf_openFiles);
 
@@ -3940,7 +3942,6 @@ void outputTempMapping()
 
 	fclose(out1);
 	fclose(out2);
-
 }
 /**********************************************/
 void updateDistance()
