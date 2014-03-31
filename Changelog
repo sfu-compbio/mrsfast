@@ -1,3 +1,7 @@
+2014-03-31  Faraz Hach  <fhach@sfu.ca>
+	* Added with-sse4 option to Makefile
+	* Bug reported by viktor in dc mode is fixed.
+
 2014-01-14  Faraz Hach  <fhach@sfu.ca>
 	* Bug related to calculation of q-grams with respect to last character
 	of referencce genome is fiexed..
