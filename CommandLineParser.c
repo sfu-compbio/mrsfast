@@ -104,9 +104,7 @@ void printHelp()
 
 int parseCommandLine (int argc, char *argv[])
 {
-
-	int o;
-	int index;
+	int index, len, o;
 	char *fastaFile = NULL;
 	char *fastaOutputFile = NULL;
 	char *indexFile = NULL;
