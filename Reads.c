@@ -618,10 +618,10 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 				name1[namelen]='\0';
 			}
 		}
-		size = 2 + (SEQ_LENGTH * 2) + QUAL_LENGTH + 3 + (CMP_SEQ_LENGTH << 4) + namelen +/* 1 +*/ 4;	
+		size = sizeof(uint16_t) + (SEQ_LENGTH * 2) + QUAL_LENGTH + 3 + (CMP_SEQ_LENGTH << 4) + namelen +/* 1 +*/ 4;	
 		_r_seq[_r_seqCnt].hits	= getMem(size);		
 		_r_readMemUsage += size;		
-		_r_seq[_r_seqCnt].seq	= (char *) (_r_seq[_r_seqCnt].hits + 1);
+		_r_seq[_r_seqCnt].seq	= (char *)(_r_seq[_r_seqCnt].hits + 1);
 		_r_seq[_r_seqCnt].rseq	= (char *)(_r_seq[_r_seqCnt].seq + SEQ_LENGTH + 1);
 		_r_seq[_r_seqCnt].qual	= (char *)(_r_seq[_r_seqCnt].rseq + SEQ_LENGTH + 1);
 		_r_seq[_r_seqCnt].cseq	= (CompressedSeq *)(_r_seq[_r_seqCnt].qual + QUAL_LENGTH + 1);

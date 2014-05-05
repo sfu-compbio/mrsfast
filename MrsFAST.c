@@ -119,7 +119,7 @@ int					*_msf_distance = NULL;
 int					_msf_distanceMemSize;
 int					_msf_profilingCompleted = 0;
 unsigned char		*_msf_refCheckSum = NULL;
-char				_msf_hitsTempFileName[100];
+char				_msf_hitsTempFileName[FILE_NAME_LENGTH];
 FILE				*_msf_hitsTempFile;
 int					_msf_initialized = 0;
 char				**_msf_buffer;

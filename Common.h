@@ -48,7 +48,7 @@
 #define CMP_SEQ_MAX_LENGTH	10			// Compressed Seq Max Length
 #define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
-#define FILE_NAME_LENGTH	400			// Filename Max Length
+#define FILE_NAME_LENGTH	500			// Filename Max Length
 
 
 typedef uint64_t CompressedSeq;
