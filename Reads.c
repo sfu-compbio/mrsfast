@@ -793,9 +793,9 @@ void finalizeReads()
 	else
 	{
 		gzclose(_r_gzfp1);
-		if ( pairedEndMode && _r_fp2 != NULL)
+		if ( pairedEndMode && _r_gzfp2 != NULL)
 		{
-			gzclose(_r_fp2);
+			gzclose(_r_gzfp2);
 		}
 	}
 	freeMem(_r_seq, sizeof(Read)*_r_maxSeqCnt);
