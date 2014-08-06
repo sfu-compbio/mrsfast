@@ -2757,38 +2757,74 @@ void outputBestPairedEnd()
 
 		if(SNPMode)
 		{
-			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
-					_msf_seqList[i*2].name,		// READ NAME
-					f1,							// FLAG
-					_msf_bestMappingPE[i].chr1,	// CHR NAME
-					_msf_bestMappingPE[i].loc1,	// LOC
-					255,						// MAPQ
-					_msf_cigar,					// CIGAR
-					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
-					_msf_bestMappingPE[i].loc2,	// MPOS
-					isize,						// ISIZE
-					seq1,						// SEQ
-					qual1,	 					// QUAL
-					_msf_bestMappingPE[i].mderr1,	// ERR
-					_msf_bestMappingPE[i].md1,		// MD
-					_msf_bestMappingPE[i].mderr1 - _msf_bestMappingPE[i].err1);				// SNP
+			if (f1 & 4)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n", 
+						_msf_seqList[i*2].name,		// READ NAME
+						f1,							// FLAG
+						_msf_bestMappingPE[i].chr1,	// CHR NAME
+						_msf_bestMappingPE[i].loc1,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+						_msf_bestMappingPE[i].loc2,	// MPOS
+						isize,						// ISIZE
+						seq1,						// SEQ
+						qual1);	 					// QUAL
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[i*2].name,		// READ NAME
+						f1,							// FLAG
+						_msf_bestMappingPE[i].chr1,	// CHR NAME
+						_msf_bestMappingPE[i].loc1,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+						_msf_bestMappingPE[i].loc2,	// MPOS
+						isize,						// ISIZE
+						seq1,						// SEQ
+						qual1,	 					// QUAL
+						_msf_bestMappingPE[i].mderr1,	// ERR
+						_msf_bestMappingPE[i].md1,		// MD
+						_msf_bestMappingPE[i].mderr1 - _msf_bestMappingPE[i].err1);				// SNP
+			}
 		}
 		else
 		{
-			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
-					_msf_seqList[i*2].name,		// READ NAME
-					f1,							// FLAG
-					_msf_bestMappingPE[i].chr1,	// CHR NAME
-					_msf_bestMappingPE[i].loc1,	// LOC
-					255,						// MAPQ
-					_msf_cigar,					// CIGAR
-					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
-					_msf_bestMappingPE[i].loc2,	// MPOS
-					isize,						// ISIZE
-					seq1,						// SEQ
-					qual1,	 					// QUAL
-					_msf_bestMappingPE[i].mderr1,	// ERR
-					_msf_bestMappingPE[i].md1);		// MD
+			if (f1 & 4)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n", 
+						_msf_seqList[i*2].name,		// READ NAME
+						f1,							// FLAG
+						_msf_bestMappingPE[i].chr1,	// CHR NAME
+						_msf_bestMappingPE[i].loc1,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+						_msf_bestMappingPE[i].loc2,	// MPOS
+						isize,						// ISIZE
+						seq1,						// SEQ
+						qual1);	 					// QUAL
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[i*2].name,		// READ NAME
+						f1,							// FLAG
+						_msf_bestMappingPE[i].chr1,	// CHR NAME
+						_msf_bestMappingPE[i].loc1,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr2,	// MRNAME
+						_msf_bestMappingPE[i].loc2,	// MPOS
+						isize,						// ISIZE
+						seq1,						// SEQ
+						qual1,	 					// QUAL
+						_msf_bestMappingPE[i].mderr1,	// ERR
+						_msf_bestMappingPE[i].md1);		// MD
+			}
 		}
 
 /*		_msf_output[0].POS			= _msf_bestMappingPE[i].loc1;
@@ -2833,38 +2869,74 @@ void outputBestPairedEnd()
 
 		if(SNPMode)
 		{
-			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
-					_msf_seqList[i*2+1].name,		// READ NAME
-					f2,							// FLAG
-					_msf_bestMappingPE[i].chr2,	// CHR NAME
-					_msf_bestMappingPE[i].loc2,	// LOC
-					255,						// MAPQ
-					_msf_cigar,					// CIGAR
-					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
-					_msf_bestMappingPE[i].loc1,	// MPOS
-					-isize,						// ISIZE
-					seq2,						// SEQ
-					qual2,	 					// QUAL
-					_msf_bestMappingPE[i].mderr2,	// ERR
-					_msf_bestMappingPE[i].md2,		// MD
-					_msf_bestMappingPE[i].mderr2 - _msf_bestMappingPE[i].err2);				// SNP
+			if (f2 & 4)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n", 
+						_msf_seqList[i*2+1].name,		// READ NAME
+						f2,							// FLAG
+						_msf_bestMappingPE[i].chr2,	// CHR NAME
+						_msf_bestMappingPE[i].loc2,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+						_msf_bestMappingPE[i].loc1,	// MPOS
+						-isize,						// ISIZE
+						seq2,						// SEQ
+						qual2);	 					// QUAL
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+						_msf_seqList[i*2+1].name,		// READ NAME
+						f2,							// FLAG
+						_msf_bestMappingPE[i].chr2,	// CHR NAME
+						_msf_bestMappingPE[i].loc2,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+						_msf_bestMappingPE[i].loc1,	// MPOS
+						-isize,						// ISIZE
+						seq2,						// SEQ
+						qual2,	 					// QUAL
+						_msf_bestMappingPE[i].mderr2,	// ERR
+						_msf_bestMappingPE[i].md2,		// MD
+						_msf_bestMappingPE[i].mderr2 - _msf_bestMappingPE[i].err2);				// SNP
+			}
 		}
 		else
 		{
-			_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
-					_msf_seqList[i*2+1].name,		// READ NAME
-					f2,							// FLAG
-					_msf_bestMappingPE[i].chr2,	// CHR NAME
-					_msf_bestMappingPE[i].loc2,	// LOC
-					255,						// MAPQ
-					_msf_cigar,					// CIGAR
-					(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
-					_msf_bestMappingPE[i].loc1,	// MPOS
-					-isize,						// ISIZE
-					seq2,						// SEQ
-					qual2,	 					// QUAL
-					_msf_bestMappingPE[i].mderr2,	// ERR
-					_msf_bestMappingPE[i].md2);		// MD
+			if (f2 & 4)
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\n", 
+						_msf_seqList[i*2+1].name,		// READ NAME
+						f2,							// FLAG
+						_msf_bestMappingPE[i].chr2,	// CHR NAME
+						_msf_bestMappingPE[i].loc2,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+						_msf_bestMappingPE[i].loc1,	// MPOS
+						-isize,						// ISIZE
+						seq2,						// SEQ
+						qual2);	 					// QUAL
+			}
+			else
+			{
+				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+						_msf_seqList[i*2+1].name,		// READ NAME
+						f2,							// FLAG
+						_msf_bestMappingPE[i].chr2,	// CHR NAME
+						_msf_bestMappingPE[i].loc2,	// LOC
+						255,						// MAPQ
+						_msf_cigar,					// CIGAR
+						(_msf_bestMappingPE[i].status > trans_loc) ?"=" :_msf_bestMappingPE[i].chr1,	// MRNAME
+						_msf_bestMappingPE[i].loc1,	// MPOS
+						-isize,						// ISIZE
+						seq2,						// SEQ
+						qual2,	 					// QUAL
+						_msf_bestMappingPE[i].mderr2,	// ERR
+						_msf_bestMappingPE[i].md2);		// MD
+			}
 		}
 
 /*		_msf_output[0].POS			= _msf_bestMappingPE[i].loc2;
@@ -2994,7 +3066,8 @@ void updateMaxHitsPairedEnd()
 		crseq1 = _msf_seqList[i*2].crseq;
 		cseq2 = _msf_seqList[i*2+1].cseq;
 		crseq2 = _msf_seqList[i*2+1].crseq;
-		char *qual1, *rqual1, *qual2, *rqual2;
+		char *qual1, *qual2;
+		char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
 		qual1 = _msf_seqList[i*2].qual;
 		reverse(qual1, rqual1, QUAL_LENGTH);
 		qual2 = _msf_seqList[i*2+1].qual;
