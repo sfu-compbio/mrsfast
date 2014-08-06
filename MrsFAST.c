@@ -3342,6 +3342,7 @@ void updateBestPairedEnd()
 		}
 
 
+//fprintf(stdout, "HERE?\n");
 /*		pos = 0;
 
 		for (j=0; j<size1; j++)
@@ -3389,7 +3390,6 @@ void updateBestPairedEnd()
 			}
 		}
 */
-
 	}
 
 	freeMem(mi1, sizeof(FullMappingInfo)*_msf_maxLSize);
@@ -3402,9 +3402,13 @@ void updateBestPairedEnd()
 		unlink(fname1[i]);
 		unlink(fname2[i]);
 	}
-	fclose(out);
-	fclose(out1);
-	fclose(out2);
+
+	if (pairedEndDiscordantMode)
+	{
+		fclose(out);
+		fclose(out1);
+		fclose(out2);
+	}
 	_msf_openFiles = 0;
 }
 /**********************************************/
