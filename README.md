@@ -1,1 +1,1 @@
-For installation and usage instructions please refer to http://mrsfast.sourceforge.net/mrsFASTUltraManual
+For installation and running instructions please refer to http://mrsfast.sourceforge.net/mrsFASTUltraManual
