@@ -5,7 +5,6 @@
 
 #include "Common.h"
 
-#define FILE_NAME_LENGTH 400
 #define MAX_LINE_LENGTH 2000
 #define MAX_SNP_PER_CHR 4030000
 #define NUM_OF_CHRS 25

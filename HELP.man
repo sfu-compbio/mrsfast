@@ -217,9 +217,13 @@ Iman Sarrafi (isarrafi@sfu.ca)
 
 .SH Reference
 
-Please cite the following paper for publications:
+Please cite the following paper for publications if using mrsFAST:
 
 Faraz Hach, Fereydoun Hormozdiari, Can Alkan, Farhad Hormozdiari, Inanc Birol, Evan E Eichler and S Cenk Sahinalp, "mrsFAST: a cache-oblivious algorithm for short-read mapping", Nature Methods 7, 576-577 (2010)
+
+Please cite the following paper for publications if using mrsFAST-Ultra:
+
+Faraz Hach, Iman Sarrafi, Farhad Hormozdiari, Can Alkan, Evan E. Eich-ler, S. Cenk Sahinalp, "mrsFAST-Ultra: a compact, SNP-aware mapper for high performance sequencing applications", Nucl. Acids Res. (1 July 2014) 42 (W1): W494-W500.
 
 
 .SH COPYRIGHT
