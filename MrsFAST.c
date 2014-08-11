@@ -342,6 +342,8 @@ void initFASTChunk(Read *seqList, int seqListSize)
 		_msf_hitsTempFile = fileOpen(_msf_hitsTempFileName, "w");
 	}
 
+	if (SNPMode)
+		rewindSNPIndex();
 }
 /**********************************************/
 void initFASTContig()

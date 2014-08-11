@@ -39,6 +39,7 @@
 CompressedSeq	*loadSNPMap(char *chrName, int contigStartIndex, int contigLength, char *snpAlternatives);
 void 			initLoadingSNPs(char *fileName);
 void 			finalizeSNPs();
+void			rewindSNPIndex();
 
 typedef struct
 {

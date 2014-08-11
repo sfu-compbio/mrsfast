@@ -163,3 +163,9 @@ CompressedSeq *loadSNPMap(char *chrName, int contigStartIndex, int contigLength,
 	}
 	return _snp_SNPMap;
 }
+/**********************************************/
+void rewindSNPIndex()
+{
+	_snp_currentChr = 0;
+	_snp_currentLoc = 0;
+}
