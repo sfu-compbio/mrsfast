@@ -9,6 +9,20 @@
 #define MAX_SNP_PER_CHR 4030000
 #define NUM_OF_CHRS 25
 
+/**********************************************/
+FILE *fileOpen(char *fileName, char *mode)
+{
+	FILE *fp;
+	fp = fopen (fileName, mode);
+	if (fp == NULL)
+	{
+		fprintf(stdout, "Error: Cannot Open the file %s\n", fileName);
+		fflush(stdout);
+		exit(0);
+	}
+	return fp;
+}
+/**********************************************/
 int cmp(const void *a, const void *b)
 {
 	SNPLoc *x = (SNPLoc *) a;
@@ -38,8 +52,8 @@ int main(int argc, char *argv[])
 		chrSNPs[i] = malloc(MAX_SNP_PER_CHR * sizeof(SNPLoc));
 		len[i] = 0;
 	}
-	
-	inFile = fopen(argv[1], "r");
+
+	inFile = fileOpen(argv[1], "r");
 	if (!inFile)
 	{
 		fprintf(stderr, "ERROR: Could not open VCF file %s\n", argv[1]);
@@ -116,7 +130,7 @@ int main(int argc, char *argv[])
 	}
 
 	// -------- write to output file ------- //
-	outFile = fopen(outFileName, "w");
+	outFile = fileOpen(outFileName, "w");
 	
 	fprintf(stdout, "Creating output in %s\n", outFileName);
 	int n = NUM_OF_CHRS;
