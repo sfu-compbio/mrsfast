@@ -1913,15 +1913,6 @@ void outputBestSingleMapping()
 				qual = _msf_seqList[r].qual;
 			}
 
-			// OUTPUT
-			if (_msf_buffer_size[id] >= 4999000-id*1000)
-			{
-				pthread_mutex_lock(&_msf_writeLock);
-				outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
-				pthread_mutex_unlock(&_msf_writeLock);
-				_msf_buffer_size[id] = 0;
-			}
-
 			if(SNPMode)
 			{
 				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
@@ -2031,6 +2022,15 @@ void outputBestSingleMapping()
 			_msf_output[0].optSize		= 0;
 
 			output(_msf_output[0]);	*/
+		}
+
+		// OUTPUT
+		if (_msf_buffer_size[id] >= 4999000-id*1000)
+		{
+			pthread_mutex_lock(&_msf_writeLock);
+			outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+			pthread_mutex_unlock(&_msf_writeLock);
+			_msf_buffer_size[id] = 0;
 		}
 	}
 	freeMem(revQual, QUAL_LENGTH + 1);
