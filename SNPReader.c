@@ -41,7 +41,6 @@
 #include "HashTable.h"
 #include "SNPReader.h"
 
-int				MAX_SNIP_CNT		= 3750000;	// max num of 1bp SNPs in a chromosome
 CompressedSeq	*_snp_SNPMap		= NULL;
 int				_snp_SNPMapLength	= 0;
 ChrSNPs			*_snp_chrSNPs		= NULL;
@@ -56,7 +55,7 @@ void initLoadingSNPs(char *fileName)
 	char cname[CONTIG_NAME_SIZE];	// chromosome name
 	int ccnt;						// chr count in the file
 	char **chrNames;
-	SNPLoc *dummy = getMem(MAX_SNIP_CNT * sizeof(SNPLoc));
+	SNPLoc *dummy = getMem(MAX_SNP_PER_CHR * sizeof(SNPLoc));
 
 	_snp_chrCnt = getChrCnt();
 	chrNames = getChrNames();
@@ -66,7 +65,7 @@ void initLoadingSNPs(char *fileName)
 	{
 		_snp_chrSNPs[i].chrName = chrNames[i];
 		_snp_chrSNPs[i].locCnt = 0;
-		_snp_chrSNPs[i].snpLocs = getMem(MAX_SNIP_CNT * sizeof(SNPLoc));
+		_snp_chrSNPs[i].snpLocs = getMem(MAX_SNP_PER_CHR * sizeof(SNPLoc));
 	}
 
 	_snp_SNPMapLength = (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq);
@@ -111,14 +110,14 @@ void initLoadingSNPs(char *fileName)
 	}
 
 	fclose(fp);
-	freeMem(dummy, MAX_SNIP_CNT * sizeof(SNPLoc));
+	freeMem(dummy, MAX_SNP_PER_CHR * sizeof(SNPLoc));
 }
 /**********************************************/
 void finalizeSNPs()
 {
 	int i;
 	for (i = 0; i < _snp_chrCnt; i++)
-		freeMem(_snp_chrSNPs[i].snpLocs, MAX_SNIP_CNT * sizeof(SNPLoc));
+		freeMem(_snp_chrSNPs[i].snpLocs, MAX_SNP_PER_CHR * sizeof(SNPLoc));
 	freeMem(_snp_chrSNPs, _snp_chrCnt * sizeof(ChrSNPs));
 	freeMem(_snp_SNPMap, _snp_SNPMapLength);
 }
