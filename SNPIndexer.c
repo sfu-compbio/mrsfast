@@ -6,7 +6,6 @@
 #include "Common.h"
 
 #define MAX_LINE_LENGTH 2000
-#define MAX_SNP_PER_CHR 4030000
 #define NUM_OF_CHRS 25
 
 /**********************************************/
@@ -74,12 +73,13 @@ int main(int argc, char *argv[])
 			fflush(stdout);
 			i = 0;
 		}
+
 		if (line[0] == '#')		// comment line
 			continue;
 		sscanf(line, "%s%d%s%s%s", chr, &loc, dummy, ref, alt);
 		if (strlen(ref) != 1 || strlen(alt) != 1)
 			continue;
-		
+
 		index = atoi(chr);
 		if (index)		// a number
 		{
@@ -143,11 +143,11 @@ int main(int argc, char *argv[])
 	}
 
 	fclose(outFile);
-	
+	fprintf(stdout, "%u SNP locations registered successfully\n", snpCnt);
+
 	for (i = 0; i < NUM_OF_CHRS; i++)
 		free(chrSNPs[i]);
 	free(chrSNPs);
-	fprintf(stdout, "%u SNP locations registered successfully\n", snpCnt);
 
 	return 0;
 }
