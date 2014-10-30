@@ -102,6 +102,7 @@ inline void reverseComplete (char *seq, char *rcSeq , int length)		// TODO: effi
 	{
 		rcSeq[i]=nRev[*(seq--)];
 	}
+	rcSeq[length]='\0';
 }
 /**********************************************/
 void * getMem(size_t size)			// TODO: if malloc is unsuccessfull, return an error message
@@ -134,6 +135,7 @@ inline void reverse (char *seq, char *rcSeq , int length)
 	{
 		(*rcSeq++)=*(seq--);
 	}
+	*rcSeq='\0';
 }
 /**********************************************/
 void stripPath(char *full, char **path, char **fileName)

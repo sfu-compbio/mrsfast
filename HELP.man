@@ -14,9 +14,9 @@ $ cd mrsfast-ultra-3.X.X
 $ make
 
 .SH SYNOPSIS
-mrsfast-ultra --index [file] [OPTIONS]
+mrsfast --index [file] [OPTIONS]
 .br
-mrsfast-ultra --search [index] --seq [file] [OPTIONS]
+mrsfast --search [index] --seq [file] [OPTIONS]
 .SH OPTIONS
 .SS GENERAL OPTIONS
 .TP
@@ -195,11 +195,11 @@ $ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 --best -o output
 
 Paired-end mapping:
 .br
-$ ./mrsfat --search refgen.fasta --pe --seq pe-reads.fastq --min 100 --max 400
+$ ./mrsfast --search refgen.fasta --pe --seq pe-reads.fastq --min 100 --max 400
 .br
-$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq -e 3 --threads 4
+$ ./mrsfast --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq -e 3 --threads 4
 .br
-$ ./mrsfat --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq --min 100 --max 400 --best -o output
+$ ./mrsfast --search refgen.fasta --pe --seq1 first-mates.fastq --seq2 second-mates.fastq --min 100 --max 400 --best -o output
 
 Discordant mapping:
 .br

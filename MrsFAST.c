@@ -1503,11 +1503,9 @@ void outputMaxHitsPairedEnd()
 	char *seq1, *seq2, *qual1, *qual2, *rseq1, *rseq2;
 	char rqual1[QUAL_LENGTH+1], rqual2[QUAL_LENGTH+1];
 	rqual1[QUAL_LENGTH] = rqual2[QUAL_LENGTH] = '\0';
-	
+
 	fclose(_msf_hitsTempFile);
 	_msf_hitsTempFile = fileOpen(_msf_hitsTempFileName, "r");
-	
-	int byteSize = 2*sizeof(int) + sizeof(char) + ((SNPMode) ?sizeof(char) :0);
 
 	while ( fread(&r, sizeof(int), 1, _msf_hitsTempFile) )
 	{
@@ -1516,15 +1514,6 @@ void outputMaxHitsPairedEnd()
 			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
 			tmpOut = fread(_msf_refGenName, sizeof(char), (int)mdlen, _msf_hitsTempFile);
 			_msf_refGenName[mdlen] = '\0';
-		}
-		else if (_msf_seqList[r].hits[0] > maxHits)
-		{
-			tmpOut = fread(md1, sizeof(char), byteSize, _msf_hitsTempFile); 	// dummy
-			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
-			tmpOut = fread(md1, sizeof(char), mdlen, _msf_hitsTempFile);
-			tmpOut = fread(md1, sizeof(char), byteSize-1, _msf_hitsTempFile); 	// dummy
-			tmpOut = fread(&mdlen, sizeof(char), 1, _msf_hitsTempFile);
-			tmpOut = fread(md1, sizeof(char), mdlen, _msf_hitsTempFile);
 		}
 		else
 		{
@@ -1550,202 +1539,204 @@ void outputMaxHitsPairedEnd()
 			tmpOut = fread(md2, sizeof(char), mdlen, _msf_hitsTempFile);
 			md2[mdlen] = '\0';
 
-
-			seq1 = _msf_seqList[r].seq;
-			rseq1 = _msf_seqList[r].rseq;
-			cseq1 = _msf_seqList[r].cseq;
-			crseq1 = _msf_seqList[r].crseq;
-			qual1 = _msf_seqList[r].qual;
-			reverse(_msf_seqList[r].qual, rqual1, QUAL_LENGTH);
-
-			seq2 = _msf_seqList[r+1].seq;
-			rseq2 = _msf_seqList[r+1].rseq;	
-			cseq2 = _msf_seqList[r+1].cseq;
-			crseq2 = _msf_seqList[r+1].crseq;
-			qual2 = _msf_seqList[r+1].qual;
-			reverse(_msf_seqList[r+1].qual, rqual2, QUAL_LENGTH);
-
-			char *seq;
-			char *qual;
-			int isize;
-			int proper=0;
-			// ISIZE CALCULATION
-			// The distance between outer edges								
-			isize = abs(loc1 - loc2)+SEQ_LENGTH;//-1;												
-			if (loc1 - loc2 > 0)
+			if (_msf_seqList[r].hits[0] <= maxHits)
 			{
-				isize *= -1;
+				seq1 = _msf_seqList[r].seq;
+				rseq1 = _msf_seqList[r].rseq;
+				cseq1 = _msf_seqList[r].cseq;
+				crseq1 = _msf_seqList[r].crseq;
+				qual1 = _msf_seqList[r].qual;
+				reverse(_msf_seqList[r].qual, rqual1, QUAL_LENGTH);
+
+				seq2 = _msf_seqList[r+1].seq;
+				rseq2 = _msf_seqList[r+1].rseq;	
+				cseq2 = _msf_seqList[r+1].cseq;
+				crseq2 = _msf_seqList[r+1].crseq;
+				qual2 = _msf_seqList[r+1].qual;
+				reverse(_msf_seqList[r+1].qual, rqual2, QUAL_LENGTH);
+
+				char *seq;
+				char *qual;
+				int isize;
+				int proper=0;
+				// ISIZE CALCULATION
+				// The distance between outer edges								
+				isize = abs(loc1 - loc2)+SEQ_LENGTH;//-1;												
+				if (loc1 - loc2 > 0)
+				{
+					isize *= -1;
+				}
+
+				if ( d1 )
+				{
+					seq = rseq1;
+					qual = rqual1;
+				}
+				else
+				{
+					seq = seq1;
+					qual = qual1;
+				}
+
+				// OUTPUT
+				if (_msf_buffer_size[id] >= 4999000-id*1000)
+				{
+					pthread_mutex_lock(&_msf_writeLock);
+					outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
+					pthread_mutex_unlock(&_msf_writeLock);
+					_msf_buffer_size[id] = 0;
+				}
+
+				if(SNPMode)
+				{
+					_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+							_msf_seqList[r].name, 		// NAME
+							f1,							// FLAG
+							_msf_refGenName, 			// CHR NAME
+							loc1,						// LOC
+							255,						// MAPQ
+							_msf_cigar,					// CIGAR
+							"=",						// MRNAME
+							loc2,						// MPOS
+							isize,						// ISIZE
+							seq,						// SEQ
+							qual,	 					// QUAL
+							mderr1,						// ERR
+							md1,						// MD
+							mderr1 - err1);				// SNP
+
+				}
+				else
+				{
+					_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+							_msf_seqList[r].name, 		// NAME
+							f1,							// FLAG
+							_msf_refGenName, 			// CHR NAME
+							loc1,						// LOC
+							255,						// MAPQ
+							_msf_cigar,					// CIGAR
+							"=",						// MRNAME
+							loc2,						// MPOS
+							isize,						// ISIZE
+							seq,						// SEQ
+							qual,	 					// QUAL
+							mderr1,						// ERR
+							md1);						// MD
+				}
+
+				/*			_msf_output[0].POS			= loc1;
+							_msf_output[0].MPOS			= loc2;
+							_msf_output[0].FLAG			= f1;
+							_msf_output[0].ISIZE		= isize;
+							_msf_output[0].SEQ			= seq,
+							_msf_output[0].QUAL			= qual;
+							_msf_output[0].QNAME		= _msf_seqList[r].name;
+							_msf_output[0].RNAME		= _msf_refGenName;
+							_msf_output[0].MAPQ			= 255;
+							_msf_output[0].CIGAR		= _msf_cigar;
+							_msf_output[0].MRNAME		= "=";
+
+							_msf_output[0].optSize	= (SNPMode) ?3 :2;
+							_msf_output[0].optFields	= _msf_optionalFields[0];
+
+							_msf_optionalFields[0][0].tag = "NM";
+							_msf_optionalFields[0][0].type = 'i';
+							_msf_optionalFields[0][0].iVal = mderr1;
+
+							_msf_optionalFields[0][1].tag = "MD";
+							_msf_optionalFields[0][1].type = 'Z';
+							_msf_optionalFields[0][1].sVal = md1;
+
+							if (SNPMode)
+							{
+							_msf_optionalFields[0][2].tag = "XS";
+							_msf_optionalFields[0][2].type = 'i';
+							_msf_optionalFields[0][2].iVal = mderr1 - err1;
+							}
+
+							output(_msf_output[0]);		*/
+
+				if ( d2 )
+				{
+					seq = rseq2;
+					qual = rqual2;
+				}
+				else
+				{
+					seq = seq2;
+					qual = qual2;
+				}
+
+				if(SNPMode)
+				{
+					_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
+							_msf_seqList[r].name, 		// NAME
+							f2,							// FLAG
+							_msf_refGenName, 			// CHR NAME
+							loc2,						// LOC
+							255,						// MAPQ
+							_msf_cigar,					// CIGAR
+							"=",						// MRNAME
+							loc2,						// MPOS
+							-isize,						// ISIZE
+							seq,						// SEQ
+							qual,	 					// QUAL
+							mderr2,						// ERR
+							md2,						// MD
+							mderr2 - err2);				// SNP
+
+				}
+				else
+				{
+					_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
+							_msf_seqList[r].name, 		// NAME
+							f2,							// FLAG
+							_msf_refGenName, 			// CHR NAME
+							loc2,						// LOC
+							255,						// MAPQ
+							_msf_cigar,					// CIGAR
+							"=",						// MRNAME
+							loc2,						// MPOS
+							-isize,						// ISIZE
+							seq,						// SEQ
+							qual,	 					// QUAL
+							mderr2,						// ERR
+							md2);						// MD
+				}
+
+				/*			_msf_output[0].POS			= loc2;
+							_msf_output[0].MPOS			= loc1;
+							_msf_output[0].FLAG			= f2;
+							_msf_output[0].ISIZE		= -isize;
+							_msf_output[0].SEQ			= seq,
+							_msf_output[0].QUAL			= qual;
+							_msf_output[0].QNAME		= _msf_seqList[r].name;
+							_msf_output[0].RNAME		= _msf_refGenName;
+							_msf_output[0].MAPQ			= 255;
+							_msf_output[0].CIGAR		= _msf_cigar;
+							_msf_output[0].MRNAME		= "=";
+
+							_msf_output[0].optSize	= (SNPMode) ?3 :2;
+							_msf_output[0].optFields	= _msf_optionalFields[0];
+
+							_msf_optionalFields[0][0].tag = "NM";
+							_msf_optionalFields[0][0].type = 'i';
+							_msf_optionalFields[0][0].iVal = mderr2;
+
+							_msf_optionalFields[0][1].tag = "MD";
+							_msf_optionalFields[0][1].type = 'Z';
+							_msf_optionalFields[0][1].sVal = md2;
+
+							if (SNPMode)
+							{
+							_msf_optionalFields[0][2].tag = "XS";
+							_msf_optionalFields[0][2].type = 'i';
+							_msf_optionalFields[0][2].iVal = mderr2 - err2;
+							}
+
+							output(_msf_output[0]);		*/
+
 			}
-
-			if ( d1 )
-			{
-				seq = rseq1;
-				qual = rqual1;
-			}
-			else
-			{
-				seq = seq1;
-				qual = qual1;
-			}
-
-			// OUTPUT
-			if (_msf_buffer_size[id] >= 4999000-id*1000)
-			{
-				pthread_mutex_lock(&_msf_writeLock);
-				outputBuffer(_msf_buffer[id], _msf_buffer_size[id]);
-				pthread_mutex_unlock(&_msf_writeLock);
-				_msf_buffer_size[id] = 0;
-			}
-
-			if(SNPMode)
-			{
-				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
-						_msf_seqList[r].name, 		// NAME
-						f1,							// FLAG
-						_msf_refGenName, 			// CHR NAME
-						loc1,						// LOC
-						255,						// MAPQ
-						_msf_cigar,					// CIGAR
-						"=",						// MRNAME
-						loc2,						// MPOS
-						isize,						// ISIZE
-						seq,						// SEQ
-						qual,	 					// QUAL
-						mderr1,						// ERR
-						md1,						// MD
-						mderr1 - err1);				// SNP
-
-			}
-			else
-			{
-				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
-						_msf_seqList[r].name, 		// NAME
-						f1,							// FLAG
-						_msf_refGenName, 			// CHR NAME
-						loc1,						// LOC
-						255,						// MAPQ
-						_msf_cigar,					// CIGAR
-						"=",						// MRNAME
-						loc2,						// MPOS
-						isize,						// ISIZE
-						seq,						// SEQ
-						qual,	 					// QUAL
-						mderr1,						// ERR
-						md1);						// MD
-			}
-
-/*			_msf_output[0].POS			= loc1;
-			_msf_output[0].MPOS			= loc2;
-			_msf_output[0].FLAG			= f1;
-			_msf_output[0].ISIZE		= isize;
-			_msf_output[0].SEQ			= seq,
-			_msf_output[0].QUAL			= qual;
-			_msf_output[0].QNAME		= _msf_seqList[r].name;
-			_msf_output[0].RNAME		= _msf_refGenName;
-			_msf_output[0].MAPQ			= 255;
-			_msf_output[0].CIGAR		= _msf_cigar;
-			_msf_output[0].MRNAME		= "=";
-
-			_msf_output[0].optSize	= (SNPMode) ?3 :2;
-			_msf_output[0].optFields	= _msf_optionalFields[0];
-
-			_msf_optionalFields[0][0].tag = "NM";
-			_msf_optionalFields[0][0].type = 'i';
-			_msf_optionalFields[0][0].iVal = mderr1;
-
-			_msf_optionalFields[0][1].tag = "MD";
-			_msf_optionalFields[0][1].type = 'Z';
-			_msf_optionalFields[0][1].sVal = md1;
-
-			if (SNPMode)
-			{
-				_msf_optionalFields[0][2].tag = "XS";
-				_msf_optionalFields[0][2].type = 'i';
-				_msf_optionalFields[0][2].iVal = mderr1 - err1;
-			}
-
-			output(_msf_output[0]);		*/
-
-			if ( d2 )
-			{
-				seq = rseq2;
-				qual = rqual2;
-			}
-			else
-			{
-				seq = seq2;
-				qual = qual2;
-			}
-
-			if(SNPMode)
-			{
-				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\tXS:i:%d\n", 
-						_msf_seqList[r].name, 		// NAME
-						f2,							// FLAG
-						_msf_refGenName, 			// CHR NAME
-						loc2,						// LOC
-						255,						// MAPQ
-						_msf_cigar,					// CIGAR
-						"=",						// MRNAME
-						loc2,						// MPOS
-						-isize,						// ISIZE
-						seq,						// SEQ
-						qual,	 					// QUAL
-						mderr2,						// ERR
-						md2,						// MD
-						mderr2 - err2);				// SNP
-
-			}
-			else
-			{
-				_msf_buffer_size[id] += snprintf(_msf_buffer[id]+_msf_buffer_size[id], 1000, "%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\tNM:i:%d\tMD:Z:%s\n", 
-						_msf_seqList[r].name, 		// NAME
-						f2,							// FLAG
-						_msf_refGenName, 			// CHR NAME
-						loc2,						// LOC
-						255,						// MAPQ
-						_msf_cigar,					// CIGAR
-						"=",						// MRNAME
-						loc2,						// MPOS
-						-isize,						// ISIZE
-						seq,						// SEQ
-						qual,	 					// QUAL
-						mderr2,						// ERR
-						md2);						// MD
-			}
-					
-/*			_msf_output[0].POS			= loc2;
-			_msf_output[0].MPOS			= loc1;
-			_msf_output[0].FLAG			= f2;
-			_msf_output[0].ISIZE		= -isize;
-			_msf_output[0].SEQ			= seq,
-			_msf_output[0].QUAL			= qual;
-			_msf_output[0].QNAME		= _msf_seqList[r].name;
-			_msf_output[0].RNAME		= _msf_refGenName;
-			_msf_output[0].MAPQ			= 255;
-			_msf_output[0].CIGAR		= _msf_cigar;
-			_msf_output[0].MRNAME		= "=";
-
-			_msf_output[0].optSize	= (SNPMode) ?3 :2;
-			_msf_output[0].optFields	= _msf_optionalFields[0];
-
-			_msf_optionalFields[0][0].tag = "NM";
-			_msf_optionalFields[0][0].type = 'i';
-			_msf_optionalFields[0][0].iVal = mderr2;
-
-			_msf_optionalFields[0][1].tag = "MD";
-			_msf_optionalFields[0][1].type = 'Z';
-			_msf_optionalFields[0][1].sVal = md2;
-
-			if (SNPMode)
-			{
-				_msf_optionalFields[0][2].tag = "XS";
-				_msf_optionalFields[0][2].type = 'i';
-				_msf_optionalFields[0][2].iVal = mderr2 - err2;
-			}
-
-			output(_msf_output[0]);		*/
-
 		}
 	}
 
