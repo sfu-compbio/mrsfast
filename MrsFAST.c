@@ -3046,6 +3046,9 @@ void updateMaxHitsPairedEnd()
 			}
 		}
 
+		if (_msf_seqList[2*i].hits[0] > maxHits)	// read could have exceeded maxHits threshold in previous contigs
+			continue;		// continue to next read
+
 		int lm, ll, rl, rm;
 		int pos = 0;
 
@@ -3123,9 +3126,11 @@ void updateMaxHitsPairedEnd()
 
 					if (_msf_seqList[2*i].hits[0] > maxHits)
 					{
+						if (_msf_seqList[2*i].hits[0] > maxHits+1)
+							fprintf(stderr, "NOOOOOOWWWW\n");
 						mappedSeqCnt--;
 						mappingCnt -= (maxHits+1);
-						break;
+						break;	// break out of while loop iterating over k
 					}
 
 					int tmpOut;
@@ -3155,7 +3160,7 @@ void updateMaxHitsPairedEnd()
 			}
 			
 			if (_msf_seqList[2*i].hits[0] > maxHits)
-				break;
+				break;	// break out of for loop iterating over j
 		}
 	}
 
