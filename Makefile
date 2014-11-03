@@ -1,6 +1,6 @@
 DEBUG := 0
 PROFILE := 0
-MRSFAST_VERSION := "3.3.5"
+MRSFAST_VERSION := "3.3.6"
 BUILD_DATE := "$(shell date)"
 
 all: OPTIMIZE_FLAGS build
