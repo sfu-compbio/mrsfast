@@ -570,7 +570,7 @@ int initRead(char *fileName1, char *fileName2)
 
 	if (!nohitDisabled)
 	{
-		_r_umfp = fopen(unmappedOutput, "w");
+		_r_umfp = fileOpen(unmappedOutput, "w");
 	}
 
 	_r_alphIndex = getMem(128);		// used in readChunk()
@@ -793,7 +793,7 @@ void finalizeReads()
 	else
 	{
 		gzclose(_r_gzfp1);
-		if ( pairedEndMode && _r_gzfp2 != NULL)
+		if ( pairedEndMode && _r_gzfp2 != _r_gzfp1)
 		{
 			gzclose(_r_gzfp2);
 		}
