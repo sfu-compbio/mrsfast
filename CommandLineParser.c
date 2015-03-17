@@ -66,7 +66,6 @@ char					*seqFile2;
 char					fileName[3][FILE_NAME_LENGTH];
 char					*unmappedOutput;
 char					*mappingOutputPath;
-char					*unmappedOutput;
 short					maxHits = 0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
@@ -164,6 +163,11 @@ int parseCommandLine (int argc, char *argv[])
 				cropSize = atoi(optarg);
 				break;
 			case 'w':
+				if (searchingMode == 1)
+				{
+					fprintf(stderr, "Error: Window size can only be set in indexing mode.\n");
+					return 0;
+				}
 				WINDOW_SIZE = atoi(optarg);
 				break;
 			case 'x':

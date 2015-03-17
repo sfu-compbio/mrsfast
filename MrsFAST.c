@@ -3126,8 +3126,6 @@ void updateMaxHitsPairedEnd()
 
 					if (_msf_seqList[2*i].hits[0] > maxHits)
 					{
-						if (_msf_seqList[2*i].hits[0] > maxHits+1)
-							fprintf(stderr, "NOOOOOOWWWW\n");
 						mappedSeqCnt--;
 						mappingCnt -= (maxHits+1);
 						break;	// break out of while loop iterating over k

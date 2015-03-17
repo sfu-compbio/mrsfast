@@ -1,12 +1,10 @@
-DEBUG := 0
-PROFILE := 0
 MRSFAST_VERSION := "3.3.6"
 BUILD_DATE := "$(shell date)"
 
 all: OPTIMIZE_FLAGS build
 debug: DEBUG_FLAGS build
 profile: PROFILE_FLAGS build
-build: clean-executable SSE_FLAGS compile mrsfast snp_indexer clean
+build: clean_executables SSE_FLAGS mrsfast snp_indexer clean_objects
 
 LDFLAGS=#-static
 LIBS=-lz -lm -pthread -lpthread
@@ -14,17 +12,21 @@ CFLAGS=-fno-pic -DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_
 
 objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o  HELP.o
 
-compile: $(objects)
-
-mrsfast:
+mrsfast: clean_executables $(objects)
 ifeq ($(shell uname -s),Linux)
 	gcc -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
 else
 	gcc -Wl,-no_pie -fno-pic -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
 endif
 
-snp_indexer: SNPIndexer.o
-	gcc $^ -o $@ ${LDFLAGS} ${LIBS}
+snp_indexer: clean_executables SNPIndexer.o
+	gcc SNPIndexer.o -o $@ ${LDFLAGS} ${LIBS}
+
+clean_objects: mrsfast snp_indexer
+	@rm -f $(objects)
+	@rm -f SNPIndexer.o
+	@rm -f HELPstub.c
+	@rm -f HELPstub.o
 
 clean:
 	@rm -f $(objects)
@@ -32,8 +34,9 @@ clean:
 	@rm -f HELPstub.c
 	@rm -f HELPstub.o
 	
-clean-executable:
+clean_executables:
 	@rm -f mrsfast
+	@rm -f snp_indexer
 
 HELP.o:
 	@groff -Tascii -man ./HELP.man > HELP
