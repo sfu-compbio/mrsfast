@@ -1,0 +1,52 @@
+---
+---
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>{{ site.title }}</title>
+    <meta name="keywords" content="{{ site.keywords }}">
+    <emta name="description" content="{{ site.description }}">
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>{{ site.name }}</h1>
+        <p>{{ site.description }}</p>
+        <ul>
+          <li><a href="{{ site.git_link }}zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="{{ site.git_link }}tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="{{ site.git_link }}">View <strong>GitHub</strong></a></li>
+        </ul>
+        <ul>
+          <li><a href="{{ site.git_link }}tarball/gui">Download <strong>GUI</strong></a></li>
+          <li><a href="{{ site.git_link }}tarball/sample-data">Download <strong>Sample Data</strong></a></li>
+          <li><a href="{{ site.git_link }}README.md">View <strong>Manuaul</strong></a></li>
+        </ul>
+      </header>
+      <div id="main_content">  
+         {% for page in site.posts reversed %}
+          {% capture id %}{{ page.id | remove:'/' | downcase }}{% endcapture %}
+          <section id="{{id}}">
+            <div class="container {{ page.style }}">
+              {{ page.content }}
+            </div>
+          </section>
+        {% endfor %}
+      </div>      
+      <footer>
+        <p>This project is maintained by <a href="http://github.com/isarrafi">@isarrafi</a> and <a href="http://github.com/fhach">@fhach</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+  </body>
+</html>

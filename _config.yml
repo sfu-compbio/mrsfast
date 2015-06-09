@@ -1,0 +1,18 @@
+---
+
+### site serving configuration ###
+exclude: [CNAME, README.md, .gitignore]
+permalink: / ## disables post output
+timezone: null
+lsi: false
+markdown: kramdown
+highlighter: pygments
+
+
+### content configuration ###
+name: "mrsFAST"
+title: "mrsFAST: micro-read substitution-only Fast Alignment Search Tool"
+keywords: "mrsfast, alignment, next generation sequencing, high throughput sequencing, Illumina, short reads, mapping"
+description: "Micro-read substitution-only Fast Alignment Search Tool"
+source_link: "http://sfu-compbio.github.io/mrsfast/"
+git_link: "https://github.com/sfu-compbio/mrsfast/"
