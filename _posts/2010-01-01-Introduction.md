@@ -37,7 +37,7 @@ To report any bugs or issues please refer to the [issues](https://github.com/sfu
 
 ### Developers
 
-SCALCE has been brought to you by:
+mrsFAST-Ultra is brought to you by:
 
 - [Faraz Hach](http://www.cs.sfu.ca/~fhach/personal/) [@fhach](http://github.com/fhach)
 - Iman Sarrafi [@isarrafi](http://github.com/isarrafi/)
