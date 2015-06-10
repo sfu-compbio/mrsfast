@@ -1,0 +1,14 @@
+##fileformat=VCFv4.0
+##Comment: This is a simple dbSNP file in vcf format, only prepared for sample use on mrsFAST-Ultra
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
+1	590	rs100	A	T	.	.	info
+1	1236	rs101	G	C	.	.	info
+1	1237	rs102	G	A	.	.	info
+1	2701	rs103	T	A	.	.	info
+1	3503	rs104	T	G	.	.	info
+1	6642	rs105	T	G	.	.	info
+1	6771	rs106	T	A	.	.	info
+1	6940	rs107	T	C	.	.	info
+1	9321	rs108	C	A	.	.	info
+1	9322	rs109	T	G	.	.	info
+1	9323	rs110	A	C	.	.	info
