@@ -19,11 +19,12 @@ make
 
 Alternatively, you can go to [releases page](https://github.com/sfu-compbio/mrsfast/releases) and click on the desired version and then click on download the zip or tar file, switch to directory and run `make`. 
 
-To grab sample data and test `mrsfast`, please download it from our git repository or compressed file.
+To grab sample data and test `mrsfast`, please download it from our git repository or the compressed package.
 
 ```bash
 git clone https://github.com/sfu-compbio/mrsfast mrsfast/sample-data -b sample-data
 ```
+Note that the current version of mrsFAST-Ultra requires 64 bit architecture and does not support 32 bit machines.
 
 ----
 
