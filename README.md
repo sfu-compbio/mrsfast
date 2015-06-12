@@ -1,6 +1,6 @@
 ##0. Installation
 
-To install mrsFAST-ultra, please download it from our git repository or compressed files.  Then change the current directory to the source directory `mrsfast`, and run `make` in the terminal. The `mrsfast` and `snp_indexer` binaries will be created, which are ready to use.
+To install mrsFAST-Ultra, first you should fetch it from our git repository, or download one of the corresponding compressed zip/tar.gz packages. After downloading, change the current directory to the source directory `mrsfast`, and run `make` in the terminal. The `mrsfast` and `snp_indexer` binaries will be created, which are ready to use.
 
 ```bash
 git clone https://github.com/sfu-compbio/mrsfast
@@ -70,7 +70,7 @@ mrsFAST-Ultra is able to perform mapping on multiple CPU cores in a parallel man
 $ ./mrsfast --search genome.fa --seq reads.fq -e 4 --threads 4
 ```
 
-When huge volumes of input reads are required to be mapped on a machine with limited memory resources, mrsFAST-Ultra is capable of adjusting itself with the specified memory limits. The total memory (in GB) available for running mrsFAST-Ultra should be specified with the `-mem` option. In this mode, mrsFAST-Ultra might perform mapping in several iterations and each time it only loads as many reads as allowed by the memory limit.
+When huge volumes of input reads are required to be mapped on a machine with limited memory resources, mrsFAST-Ultra is capable of adjusting itself with the specified memory limits. The total memory (in GB) available for running mrsFAST-Ultra should be specified with the `--mem` option. In this mode, mrsFAST-Ultra might perform mapping in several iterations and each time it only loads as many reads as allowed by the memory limit.
 
 ```
 $ ./mrsfast --search genome.fa --seq reads.fq -e 4 --mem 8
@@ -91,7 +91,7 @@ $ ./mrsfast --search genome.fa --seq reads.fq -e 4 --best
 Except the cases that are pointed out, obviously any combination of the above options can be used together in any of the single-end and paired-end modes.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq --crop 60 -e 2 --mem 6 --threads 4 -n 100 -o mappings --disable-nohits
+$ ./mrsfast --search genome.fa --seq reads.fq --crop 60 -e 2 --mem 6 --threads 4 -n 100 -o mappings.sam --disable-nohits
 ```
 
 ----
@@ -114,7 +114,7 @@ $ ./mrsfast --search genome.fa --seq1 mates1.fq --seq2 mates2.fq --pe -e 4 --min
 Again, any combination of the introduced mapping options could be used in the paired-end mode.
 
 ```
-$ ./mrsfast --search genome.fa --seq1 mates1.fq --seq2 mates2.fq --pe -e 4 --min 100 --max 500 --threads 4 --best -o mappings
+$ ./mrsfast --search genome.fa --seq1 mates1.fq --seq2 mates2.fq --pe -e 4 --min 100 --max 500 --threads 4 --best -o mappings.sam
 ```
 mrsFAST-Ultra can report discordant paired-end mappings for structural variation detection using [Variation Hunter](http://variationhunter.sf.net). In this mode the `--min` and `--max` options will define the minimum and maximum inferred size for concordant mappings.
 
@@ -154,277 +154,49 @@ The SNP-aware mode could be run together with any other combination of options b
 
 ----
 
-##5. Output Options
+##5. Input and Output Options
 
-By default, mrsfast-Ultra outputs the mapping results in `output.sam` which is written in standard SAM format. Also in single-end mode, the set of unmapped reads are printed in `output.nohit` file. The prefix for sam and nohit files could be determined using the `-o` option.
+By default, mrsfast-Ultra outputs the mapping results in `output` which is written in standard SAM format. Also in single-end mode, the set of unmapped reads are printed in `output.nohit` file. The name of sam and nohit files can be set by the `-o` option.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq -o mappings
+$ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam
 ```
 
 The name of the nohit file can be determined by the `-u` option.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq -o mappings -u unmapped
+$ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam -u unmapped
 ```
 
 If the nohit file is not desired as output, it could be omitted by adding `--disable-nohits`.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq -o mappings --disable-nohits
+$ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam --disable-nohits
 ```
 
 The `--outcomp` option can be used to compress the mrsFAST-Ultra output file in gzip format.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq -o mappings --outcomp
+$ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam --outcomp
+```
+
+mrsFAST-Ultra can process the input (FASTA/FASTQ) read files in compressed .gz format, using the `--seqcomp` option.
+
+```
+$ ./mrsfast --search genome.fa --seqcomp --seq reads.fq.gz -o mappings.sam
 ```
 
 By default, mrsFAST-Ultra includes a SAM header in the output file. To make sure the SAM header does not appear in the output, `--disable-sam-header` can be used.
 
 ```
-$ ./mrsfast --search genome.fa --seq reads.fq -o mappings --disable-sam-header
+$ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam --disable-sam-header
 ```
 
 ----
 ##6. mrsFAST-Ultra man page
 
+To view the full list of mrsFAST-Ultra options and their descriptions, please run the following.
+
 ```
-NAME
-	   mrsfast-ultra
-
-DESCRIPTION
-	   mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of map-
-	   ping single and paired end reads to  the  reference  genome.  Bisulfite
-	   treated  sequences are not supported in this version.
-
-
-INSTALLATION
-	   To  install  mrsFAST-ultra, please download the source zip package from
-	   http://sourceforge.net/projects/mrsfast/.  After  unzipping  the  down-
-	   loaded  file "mrsfast-ultra-3.X.X.zip", change the current directory to
-	   the source directory "mrsfast-ultra-3.X.X", and run "make" in the  ter-
-	   minal.  The  binary  file  "mrsfast" will be created, which is ready to
-	   use.
-	   $ unzip mrsfast-ultra-3.X.X.zip
-	   $ cd mrsfast-ultra-3.X.X
-	   $ make
-
-
-SYNOPSIS
-	   mrsfast-ultra --index [file] [OPTIONS]
-	   mrsfast-ultra --search [index] --seq [file] [OPTIONS]
-
-OPTIONS
-   GENERAL OPTIONS
-	   -h     Prints this help file.
-
-	   -v, --version
-			  Prints the version of software.
-
-   INDEXING OPTIONS
-	   --ws window_size
-			  Index the reference genome with sliding a window  of  size  win-
-			  dow_size (default: 12).
-
-
-   MAPPING OPTIONS
-	   --mem m
-			  Use maximum m GB of memory (default: 4).
-
-
-	   --threads t
-			  Use  t  number  of cores for mapping the sequences (default: 1).
-			  Use 0 to use all the available cores in the system.
-
-
-	   --seq file
-			  Set the input sequence to file.  In paired-end mode, file should
-			  be used if the read sequences are interleaved.
-
-
-	   --seq1 file
-			  Set  the  input sequence (left mate) to file.  Paired-end option
-			  only.
-
-
-	   --seq2 file
-			  Set the input sequence (right mate) to file.  Paired-end  option
-			  only.
-
-
-	   --seqcomp
-			  Input file is compressed through gzip.
-
-
-	   -o file
-			  Output the mapping record into file (default: output.sam)
-
-
-	   --disable-sam-header
-			  Do not generate SAM header.
-
-
-	   -u file
-			  Output unmapped reads in file (default: output.nohit). This file
-			  will be generated in all mapping mode.
-
-
-	   --disable-nohits
-			  Do not output unmapped reads.
-
-
-	   --outcomp
-			  Compress the output file by gzip.
-
-
-	   -n cut-off
-			  Output the mapping for the read sequences  that  have  less  than
-			  cut-off number of mappings. Cannot be used with --best or --dis-
-			  cordant-vh options.
-
-
-
-	   --crop n
-			  Trim the reads to n base pairs.
-
-
-	   -e error-threshold
-			  Allow up to error-threshold mismatches in the mappings.
-
-
-	   --best Find the best mapping location of given reads.
-
-
-	   --pe   Map the reads in Paired-End  mode.   mix  and  max  of  template
-			  length  will  be  calculated  if  not  provided by corresponding
-			  options.
-
-
-	   --min min-discordant-length
-			  Use min-discordant-length for minimum length of concordant  map-
-			  ping. Paired-end option only.
-
-
-	   --max man-discordant-length
-			  Use  max-discordant-length for maximum length of concordant map-
-			  ping. Paired-end option only.
-
-
-	   --discordant-vh
-			  Map the reads in discordant fashion that  can  be  processed  by
-			  Variation  Hunter / Common Law. Output will be generate in DIVET
-			  format.
-
-
-	   --max-discordant-cutoff m
-			  Allow m discordant mappings per read. Should be only  used  with
-			  --discordant-vh option.
-
-
-	   --snp snp-file
-			  Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tol-
-			  erates the mismatches in known SNP  locations  reported  by  the
-			  provided SNP database. The SNP index snp-file
-			   should  be  created  from  the  dbSNP  (.vcf)  file  using  the
-			  snp_indexer binary.
-
-
-	   --snp-qual quality-threshold
-			  In SNP-aware mode, a mismatch at a reported SNP location will be
-			  ignored  only  if  the corresponding read location has a quality
-			  higher than or equal to the quality-threshold  quality-threshold
-			  is  a  Phred-Value  base  33. The default is 53 (base call error
-			  0.01).
-
-
-EXAMPLES
-	   Indexing reference genome:
-	   $ ./mrsfast --index refgen.fasta
-	   $ ./mrsfast --index refgen.fasta --ws 14
-
-	   Single-end mapping:
-	   $ ./mrsfast --search refgen.fa --seq reads.fastq
-	   $ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 -n 10 --threads 4
-	   $ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 --best -o output
-
-	   Paired-end mapping:
-	   $  ./mrsfast  --search  refgen.fasta --pe --seq pe-reads.fastq --min 100
-	   --max 400
-	   $ ./mrsfast --search refgen.fasta --pe --seq1  first-mates.fastq  --seq2
-	   second-mates.fastq -e 3 --threads 4
-	   $  ./mrsfast  --search refgen.fasta --pe --seq1 first-mates.fastq --seq2
-	   second-mates.fastq --min 100 --max 400 --best -o output
-
-	   Discordant mapping:
-	   $  ./mrsfast   --search   refgen.fasta   --pe   --discordant-vh   --seq
-	   reads.fastq --min 100 --max 400
-
-
-
-BUGS
-	   Please  report  the  bugs  through  mrsfast's  web  page at http://mrs-
-	   fast.sourceforge.net
-
-
-Authors
-	   Faraz Hach (fhach@sfu.ca)
-	   Iman Sarrafi (isarrafi@sfu.ca)
-
-
-Reference
-	   Please cite the following paper for publications using mrsFAST:
-
-	   Faraz Hach, Fereydoun Hormozdiari, Can Alkan, Farhad Hormozdiari, Inanc
-	   Birol,  Evan E Eichler and S Cenk Sahinalp, "mrsFAST: a cache-oblivious
-	   algorithm for short-read mapping", Nature Methods 7, 576-577 (2010)
-
-
-	   Please cite the following paper for publications using mrsFAST-Ultra:
-
-	   Faraz Hach, Iman Sarrafi, Farhad Hormozdiari, Can Alkan, Evan E.  Eich-
-	   ler,  S. Cenk Sahinalp, "mrsFAST-Ultra: a compact, SNP-aware mapper for
-	   high performance sequencing applications", Nucl.  Acids  Res.  (1  July
-	   2014) 42 (W1): W494-W500.
-
-
-
-COPYRIGHT
-	   Copyright (c) <2012-2020>, Simon Fraser University All rights reserved.
-
-	   Redistribution and use in source and binary forms, with or without mod-
-	   ification, are permitted provided that  the  following  conditions  are
-	   met:
-
-
-	   1      Redistributions  of  source code must retain the above copyright
-			  notice, this list of conditions and the following disclaimer.
-
-	   2      Redistributions in binary form must reproduce  the  above  copy-
-			  right  notice,  thislist  of  conditions  and the following dis-
-			  claimer in the documentation  and/or  other  materials  provided
-			  with the distribution.
-
-	   3      Neither the name of the Simon Fraser University nor the names of
-			  its contributors may be used  to  endorse  or  promote  products
-			  derived  from  this software without specific prior written per-
-			  mission.
-
-
-	   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-	   IS"  AND  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-	   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTIC-
-	   ULAR  PURPOSE  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-	   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,  INCIDENTAL,  SPECIAL,
-	   EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING, BUT NOT LIMITED TO,
-	   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  LOSS  OF  USE,  DATA,  OR
-	   PROFITS;  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-	   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,  OR  TORT  (INCLUDING
-	   NEGLIGENCE  OR  OTHERWISE)  ARISING  IN  ANY WAY OUT OF THE USE OF THIS
-	   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-
-
-mrsFAST-Ultra             Last Updated: Sep 11, 2013          mrsFAST-Ultra(1)
+$ ./mrsfast -h
 ```
