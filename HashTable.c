@@ -402,7 +402,7 @@ int initLoadingHashTable(char *fileName)
 	_ih_maxHashTableSize = pow(4, WINDOW_SIZE);
 
 	_ih_hashTable = getMem (sizeof(IHashTable) * _ih_maxHashTableSize);
-	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
+	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(IHashTable));
 	_ih_refGenName = getMem(CONTIG_NAME_SIZE);
 	_ih_refGenName[0] = '\0';
 	if (!SNPMode)
@@ -612,7 +612,7 @@ int  loadHashTable(double *loadTime)
 		return 0;
 	}
 
-	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(_ih_hashTable));
+	memset(_ih_hashTable, 0, _ih_maxHashTableSize * sizeof(IHashTable));
 
 	// Reading Chr Name
 	tmp = fread(&len, sizeof(len), 1, _ih_fp);

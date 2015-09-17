@@ -133,7 +133,7 @@ Find the best mapping location of given reads.
 .B --pe
 Map the reads in Paired-End mode. 
 .B
-mix
+min
 and 
 .B
 max

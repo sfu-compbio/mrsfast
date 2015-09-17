@@ -41,11 +41,4 @@ void 			initLoadingSNPs(char *fileName);
 void 			finalizeSNPs();
 void			rewindSNPIndex();
 
-typedef struct
-{
-	char *chrName;
-	int locCnt;
-	SNPLoc *snpLocs;
-} ChrSNPs;
-
 #endif

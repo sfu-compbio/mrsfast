@@ -45,67 +45,77 @@ CompressedSeq	*_snp_SNPMap		= NULL;
 int				_snp_SNPMapLength	= 0;
 ChrSNPs			*_snp_chrSNPs		= NULL;
 int				_snp_chrCnt			= 0;
+char 			**_snp_chrNames		= NULL;
 int				_snp_currentChr		= 0;
-int				_snp_currentLoc	= 0;
+int				_snp_currentLoc		= 0;
 
+/**********************************************/
+int findChrIndex(char *chrName)
+{
+	int i;
+	char cname[CONTIG_NAME_SIZE];	// chr name in FASTA file
+
+	for (i = 0; i < _snp_chrCnt; i++)
+	{
+		strcpy(cname, _snp_chrNames[i]);
+		if (strlen(cname) > 3 && cname[0] == 'c' && cname[1] == 'h' && cname[2] == 'r')
+			strcpy(cname, _snp_chrNames[i] + 3);		// get rid of the potential "chr" at the beginning
+		if (! strcmp(cname, "MT"))						// change "MT" to "M" for consistency with dbSNP naming
+			cname[1] = '\0';
+
+		if (! strcmp(chrName, cname))
+			return i;
+	}
+	return -1;
+}
 /**********************************************/
 void initLoadingSNPs(char *fileName)
 {
-	int i, j, loc, t, found, count;
-	char cname[CONTIG_NAME_SIZE];	// chromosome name
-	int ccnt;						// chr count in the file
-	char **chrNames;
+	int i, loc, t, locCnt, chrIndex, nameLen;
+	char cname[CONTIG_NAME_SIZE];	// chromosome name from dbSNP
+	int ccnt;						// number of chromosomes in dbSNP
+	//int chrNameOffset = 0;			// used to trim the "chr" at the beginning of chromosome names
 	SNPLoc *dummy = getMem(MAX_SNP_PER_CHR * sizeof(SNPLoc));
 
 	_snp_chrCnt = getChrCnt();
-	chrNames = getChrNames();
+	_snp_chrNames = getChrNames();
 	_snp_chrSNPs = getMem(_snp_chrCnt * sizeof(ChrSNPs));
 	
-	for (i = 0; i < _snp_chrCnt; i++)
+	for (i = 0; i < _snp_chrCnt; i++)		// FASTA chromosomes
 	{
-		_snp_chrSNPs[i].chrName = chrNames[i];
+		//chrNameOffset = (strlen(_snp_chrNames[i]) > 3 && chrNames[i][0] == 'c' && chrNames[i][1] == 'h' && chrNames[i][2] == 'r') ?3 :0;
+		_snp_chrSNPs[i].chrName = _snp_chrNames[i];// + chrNameOffset;
+
 		_snp_chrSNPs[i].locCnt = 0;
-		_snp_chrSNPs[i].snpLocs = getMem(MAX_SNP_PER_CHR * sizeof(SNPLoc));
+		_snp_chrSNPs[i].snpLocs = NULL;	//getMem(MAX_SNP_PER_CHR * sizeof(SNPLoc));
 	}
 
 	_snp_SNPMapLength = (calculateCompressedLen(CONTIG_MAX_SIZE)+1) * sizeof(CompressedSeq);
 	_snp_SNPMap = getMem(_snp_SNPMapLength);
 
-	strcpy(cname, "chr");
 	FILE *fp = fopen(fileName, "rt");
-	t = fread(&ccnt, sizeof(int), 1, fp);	// must be 25 for homosapien
+	t = fread(&ccnt, sizeof(int), 1, fp);		// ccnt = number of chromosomes in dbSNP
 
-	for (i = 1; i <= ccnt; i++)
+	// look for each dbSNP chromosome in the reference
+	for (i = 0; i < ccnt; i++)
 	{
-		if (i < 23)
-			sprintf(cname+3, "%d", i);
-		else
-		{
-			switch (i)
-			{
-				case 23: cname[3] = 'X'; break;
-				case 24: cname[3] = 'Y'; break;
-				case 25: cname[3] = 'M'; break;
-				default: cname[3] = 'T'; break;		// something invalid
-			}
-			cname[4] = '\0';
-		}
+		t = fread(&nameLen, sizeof(int), 1, fp);
+		t = fread(cname, sizeof(char), nameLen, fp);
+		t = fread(&locCnt, sizeof(int), 1, fp);
 
-		found = 0;
-		for (j = 0; j < _snp_chrCnt; j++)
+		cname[nameLen] = '\0';
+		chrIndex = findChrIndex(cname);
+
+		if (chrIndex != -1)		// found in FASTA chromosomes
 		{
-			if (!strcmp(cname, _snp_chrSNPs[j].chrName))
-			{
-				found = 1;
-				t = fread(&_snp_chrSNPs[j].locCnt, sizeof(int), 1, fp);
-				t = fread(_snp_chrSNPs[j].snpLocs, sizeof(SNPLoc), _snp_chrSNPs[j].locCnt, fp);
-				break;
-			}
+			_snp_chrSNPs[chrIndex].locCnt = locCnt;
+			_snp_chrSNPs[chrIndex].snpLocs = getMem(locCnt * sizeof(SNPLoc));
+			t = fread(_snp_chrSNPs[chrIndex].snpLocs, sizeof(SNPLoc), locCnt, fp);
 		}
-		if (!found)
+		else					// not found
 		{
-			t = fread(&count, sizeof(int), 1, fp);
-			t = fread(dummy, sizeof(SNPLoc), count, fp);
+			t = fread(dummy, sizeof(SNPLoc), locCnt, fp);	// read dummy
+			fprintf(stdout, "Warning: chromosome %s is present in the SNP database but not found in the reference genome\n", cname);
 		}
 	}
 
@@ -117,7 +127,7 @@ void finalizeSNPs()
 {
 	int i;
 	for (i = 0; i < _snp_chrCnt; i++)
-		freeMem(_snp_chrSNPs[i].snpLocs, MAX_SNP_PER_CHR * sizeof(SNPLoc));
+		freeMem(_snp_chrSNPs[i].snpLocs, _snp_chrSNPs[i].locCnt * sizeof(SNPLoc));
 	freeMem(_snp_chrSNPs, _snp_chrCnt * sizeof(ChrSNPs));
 	freeMem(_snp_SNPMap, _snp_SNPMapLength);
 }
