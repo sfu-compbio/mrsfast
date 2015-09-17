@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "Common.h"
 
-#define MAX_LINE_LENGTH 2000
-#define NUM_OF_CHRS 25
+#define MAX_LINE_LENGTH		4000
+#define MAX_NUM_OF_CHRS		100000
+#define PROGRESS_METER_UNIT	4000000
 
 /**********************************************/
 FILE *fileOpen(char *fileName, char *mode)
@@ -15,12 +17,13 @@ FILE *fileOpen(char *fileName, char *mode)
 	fp = fopen (fileName, mode);
 	if (fp == NULL)
 	{
-		fprintf(stdout, "Error: Cannot Open the file %s\n", fileName);
+		fprintf(stdout, "Error: Cannot Open file \"%s\"\n", fileName);
 		fflush(stdout);
 		exit(0);
 	}
 	return fp;
 }
+
 /**********************************************/
 int cmp(const void *a, const void *b)
 {
@@ -28,126 +31,158 @@ int cmp(const void *a, const void *b)
 	SNPLoc *y = (SNPLoc *) b;
 	return (x->loc - y->loc);
 }
-/**************************************/
+
+/**********************************************/
+int findChrIndex(char *chr, ChrSNPs *chrInfo, int chrCount)
+{
+	int i;
+	for (i = 0; i < chrCount; i++)
+	{
+		if (! strcmp(chr, chrInfo[i].chrName))
+			return i;
+	}
+	return -1;
+}
+/**********************************************/
+void freeMems(ChrSNPs *chrInfo, int chrCount)
+{
+	int i;
+	for (i = 0; i < chrCount; i++)
+	{
+		free(chrInfo[i].chrName);
+		free(chrInfo[i].snpLocs);
+	}
+	free(chrInfo);
+}
+/**********************************************/
+void fixChromosomeName(char *cname)
+{
+	// any other unifying standard for chromosome names can be added here
+	// this might be required to make sure different names for the same chromosome (like M and MT, or chr1 and 1) are unified
+	if (! strcmp(cname, "MT"))
+		cname[1] = '\0';
+}
+/**********************************************/
 
 int main(int argc, char *argv[])
 {
 	if (argc < 3)
 	{
-		fprintf(stderr, "Too few input arguments\nInputs must be:\n\t1. Input vcf (version 4) file name\n\t2. Output file name\n");
+		fprintf(stderr, "Too few input arguments\nInputs must be:\n\t1. Input vcf (v4.0) file name\n\t2. Output SNP index file name\n");
 		return 0;
 	}
 	FILE *inFile = 0, *outFile = 0;
 	char *inFileName = argv[1];
 	char *outFileName = argv[2];
 	char line[MAX_LINE_LENGTH], chr[MAX_LINE_LENGTH], ref[MAX_LINE_LENGTH], alt[MAX_LINE_LENGTH], dummy[MAX_LINE_LENGTH];
-	int i, loc, index;
-	unsigned int snpCnt;
-	int len[NUM_OF_CHRS];
-	SNPLoc **chrSNPs = malloc(NUM_OF_CHRS * sizeof(SNPLoc *));
+	int i, j, loc, chrIndex, nameLen;
+	unsigned int snpCount = 0;
+	int chrCount = 0;
+	ChrSNPs *chrInfo = malloc(MAX_NUM_OF_CHRS * sizeof(ChrSNPs));
 	
-	for (i = 0; i < NUM_OF_CHRS; i++)
-	{
-		chrSNPs[i] = malloc(MAX_SNP_PER_CHR * sizeof(SNPLoc));
-		len[i] = 0;
-	}
-
-	inFile = fileOpen(argv[1], "r");
-	if (!inFile)
-	{
-		fprintf(stderr, "ERROR: Could not open VCF file %s\n", argv[1]);
-		return 0;
-	}
-
-	fprintf(stdout, "Reading VCF file ");
-	fflush(stdout);
-
-	snpCnt = 0;
-	i = 0;
+	// read file, count number of chromosomes and their locations
+	inFile = fileOpen(inFileName, "r");
+	fprintf(stdout, "Pre-processing VCF file ...\n");
 
 	while ( fgets(line, MAX_LINE_LENGTH, inFile) )
 	{
-		if (++i == 2000000)
+		if (line[0] == '#')		// comment line
+			continue;
+
+		sscanf(line, "%s%d%s%s%s", chr, &loc, dummy, ref, alt);		// read fields
+		if (strlen(ref) != 1 || strlen(alt) != 1)					// only one bp variants
+			continue;
+		fixChromosomeName(chr);
+
+		snpCount ++;
+		chrIndex = findChrIndex(chr, chrInfo, chrCount);
+		if (chrIndex == -1)		// new chr name
+		{
+			chrIndex = chrCount ++;
+			// copy chr name
+			nameLen = strlen(chr);
+			chrInfo[chrIndex].chrName = malloc(nameLen + 1);
+			strcpy(chrInfo[chrIndex].chrName, chr);
+			// set number of locations
+			chrInfo[chrIndex].locCnt = 1;
+			chrInfo[chrIndex].snpLocs = NULL;
+		}
+		else
+		{
+			chrInfo[chrIndex].locCnt ++;
+		}
+	}
+
+	fprintf(stdout, "Chromosomes: %d\n", chrCount);
+	fprintf(stdout, "Valid SNP locations: %d\n", snpCount);
+
+	// allocate SNPLocs for each chromosome
+	for (i = 0; i < chrCount; i++)
+	{
+		chrInfo[i].snpLocs = malloc(chrInfo[i].locCnt * sizeof(SNPLoc));
+		chrInfo[i].locCnt = 0;
+		//fprintf(stdout, "%s\n", chrInfo[i].chrName);
+	}
+
+	// read file again, fill locations
+	rewind(inFile);
+	i = 0;
+	fprintf(stdout, "Reading SNP locations ");
+	fflush(stdout);
+
+	while ( fgets(line, MAX_LINE_LENGTH, inFile) )
+	{
+		if (++i == PROGRESS_METER_UNIT)
 		{
 			fprintf(stdout, ".");
 			fflush(stdout);
 			i = 0;
 		}
-
 		if (line[0] == '#')		// comment line
 			continue;
-		sscanf(line, "%s%d%s%s%s", chr, &loc, dummy, ref, alt);
-		if (strlen(ref) != 1 || strlen(alt) != 1)
+
+		sscanf(line, "%s%d%s%s%s", chr, &loc, dummy, ref, alt);		// read fields
+		if (strlen(ref) != 1 || strlen(alt) != 1)					// only one bp variants
 			continue;
-
-		index = atoi(chr);
-		if (index)		// a number
-		{
-			if (index > 22)
-			{
-				fprintf(stderr, "ERROR (line %d): %s is not a valid chromosome for homosapiens. Line Skipped\n", i, chr);
-				continue;
-			}
-			index --;
-		}
-		else			// X, Y or M
-		{
-			chr[0] = toupper(chr[0]);
-			chr[1] = toupper(chr[1]);
-			if (!strcmp(chr, "MT"))
-				chr[1] = '\0';
-			if (strlen(chr) > 1)
-			{
-				fprintf(stderr, "ERROR (line %d): %s is not a valid chromosome for homosapiens. Line Skipped\n", i, chr);
-				continue;
-			}
-
-			switch(chr[0])
-			{
-				case 'X': index = 22; break;
-				case 'Y': index = 23; break;
-				case 'M': index = 24; break;
-				default : 
-					fprintf(stderr, "ERROR (line %d): %s is not a valid chromosome for homosapiens. Line Skipped\n", i, chr);
-					continue;
-			}
-		}
-
-		//chrSNPs[index][++chrSNPs[index][0]] = loc;
-		chrSNPs[index][len[index]].loc = loc;
-		chrSNPs[index][len[index]].alt = alt[0];
-		len[index] ++;
-		snpCnt++;
+		fixChromosomeName(chr);
+		
+		chrIndex = findChrIndex(chr, chrInfo, chrCount);
+		assert(chrIndex != -1);
+		j = chrInfo[chrIndex].locCnt;
+		chrInfo[chrIndex].snpLocs[j].loc = loc;
+		chrInfo[chrIndex].snpLocs[j].alt = alt[0];
+		chrInfo[chrIndex].locCnt ++;
 	}
 
-	fprintf(stdout, ".\nReformatting data\n");
 	fclose(inFile);
 
-	for (i = 0; i < NUM_OF_CHRS; i++)
+	// sort locations for each chromosome
+	fprintf(stdout, ".\nReformatting data ...\n");
+
+	for (i = 0; i < chrCount; i++)
 	{
-		if (len[i])
-			qsort(chrSNPs[i], len[i], sizeof(SNPLoc), cmp);
+		if (chrInfo[i].locCnt > 0)
+			qsort(chrInfo[i].snpLocs, chrInfo[i].locCnt, sizeof(SNPLoc), cmp);
 	}
 
-	// -------- write to output file ------- //
-	outFile = fileOpen(outFileName, "w");
-	
+	// write to output file
 	fprintf(stdout, "Creating output in %s\n", outFileName);
-	int n = NUM_OF_CHRS;
-	fwrite(&n, sizeof(int), 1, outFile);
+	
+	outFile = fileOpen(outFileName, "w");	
+	fwrite(&chrCount, sizeof(int), 1, outFile);
 
-	for (i = 0; i < NUM_OF_CHRS; i++)
+	for (i = 0; i < chrCount; i++)
 	{
-		fwrite(len + i, sizeof(int), 1, outFile);		// length of list for this chr
-		fwrite(chrSNPs[i], sizeof(SNPLoc), len[i], outFile);
+		nameLen = strlen(chrInfo[i].chrName);
+		fwrite(&nameLen, sizeof(int), 1, outFile);						// chr name length
+		fwrite(chrInfo[i].chrName, sizeof(char), nameLen, outFile);		// chr name
+		fwrite(&chrInfo[i].locCnt, sizeof(int), 1, outFile);			// num of locs
+		fwrite(chrInfo[i].snpLocs, sizeof(SNPLoc), chrInfo[i].locCnt, outFile);		// all snp locations
 	}
 
 	fclose(outFile);
-	fprintf(stdout, "%u SNP locations registered successfully\n", snpCnt);
+	fprintf(stdout, "%u SNP locations registered successfully\n", snpCount);
 
-	for (i = 0; i < NUM_OF_CHRS; i++)
-		free(chrSNPs[i]);
-	free(chrSNPs);
-
+	freeMems(chrInfo, chrCount);
 	return 0;
 }

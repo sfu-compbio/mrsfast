@@ -49,7 +49,7 @@
 #define CONTIG_OVERLAP		1050 		// No. of characters overlapped between contings  --  equals 50 blocks of length 21
 #define CONTIG_NAME_SIZE	200			// Contig name max size
 #define FILE_NAME_LENGTH	500			// Filename Max Length
-#define MAX_SNP_PER_CHR		6000000
+#define MAX_SNP_PER_CHR		100000000
 
 
 typedef uint64_t CompressedSeq;
@@ -118,6 +118,13 @@ typedef struct
 	int loc;
 	char alt;
 } SNPLoc;
+
+typedef struct
+{
+	char *chrName;
+	int locCnt;
+	SNPLoc *snpLocs;
+} ChrSNPs;
 
 FILE	* fileOpen(char *fileName, char *mode);
 gzFile	fileOpenGZ(char *fileName, char *mode);
