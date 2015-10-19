@@ -702,6 +702,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	else if (_r_firstIteration)
 	{
 		fprintf(stdout, "ERR: No reads for mapping\n");
+		exit("EXIT_FAILURE");
 	}
 
 	if (_r_seqCnt < _r_maxSeqCnt)		// reached end of file
