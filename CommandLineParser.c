@@ -66,6 +66,7 @@ char					*seqFile2;
 char					fileName[3][FILE_NAME_LENGTH];
 char					*unmappedOutput;
 char					*mappingOutputPath;
+char					*concordantStatOutput;
 short					maxHits = 0;
 unsigned char			WINDOW_SIZE = 12;
 unsigned int			CONTIG_SIZE;
@@ -98,7 +99,7 @@ void printHelp()
 	for (c = &_binary_HELP_start; c != &_binary_HELP_end; c++)
 		putchar(*c);
 #endif
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 int parseCommandLine (int argc, char *argv[])
@@ -112,8 +113,10 @@ int parseCommandLine (int argc, char *argv[])
 	mappingOutput = getMem(FILE_NAME_LENGTH);
 	mappingOutputPath = getMem(FILE_NAME_LENGTH);
 	unmappedOutput = getMem(FILE_NAME_LENGTH);
+	concordantStatOutput = getMem(FILE_NAME_LENGTH);
 	strcpy(mappingOutput, "output");
 	strcpy(unmappedOutput, "output.nohit");
+	strcpy(concordantStatOutput, "concordant.statistic");
 	mappingOutputPath[0] = '\0';
 
 	static struct option longOptions[] = 
@@ -368,4 +371,5 @@ void finalizeCommandParser()
 	freeMem(mappingOutput, FILE_NAME_LENGTH);
 	freeMem(unmappedOutput, FILE_NAME_LENGTH);
 	freeMem(mappingOutputPath, FILE_NAME_LENGTH);
+	freeMem(concordantStatOutput, FILE_NAME_LENGTH);
 }

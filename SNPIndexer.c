@@ -19,7 +19,7 @@ FILE *fileOpen(char *fileName, char *mode)
 	{
 		fprintf(stdout, "Error: Cannot Open file \"%s\"\n", fileName);
 		fflush(stdout);
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 	return fp;
 }

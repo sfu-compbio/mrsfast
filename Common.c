@@ -63,7 +63,7 @@ FILE *fileOpen(char *fileName, char *mode)
 	{
 		fprintf(stdout, "Error: Cannot Open the file %s\n", fileName);
 		fflush(stdout);
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 	return fp;
 }
@@ -76,7 +76,7 @@ gzFile fileOpenGZ(char *fileName, char *mode)
 	{
 		fprintf(stdout, "Error: Cannot Open the file %s\n", fileName);
 		fflush(stdout);
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
 	return gzfp;
 }

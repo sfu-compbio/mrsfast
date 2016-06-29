@@ -1414,6 +1414,10 @@ void *mapSeqMT(int *idp)
 /**********************************************/
 void mapSeq(unsigned char cf)
 {
+	//cf
+	// 0 end of genome
+	// 1 end of chunk
+	// 2 end of chromosome
 	int i;
 	contigFlag = cf;
 
@@ -4059,7 +4063,7 @@ void calculateConcordantDistances()
 		}
 	}
 	
-	if (cnt == 0)  // the data has been small and no read has had a single best mapping
+	if (cnt < 10000)  // the data has been small and no read has had a single best mapping
 	{
 		fprintf(stderr, "ERROR: The sample size is too small for calculating template lengths. Please either manually set the min max values, or provide a larger number of paired-end reads\n");
 		exit(EXIT_FAILURE);
@@ -4077,7 +4081,16 @@ void calculateConcordantDistances()
 	minPairEndedDistance = (int)(mu - 3*sigma);
 	maxPairEndedDistance = (int)(mu + 3*sigma);
 	//fprintf(stdout, "cnt %d  mu %lf  sig %lf  min %d  max %d\n", cnt, mu, sigma, minPairEndedDistance, maxPairEndedDistance);
-	
+
+	FILE *out = fileOpen(concordantStatOutput, "w");
+	fprintf(out, "TotalNumbReads: 2*%d\n", (_msf_seqListSize / 2));
+	fprintf(out, "SampleSize: %d\n", cnt);
+	fprintf(out, "mu: %0.3f\n", mu);
+	fprintf(out, "sigma: %0.3f\n", sigma);
+	fprintf(out, "min: %d\n", minPairEndedDistance);
+	fprintf(out, "max: %d\n", maxPairEndedDistance);
+	fclose(out);		
+
 	modifyMinMaxDistances();
 
 	_msf_profilingCompleted = 1;

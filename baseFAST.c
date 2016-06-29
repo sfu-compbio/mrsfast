@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
 		//fprintf(stdout, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
 		if (memUsage > 0)
-		fprintf(stdout, "Memory Leak: %lld Bytes\n", memUsage);
+			fprintf(stdout, "Memory Leak: %lld Bytes\n", memUsage);
 	}
 
 	return 0;
