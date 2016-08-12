@@ -1681,7 +1681,7 @@ void outputMaxHitsPairedEnd()
 							255,						// MAPQ
 							_msf_cigar,					// CIGAR
 							"=",						// MRNAME
-							loc2,						// MPOS
+							loc1,						// MPOS
 							-isize,						// ISIZE
 							seq,						// SEQ
 							qual,	 					// QUAL
@@ -1700,7 +1700,7 @@ void outputMaxHitsPairedEnd()
 							255,						// MAPQ
 							_msf_cigar,					// CIGAR
 							"=",						// MRNAME
-							loc2,						// MPOS
+							loc1,						// MPOS
 							-isize,						// ISIZE
 							seq,						// SEQ
 							qual,	 					// QUAL
