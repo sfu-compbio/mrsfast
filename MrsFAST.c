@@ -2702,7 +2702,7 @@ void outputBestPairedEnd()
 				break;
 			case second_mate:
 				f1 = 1 + 4 + 64 + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
-				f2 = 1 + 8 + 128 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0);
+				f2 = 1 + 8 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0);
 				//fprintf(stdout, "2ndmate\n");
 				optSize1 = 0;
 				break;
