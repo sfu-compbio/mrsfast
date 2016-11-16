@@ -65,6 +65,12 @@ To trim input reads to a shorter length, `--crop` option can be used. For exampl
 $ ./mrsfast --search genome.fa --seq reads.fq -e 4 --crop 40
 ```
 
+Alternatively, you may crop from tail of the reads by using `--tail-crop`.
+
+```
+$ ./mrsfast --search genome.fa --seq reads.fq -e 4 --tail-crop 40
+```
+
 mrsFAST-Ultra is able to perform mapping on multiple CPU cores in a parallel manner. The number of threads is determined using the `--threads` option. The default value is 1 which runs mrsFAST-Ultra on a single thread. If `--threads` is set to 0, mrsFAST-Ultra will use all the available cores in the system.
 
 ```
