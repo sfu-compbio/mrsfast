@@ -78,6 +78,7 @@ extern int				SNPMode;
 extern int				seqCompressed;
 extern int				outCompressed;
 extern int				cropSize;
+extern int				tailCropSize;
 extern int				progressRep;
 extern int				nohitDisabled;
 extern int				noSamHeader;

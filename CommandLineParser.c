@@ -53,6 +53,7 @@ int						SNPMode = 0;
 int						seqCompressed;
 int						outCompressed;
 int						cropSize = 0;
+int						tailCropSize = 0;
 int						progressRep = 0;
 int						nohitDisabled = 0;
 int						noSamHeader = 0;
@@ -140,6 +141,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"min",						required_argument,  0,					'l'},
 		{"max",						required_argument,  0,					'm'},
 		{"crop",					required_argument,  0,					'c'},
+		{"tail-crop",				required_argument,  0,					'f'},
 		{"threads",					required_argument,  0,					't'},
 		{"mem",						required_argument,  0,					'z'},
 		{"snp",						required_argument,  0,					'p'},
@@ -164,6 +166,9 @@ int parseCommandLine (int argc, char *argv[])
 				break;
 			case 'c': 
 				cropSize = atoi(optarg);
+				break;
+			case 'f': 
+				tailCropSize = atoi(optarg);
 				break;
 			case 'w':
 				if (searchingMode == 1)
@@ -284,6 +289,12 @@ int parseCommandLine (int argc, char *argv[])
 	{
 		CONTIG_SIZE		= 300000000;
 		CONTIG_MAX_SIZE	= 300000000;
+
+		if ( cropSize && tailCropSize)
+		{
+			fprintf(stdout, "ERROR: Sequences can be cropped from only one side\n");
+			return 0;
+		}
 
 		if (pairedEndDiscordantMode)
 		{

@@ -50,6 +50,7 @@ FILE *_r_umfp;
 gzFile _r_gzfp1;
 gzFile _r_gzfp2;
 Read *_r_seq;
+int _r_uncroppedSeqLength;
 int _r_seqCnt;
 int _r_samplingLocsSize;
 int *_r_samplingLocs;
@@ -113,7 +114,7 @@ void readBufferTxT2()
 /**********************************************/
 int readFirstSeq(char *seq , int line)
 {
-	int i=0, l=0;
+	int i=0, l=0, j = 0;
 	char cur;
 
 	while (1)
@@ -127,6 +128,7 @@ int readFirstSeq(char *seq , int line)
 
 		cur = _r_buf1[*_r_buf1_pos];		
 		(*_r_buf1_pos)++;
+		j++;
 
 		if ( cur == '\n')
 		{
@@ -142,6 +144,8 @@ int readFirstSeq(char *seq , int line)
 
 		if (cropSize>0 && line%2==0 && i==cropSize)
 			continue;
+		if (tailCropSize>0 && line%2==0 && j <= _r_uncroppedSeqLength - tailCropSize)
+			continue;
 
 		seq[i++]=cur;
 
@@ -150,7 +154,7 @@ int readFirstSeq(char *seq , int line)
 /**********************************************/
 int readSecondSeq( char *seq, int line )
 {
-	int i=0, l=0;
+	int i=0, l=0, j = 0;;
 	char cur;
 	while (1)
 	{
@@ -163,7 +167,7 @@ int readSecondSeq( char *seq, int line )
 
 		cur = _r_buf2[*_r_buf2_pos];		
 		(*_r_buf2_pos)++;
-
+		j++;
 		if ( cur == '\n')
 		{
 			if (l>0) i=l;
@@ -177,6 +181,8 @@ int readSecondSeq( char *seq, int line )
 		}
 
 		if (cropSize>0 && line%2==0 && i==cropSize)
+			continue;
+		if (tailCropSize>0 && line%2==0 && j <= _r_uncroppedSeqLength - tailCropSize)
 			continue;
 
 		seq[i++]=cur;
@@ -513,8 +519,12 @@ int initRead(char *fileName1, char *fileName2)
 		SEQ_LENGTH++;
 	}
 	
+	_r_uncroppedSeqLength = SEQ_LENGTH;
+
 	if (cropSize > 0)
 		SEQ_LENGTH = cropSize;
+	if (tailCropSize > 0)
+		SEQ_LENGTH = tailCropSize;
 
 	if ( SEQ_LENGTH >= SEQ_MAX_LENGTH )
 	{

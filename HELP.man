@@ -1,4 +1,4 @@
-.TH mrsFAST-Ultra 1 "Last Updated: Sep 11, 2013" mrsFAST-Ultra "mrsfast-Ultra Manual"
+.TH mrsFAST-Ultra 1 "Last Updated: Nov 16, 2016" mrsFAST-Ultra "mrsfast-Ultra Manual"
 .SH NAME
 mrsfast-ultra
 .SH DESCRIPTION
@@ -117,7 +117,13 @@ options.
 .BI --crop " n"
 Trim the reads to 
 .I n
-base pairs.
+base pairs from begining of the read.
+
+.TP
+.BI --tail-crop " n"
+Trim the reads to 
+.I n
+base pairs from end of the read.
 
 .TP
 .BI -e " error-threshold"
