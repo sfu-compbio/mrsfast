@@ -187,8 +187,8 @@ int initOutput ( char *fileName, int compressed)
 		}
 		else
 		{
-			//sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
-			sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		        sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+			//sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
 		}
 
 		_out_fp = fileOpen(newFileName, "w");

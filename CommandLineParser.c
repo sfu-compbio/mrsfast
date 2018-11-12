@@ -152,7 +152,7 @@ int parseCommandLine (int argc, char *argv[])
 
 
 
-	while ( (o = getopt_long ( argc, argv, "f:i:u:o:s:e:n:bhv", longOptions, &index))!= -1 )
+	while ( (o = getopt_long ( argc, argv, "f:i:u:o:s:e:n:t:bhv", longOptions, &index))!= -1 )
 	{
 		switch (o)
 		{
@@ -359,6 +359,17 @@ int parseCommandLine (int argc, char *argv[])
 	char fname4[FILE_NAME_LENGTH];
 	char fname5[FILE_NAME_LENGTH];
 
+	/* change defaut output filenames */
+	if (!strcmp(mappingOutput, "output"))
+	  {
+	    stripPath (seqFile1, &mappingOutputPath, &mappingOutput);
+	    sprintf(mappingOutput, "%s-output", seqFile1);
+	    if (!outCompressed)
+	      sprintf(unmappedOutput, "%s-output.nohit.fastq", seqFile1 );	    
+	    else
+	      sprintf(unmappedOutput, "%s-output.nohit.fastq.gz", seqFile1 );	    
+	  }
+	
 	// Why is this one here?
 	if (pairedEndMode)
 	{

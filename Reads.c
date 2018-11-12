@@ -47,6 +47,7 @@
 FILE *_r_fp1;
 FILE *_r_fp2;
 FILE *_r_umfp;
+gzFile _r_gzumfp;
 gzFile _r_gzfp1;
 gzFile _r_gzfp2;
 Read *_r_seq;
@@ -580,7 +581,10 @@ int initRead(char *fileName1, char *fileName2)
 
 	if (!nohitDisabled)
 	{
-		_r_umfp = fileOpen(unmappedOutput, "w");
+	  if (!outCompressed)
+	    _r_umfp = fileOpen(unmappedOutput, "w");
+	  else 
+	    _r_gzumfp = fileOpenGZ(unmappedOutput, "w");
 	}
 
 	_r_alphIndex = getMem(128);		// used in readChunk()
@@ -736,22 +740,34 @@ void outputUnmapped()
 		{
 			if (_r_seq[2*i].hits[0] == 0 && _r_fastq)
 			{
-				fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+				else
+				  gzprintf(_r_gzumfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
 			}
 			else if (_r_seq[2*i].hits[0] == 0)
 			{
-				fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+			        if (!outCompressed)
+				  fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+				else
+				  gzprintf(_r_gzumfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
 			}
 		}
 		else
 		{
 			if (_r_seq[i].hits[0] == 0 && _r_fastq)
 			{
-				fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+				else
+				  gzprintf(_r_gzumfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);				
 			}
 			else if (_r_seq[i].hits[0] == 0)
 			{
-				fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+				else 
+				  gzprintf(_r_gzumfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
 			}
 		}
 	}
@@ -830,7 +846,10 @@ void finalizeReads()
 
 	if (!nohitDisabled)
 	{
-		fclose(_r_umfp);
+	        if (!outCompressed)
+		  fclose(_r_umfp);
+		else
+		  gzclose(_r_gzumfp);	    
 	}
 }
 
