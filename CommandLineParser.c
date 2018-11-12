@@ -362,12 +362,15 @@ int parseCommandLine (int argc, char *argv[])
 	/* change defaut output filenames */
 	if (!strcmp(mappingOutput, "output"))
 	  {
-	    stripPath (seqFile1, &mappingOutputPath, &mappingOutput);
 	    sprintf(mappingOutput, "%s-output", seqFile1);
+	    fprintf(stderr, "seqFile1 is %s\noutput file is %s\n", seqFile1, mappingOutput);
 	    if (!outCompressed)
-	      sprintf(unmappedOutput, "%s-output.nohit.fastq", seqFile1 );	    
+	      sprintf(unmappedOutput, "%s-output.nohit.fastq", seqFile1 );
 	    else
-	      sprintf(unmappedOutput, "%s-output.nohit.fastq.gz", seqFile1 );	    
+	      sprintf(unmappedOutput, "%s-output.nohit.fastq.gz", seqFile1 );
+	    char tmp_fname[FILE_NAME_LENGTH];
+	    strcpy(tmp_fname, seqFile1);
+	    stripPath (tmp_fname, &mappingOutputPath, &mappingOutput);
 	  }
 	
 	// Why is this one here?
