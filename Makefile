@@ -1,4 +1,4 @@
-MRSFAST_VERSION := "3.4.1"
+MRSFAST_VERSION := "3.4.2"
 BUILD_DATE := "$(shell date)"
 
 all: OPTIMIZE_FLAGS build

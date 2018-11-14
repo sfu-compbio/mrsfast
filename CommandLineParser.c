@@ -52,6 +52,7 @@ int						bestMappingMode = 0;
 int						SNPMode = 0;
 int						seqCompressed;
 int						outCompressed;
+int						isCloud;
 int						cropSize = 0;
 int						tailCropSize = 0;
 int						progressRep = 0;
@@ -119,6 +120,7 @@ int parseCommandLine (int argc, char *argv[])
 	strcpy(unmappedOutput, "output.nohit");
 	strcpy(concordantStatOutput, "concordant.statistic");
 	mappingOutputPath[0] = '\0';
+	isCloud = 0;
 
 	static struct option longOptions[] = 
 	{
@@ -128,6 +130,7 @@ int parseCommandLine (int argc, char *argv[])
 		{"outcomp",					no_argument,		&outCompressed,		1},
 		{"progress",				no_argument,		&progressRep,		1},
 		{"best",					no_argument,		&bestMappingMode,	1},
+		{"cloud",					no_argument,		&isCloud,	1},
 		{"disable-nohits",			no_argument,		&nohitDisabled,		1},
 		{"disable-sam-header",		no_argument,		&noSamHeader,		1},
 		{"index",					required_argument,	0, 					'i'},

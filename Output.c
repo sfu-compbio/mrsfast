@@ -163,7 +163,11 @@ int initOutput ( char *fileName, int compressed)
 	if (compressed)
 	{
 		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+4];
-		sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
+		if (!isCloud)
+		  sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
+		else
+		  sprintf(newFileName, "%s.sam.gz", fileName);
+		fprintf(stderr, "mappingOutputPath: %s\nfileName: %s\nnewFileName: %s\n", mappingOutputPath, fileName, newFileName);
 		_out_gzfp = fileOpenGZ(newFileName, "w1f");
 		if (_out_gzfp == Z_NULL)
 		{
@@ -187,7 +191,10 @@ int initOutput ( char *fileName, int compressed)
 		}
 		else
 		{
-		        sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+		        if (!isCloud)
+			  sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+			else
+			  sprintf(newFileName, "%s.sam", fileName);
 			//sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
 		}
 
