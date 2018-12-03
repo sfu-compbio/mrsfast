@@ -81,14 +81,16 @@ int						SNP_QUAL_THRESHOLD = 53;
 
 
 
+/*
 #if (defined(__MACH__) && defined(__APPLE__))
 #include <mach-o/getsect.h>
 #else
 extern char _binary_HELP_start;
 extern char _binary_HELP_end;
 #endif
+*/
 
-
+/*
 void printHelp()
 {
 #if (defined(__MACH__) && defined(__APPLE__))
@@ -102,7 +104,7 @@ void printHelp()
 		putchar(*c);
 #endif
 	exit(EXIT_SUCCESS);
-}
+	}*/
 
 int parseCommandLine (int argc, char *argv[])
 {
@@ -210,7 +212,7 @@ int parseCommandLine (int argc, char *argv[])
 				maxPairEndedDistance = atoi(optarg);
 				break;					
 			case 'h':
-				printHelp();
+			        printHelp();
 				return 0;
 				break;
 			case 'v':
@@ -400,4 +402,254 @@ void finalizeCommandParser()
 	freeMem(unmappedOutput, FILE_NAME_LENGTH);
 	freeMem(mappingOutputPath, FILE_NAME_LENGTH);
 	freeMem(concordantStatOutput, FILE_NAME_LENGTH);
+}
+
+void printHelp()
+{
+  fprintf(stdout, "mrsFAST-Ultra(1)             mrsfast-Ultra Manual             mrsFAST-Ultra(1)\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "NNAAMMEE\n");
+  fprintf(stdout, "       mrsfast-ultra\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "DDEESSCCRRIIPPTTIIOONN\n");
+  fprintf(stdout, "       mrsFAST is a cache oblivious read mapping tool. mrsFAST capable of map-\n");
+  fprintf(stdout, "       ping single and paired end reads to  the  reference  genome.  Bisulfite\n");
+  fprintf(stdout, "       treated  sequences are not supported in this version.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "IINNSSTTAALLLLAATTIIOONN\n");
+  fprintf(stdout, "       To  install  mrsFAST-ultra, please download the source zip package from\n");
+  fprintf(stdout, "       http://sourceforge.net/projects/mrsfast/.  After  unzipping  the  down-\n");
+  fprintf(stdout, "       loaded  file \"mrsfast-ultra-3.X.X.zip\", change the current directory to\n");
+  fprintf(stdout, "       the source directory \"mrsfast-ultra-3.X.X\", and run \"make\" in the  ter-\n");
+  fprintf(stdout, "       minal.  The  binary  file  \"mrsfast\" will be created, which is ready to\n");
+  fprintf(stdout, "       use.\n");
+  fprintf(stdout, "       $ unzip mrsfast-ultra-3.X.X.zip\n");
+  fprintf(stdout, "       $ cd mrsfast-ultra-3.X.X\n");
+  fprintf(stdout, "       $ make\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "SSYYNNOOPPSSIISS\n");
+  fprintf(stdout, "       mrsfast --index [file] [OPTIONS]\n");
+  fprintf(stdout, "       mrsfast --search [index] --seq [file] [OPTIONS]\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "OOPPTTIIOONNSS\n");
+  fprintf(stdout, "   GGEENNEERRAALL OOPPTTIIOONNSS\n");
+  fprintf(stdout, "       --hh     Prints this help file.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --vv,, ----vveerrssiioonn\n");
+  fprintf(stdout, "              Prints the version of software.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "   IINNDDEEXXIINNGG OOPPTTIIOONNSS\n");
+  fprintf(stdout, "       ----wwss _w_i_n_d_o_w___s_i_z_e\n");
+  fprintf(stdout, "              Index the reference genome with sliding a window  of  size  _w_i_n_-\n");
+  fprintf(stdout, "              _d_o_w___s_i_z_e (default: 12).\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "   MMAAPPPPIINNGG OOPPTTIIOONNSS\n");
+  fprintf(stdout, "       ----mmeemm _m\n");
+  fprintf(stdout, "              Use maximum _m GB of memory (default: 4).\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----tthhrreeaaddss _t\n");
+  fprintf(stdout, "              Use  _t  number  of cores for mapping the sequences (default: 1).\n");
+  fprintf(stdout, "              Use _0 to use all the available cores in the system.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----sseeqq _f_i_l_e\n");
+  fprintf(stdout, "              Set the input sequence to _f_i_l_e_.  In paired-end mode, _f_i_l_e should\n");
+  fprintf(stdout, "              be used if the read sequences are interleaved.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----sseeqq11 _f_i_l_e\n");
+  fprintf(stdout, "              Set  the  input sequence (left mate) to _f_i_l_e_.  Paired-end option\n");
+  fprintf(stdout, "              only.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----sseeqq22 _f_i_l_e\n");
+  fprintf(stdout, "              Set the input sequence (right mate) to _f_i_l_e_.  Paired-end  option\n");
+  fprintf(stdout, "              only.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----sseeqqccoommpp\n");
+  fprintf(stdout, "              Input file is compressed through gzip.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --oo _f_i_l_e\n");
+  fprintf(stdout, "              Output the mapping record into _f_i_l_e (default: output.sam)\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ddiissaabbllee--ssaamm--hheeaaddeerr\n");
+  fprintf(stdout, "              Do not generate SAM header.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --uu _f_i_l_e\n");
+  fprintf(stdout, "              Output unmapped reads in _f_i_l_e (default: output.nohit). This file\n");
+  fprintf(stdout, "              will be generated in all mapping mode.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ddiissaabbllee--nnoohhiittss\n");
+  fprintf(stdout, "              Do not output unmapped reads.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----oouuttccoommpp\n");
+  fprintf(stdout, "              Compress the output _f_i_l_e by gzip.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --nn _c_u_t_-_o_f_f\n");
+  fprintf(stdout, "              Output the mapping for the read sequences that  have  less  than\n");
+  fprintf(stdout, "              _c_u_t_-_o_f_f number of mappings. Cannot be used with ----bbeesstt or ----ddiiss--\n");
+  fprintf(stdout, "              ccoorrddaanntt--vvhh options.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ccrroopp _n\n");
+  fprintf(stdout, "              Trim the reads to _n base pairs from begining of the read.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ttaaiill--ccrroopp _n\n");
+  fprintf(stdout, "              Trim the reads to _n base pairs from end of the read.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --ee _e_r_r_o_r_-_t_h_r_e_s_h_o_l_d\n");
+  fprintf(stdout, "              Allow up to _e_r_r_o_r_-_t_h_r_e_s_h_o_l_d mismatches in the mappings.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----bbeesstt Find the best mapping location of given reads.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ppee   Map the reads in Paired-End  mode.   mmiinn  and  mmaaxx  of  template\n");
+  fprintf(stdout, "              length  will  be  calculated  if  not  provided by corresponding\n");
+  fprintf(stdout, "              options.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----mmiinn _m_i_n_-_d_i_s_c_o_r_d_a_n_t_-_l_e_n_g_t_h\n");
+  fprintf(stdout, "              Use _m_i_n_-_d_i_s_c_o_r_d_a_n_t_-_l_e_n_g_t_h for minimum length of concordant  map-\n");
+  fprintf(stdout, "              ping. Paired-end option only.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----mmaaxx _m_a_x_-_d_i_s_c_o_r_d_a_n_t_-_l_e_n_g_t_h\n");
+  fprintf(stdout, "              Use  _m_a_x_-_d_i_s_c_o_r_d_a_n_t_-_l_e_n_g_t_h for maximum length of concordant map-\n");
+  fprintf(stdout, "              ping. Paired-end option only.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ddiissccoorrddaanntt--vvhh\n");
+  fprintf(stdout, "              Map the reads in discordant fashion that  can  be  processed  by\n");
+  fprintf(stdout, "              Variation  Hunter / Common Law. Output will be generate in DIVET\n");
+  fprintf(stdout, "              format.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----mmaaxx--ddiissccoorrddaanntt--ccuuttooffff _m\n");
+  fprintf(stdout, "              Allow _m discordant mappings per read. Should be only  used  with\n");
+  fprintf(stdout, "              ----ddiissccoorrddaanntt--vvhh option.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ssnnpp _s_n_p_-_f_i_l_e\n");
+  fprintf(stdout, "              Map the reads in SNP aware mode. In this mode mrsFAST-Ultra tol-\n");
+  fprintf(stdout, "              erates the mismatches in known SNP  locations  reported  by  the\n");
+  fprintf(stdout, "              provided SNP database. The SNP index _s_n_p_-_f_i_l_e\n");
+  fprintf(stdout, "               should  be  created  from  the  dbSNP  (.vcf)  file  using  the\n");
+  fprintf(stdout, "              snp_indexer binary.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       ----ssnnpp--qquuaall _q_u_a_l_i_t_y_-_t_h_r_e_s_h_o_l_d\n");
+  fprintf(stdout, "              In SNP-aware mode, a mismatch at a reported SNP location will be\n");
+  fprintf(stdout, "              ignored  only  if  the corresponding read location has a quality\n");
+  fprintf(stdout, "              higher than or equal to the _q_u_a_l_i_t_y_-_t_h_r_e_s_h_o_l_d  _q_u_a_l_i_t_y_-_t_h_r_e_s_h_o_l_d\n");
+  fprintf(stdout, "              is  a  Phred-Value  base  33. The default is 53 (base call error\n");
+  fprintf(stdout, "              0.01).\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "EEXXAAMMPPLLEESS\n");
+  fprintf(stdout, "       Indexing reference genome:\n");
+  fprintf(stdout, "       $ ./mrsfast --index refgen.fasta\n");
+  fprintf(stdout, "       $ ./mrsfast --index refgen.fasta --ws 14\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Single-end mapping:\n");
+  fprintf(stdout, "       $ ./mrsfast --search refgen.fa --seq reads.fastq\n");
+  fprintf(stdout, "       $ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 -n 10 --threads 4\n");
+  fprintf(stdout, "       $ ./mrsfast --search refgen.fa --seq reads.fastq -e 3 --best -o output\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Paired-end mapping:\n");
+  fprintf(stdout, "       $ ./mrsfast --search refgen.fasta --pe --seq pe-reads.fastq  --min  100\n");
+  fprintf(stdout, "       --max 400\n");
+  fprintf(stdout, "       $  ./mrsfast --search refgen.fasta --pe --seq1 first-mates.fastq --seq2\n");
+  fprintf(stdout, "       second-mates.fastq -e 3 --threads 4\n");
+  fprintf(stdout, "       $ ./mrsfast --search refgen.fasta --pe --seq1 first-mates.fastq  --seq2\n");
+  fprintf(stdout, "       second-mates.fastq --min 100 --max 400 --best -o output\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Discordant mapping:\n");
+  fprintf(stdout, "       $   ./mrsfast   --search   refgen.fasta   --pe   --discordant-vh  --seq\n");
+  fprintf(stdout, "       reads.fastq --min 100 --max 400\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "BBUUGGSS\n");
+  fprintf(stdout, "       Please report the  bugs  through  mrsfast's  web  page  at  http://mrs-\n");
+  fprintf(stdout, "       fast.sourceforge.net\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "AAuutthhoorrss\n");
+  fprintf(stdout, "       Faraz Hach (fhach@sfu.ca)\n");
+  fprintf(stdout, "       Iman Sarrafi (isarrafi@sfu.ca)\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "RReeffeerreennccee\n");
+  fprintf(stdout, "       Please cite the following paper for publications if using mrsFAST:\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Faraz Hach, Fereydoun Hormozdiari, Can Alkan, Farhad Hormozdiari, Inanc\n");
+  fprintf(stdout, "       Birol, Evan E Eichler and S Cenk Sahinalp, \"mrsFAST: a  cache-oblivious\n");
+  fprintf(stdout, "       algorithm for short-read mapping\", Nature Methods 7, 576-577 (2010)\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Please  cite  the  following  paper  for publications if using mrsFAST-\n");
+  fprintf(stdout, "       Ultra:\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Faraz Hach, Iman Sarrafi, Farhad Hormozdiari, Can Alkan, Evan E.  Eich-\n");
+  fprintf(stdout, "       ler,  S. Cenk Sahinalp, \"mrsFAST-Ultra: a compact, SNP-aware mapper for\n");
+  fprintf(stdout, "       high performance sequencing applications\", Nucl.  Acids  Res.  (1  July\n");
+  fprintf(stdout, "       2014) 42 (W1): W494-W500.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "CCOOPPYYRRIIGGHHTT\n");
+  fprintf(stdout, "       Copyright (c) <2012-2020>, Simon Fraser University All rights reserved.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       Redistribution and use in source and binary forms, with or without mod-\n");
+  fprintf(stdout, "       ification, are permitted provided that  the  following  conditions  are\n");
+  fprintf(stdout, "       met:\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       1      Redistributions  of  source code must retain the above copyright\n");
+  fprintf(stdout, "              notice, this list of conditions and the following disclaimer.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       2      Redistributions in binary form must reproduce  the  above  copy-\n");
+  fprintf(stdout, "              right  notice,  thislist  of  conditions  and the following dis-\n");
+  fprintf(stdout, "              claimer in the documentation  and/or  other  materials  provided\n");
+  fprintf(stdout, "              with the distribution.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       3      Neither the name of the Simon Fraser University nor the names of\n");
+  fprintf(stdout, "              its contributors may be used  to  endorse  or  promote  products\n");
+  fprintf(stdout, "              derived  from  this software without specific prior written per-\n");
+  fprintf(stdout, "              mission.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS\n");
+  fprintf(stdout, "       IS\"  AND  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED\n");
+  fprintf(stdout, "       TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTIC-\n");
+  fprintf(stdout, "       ULAR  PURPOSE  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR\n");
+  fprintf(stdout, "       CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,  INCIDENTAL,  SPECIAL,\n");
+  fprintf(stdout, "       EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING, BUT NOT LIMITED TO,\n");
+  fprintf(stdout, "       PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  LOSS  OF  USE,  DATA,  OR\n");
+  fprintf(stdout, "       PROFITS;  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\n");
+  fprintf(stdout, "       LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,  OR  TORT  (INCLUDING\n");
+  fprintf(stdout, "       NEGLIGENCE  OR  OTHERWISE)  ARISING  IN  ANY WAY OUT OF THE USE OF THIS\n");
+  fprintf(stdout, "       SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "mrsFAST-Ultra             Last Updated: December 3, 2018          mrsFAST-Ultra(1)\n");
 }
