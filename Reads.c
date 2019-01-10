@@ -621,6 +621,8 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	int i;//, len;
 
 	int namelen;
+	int eliminate = 0;
+	
 	while( (namelen = readFirstSeq(name1,1)) )
 	{
 
@@ -647,10 +649,16 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		for (i=1; i<namelen+1; i++)
 			_r_seq[_r_seqCnt].name[i-1] = name1[i];
 
+		eliminate = 0;
 		if ( readFirstSeq(_r_seq[_r_seqCnt].seq,2) != SEQ_LENGTH)
 		{
-			fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
-			exit(EXIT_FAILURE);			
+		        if (cropSize > 0)
+			  eliminate = 1;
+			else
+			  {
+			    fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
+			    exit(EXIT_FAILURE);
+			  }
 		} 
 
 		if ( _r_fastq )
@@ -662,8 +670,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		{
 			_r_seq[_r_seqCnt].qual = "*";
 		}
-		_r_seqCnt++;
-
+		
+		if (eliminate)
+		        freeMem(_r_seq[_r_seqCnt].hits, size);
+		else
+		        _r_seqCnt++;
 
 		if (pairedEndMode)
 		{
