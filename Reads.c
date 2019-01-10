@@ -397,24 +397,24 @@ void calculateSamplingLocations()
 	/*int j;
  	for (i=0; i<SEQ_LENGTH; i++)
 	{
-		fprintf(stdout, "-");
+		fprintf(stderr, "-");
 	}
-	fprintf(stdout, "\n");
+	fprintf(stderr, "\n");
 
 	for ( i=0; i<_r_samplingLocsSize; i++ )
 	{
 		for ( j=0; j<_r_samplingLocs[i]; j++ )
-			fprintf(stdout," ");
+			fprintf(stderr," ");
 		for (j=0; j<WINDOW_SIZE; j++)
-			fprintf(stdout,"+");
-		fprintf(stdout, "\n");
-		fflush(stdout);
+			fprintf(stderr,"+");
+		fprintf(stderr, "\n");
+		fflush(stderr);
 	}
 	for ( i=0; i<SEQ_LENGTH; i++ )
 	{
-		fprintf(stdout, "-");
+		fprintf(stderr, "-");
 	}
-	fprintf(stdout, "\n"); */
+	fprintf(stderr, "\n"); */
 }
 
 /**********************************************/
@@ -529,7 +529,7 @@ int initRead(char *fileName1, char *fileName2)
 
 	if ( SEQ_LENGTH >= SEQ_MAX_LENGTH )
 	{
-		fprintf(stdout, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
+		fprintf(stderr, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
 		exit(EXIT_FAILURE);
 	}
 
@@ -563,12 +563,12 @@ int initRead(char *fileName1, char *fileName2)
 	if (errThreshold == -1)
 	{
 		errThreshold = SEQ_LENGTH*6/100;
-		fprintf(stdout, "# Errors: %d\n", errThreshold);
+		fprintf(stderr, "# Errors: %d\n", errThreshold);
 	}
 	if (errThreshold > maxErrThreshold && SEQ_LENGTH>0)
 	{
 		errThreshold = maxErrThreshold;
-		fprintf(stdout, "# Error: %d (full sensitivity)\n", errThreshold);
+		fprintf(stderr, "# Error: %d (full sensitivity)\n", errThreshold);
 	}
 
 
@@ -649,7 +649,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 
 		if ( readFirstSeq(_r_seq[_r_seqCnt].seq,2) != SEQ_LENGTH)
 		{
-			fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
+			fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
 			exit(EXIT_FAILURE);			
 		} 
 
@@ -685,7 +685,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 
 			if ( readSecondSeq(_r_seq[_r_seqCnt].seq,2) != SEQ_LENGTH)
 			{
-				fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
+				fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
 				exit(EXIT_FAILURE);			
 			} 
 
@@ -710,12 +710,12 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	if (_r_seqCnt > 0)
 	{
 		preProcessReadsMT();
-		fprintf(stdout, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
+		fprintf(stderr, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
 		_r_firstIteration = 0;
 	}
 	else if (_r_firstIteration)
 	{
-		fprintf(stdout, "ERR: No reads for mapping\n");
+		fprintf(stderr, "ERR: No reads for mapping\n");
 		exit(EXIT_FAILURE);
 	}
 

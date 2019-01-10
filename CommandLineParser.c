@@ -249,18 +249,18 @@ int parseCommandLine (int argc, char *argv[])
 
 	if (indexingMode + searchingMode != 1)
 	{
-		fprintf(stdout, "ERROR: Indexing / Searching mode should be selected\n");
+		fprintf(stderr, "ERROR: Indexing / Searching mode should be selected\n");
 		return 0;
 	}
 
 	if (WINDOW_SIZE > 14 || WINDOW_SIZE < 8)
 	{
-		fprintf(stdout, "ERROR: Window size should be in [8..14]\n");
+		fprintf(stderr, "ERROR: Window size should be in [8..14]\n");
 		return 0;
 	}
 
 	if (MAX_MEMORY < 2)
-		fprintf(stdout, "ERROR: At least 2 GB of memory is required for running mrsFAST\n");
+		fprintf(stderr, "ERROR: At least 2 GB of memory is required for running mrsFAST\n");
 
 
 	if ( indexingMode )
@@ -270,7 +270,7 @@ int parseCommandLine (int argc, char *argv[])
 
 		if (fastaFile == NULL)
 		{
-			fprintf(stdout, "ERROR: Reference(s) should be indicated for indexing\n");
+			fprintf(stderr, "ERROR: Reference(s) should be indicated for indexing\n");
 			return 0;
 		}
 	}
@@ -279,13 +279,13 @@ int parseCommandLine (int argc, char *argv[])
 	{
 		if (maxHits < 0)
 		{
-			fprintf(stdout, "ERROR: Number of maximum hits must be greater than 0\n");
+			fprintf(stderr, "ERROR: Number of maximum hits must be greater than 0\n");
 			return 0;
 		}
 
 		if (bestMappingMode)
 		{
-			fprintf(stdout, "ERROR: Maximum number of mappings could not be set in best mapping mode. Maximum mappings input ignored\n");
+			fprintf(stderr, "ERROR: Maximum number of mappings could not be set in best mapping mode. Maximum mappings input ignored\n");
 			maxHits = 0;
 		}
 	}
@@ -297,7 +297,7 @@ int parseCommandLine (int argc, char *argv[])
 
 		if ( cropSize && tailCropSize)
 		{
-			fprintf(stdout, "ERROR: Sequences can be cropped from only one side\n");
+			fprintf(stderr, "ERROR: Sequences can be cropped from only one side\n");
 			return 0;
 		}
 
@@ -308,19 +308,19 @@ int parseCommandLine (int argc, char *argv[])
 		
 		if (fastaFile == NULL)
 		{
-			fprintf(stdout, "ERROR: Index File(s) should be indiciated for searching\n");
+			fprintf(stderr, "ERROR: Index File(s) should be indiciated for searching\n");
 			return 0;
 		}
 
 		if (seqFile1 == NULL && seqFile2 == NULL)
 		{
-			fprintf(stdout, "ERROR: Please indicate a sequence file for searching.\n");
+			fprintf(stderr, "ERROR: Please indicate a sequence file for searching.\n");
 			return 0;
 		}
 		
 		if (!pairedEndMode && seqFile2 != NULL)
 		{
-			fprintf(stdout, "ERROR: Second File can be indicated in pairedend mode\n");
+			fprintf(stderr, "ERROR: Second File can be indicated in pairedend mode\n");
 			return 0;
 		}
 
@@ -332,13 +332,13 @@ int parseCommandLine (int argc, char *argv[])
 			}
 			else if ( minPairEndedDistance <0 || maxPairEndedDistance < 0 || minPairEndedDistance > maxPairEndedDistance )
 			{
-				fprintf(stdout, "ERROR: Please enter a valid range for pairedend sequences.\n");
+				fprintf(stderr, "ERROR: Please enter a valid range for pairedend sequences.\n");
 				return 0;
 			}
 
 			if (seqFile1 == NULL)
 			{
-				fprintf(stdout, "ERROR: Please indicate the first file for pairedend search.\n");
+				fprintf(stderr, "ERROR: Please indicate the first file for pairedend search.\n");
 				return 0;
 			}
 		}
