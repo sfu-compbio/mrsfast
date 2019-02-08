@@ -365,7 +365,7 @@ int parseCommandLine (int argc, char *argv[])
 	char fname5[FILE_NAME_LENGTH];
 
 	/* change defaut output filenames */
-	if (!strcmp(mappingOutput, "output"))
+	if (!strcmp(mappingOutput, "output") && searchingMode)
 	  {
 	    sprintf(mappingOutput, "%s-output", seqFile1);
 	    fprintf(stderr, "seqFile1 is %s\noutput file is %s\n", seqFile1, mappingOutput);
