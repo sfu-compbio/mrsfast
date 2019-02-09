@@ -191,11 +191,21 @@ int initOutput ( char *fileName, int compressed)
 		}
 		else
 		{
-		        if (!isCloud)
-			  sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
-			else
-			  sprintf(newFileName, "%s.sam", fileName);
+		  if (!isCloud){	   
+		          int fnlen = strlen(fileName);
+			  if ( ! (fileName[fnlen-1]=='m' && fileName[fnlen-2]=='a' && fileName[fnlen-3]=='s' ) )
+			    sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+			  else
+			    sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		  }
+		  else{
+		          int fnlen = strlen(fileName);
+			  if ( ! (fileName[fnlen-1]=='m' && fileName[fnlen-2]=='a' && fileName[fnlen-3]=='s' ) )
+			    sprintf(newFileName, "%s.sam", fileName);
+			  else
+			    sprintf(newFileName, "%s", fileName);
 			//sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		  }
 		}
 
 		_out_fp = fileOpen(newFileName, "w");
