@@ -177,7 +177,7 @@ int getGenomeMetaInfo(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoL
 	{
 		if (ch != '>')
 		{
-			fprintf(stdout, "Error: Wrong fasta format file\n");
+			fprintf(stderr, "Error: Wrong fasta format file\n");
 			return 0;
 		}
 	}
@@ -186,7 +186,7 @@ int getGenomeMetaInfo(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoL
 
 	rewind(_rg_fp);
 
-	fprintf(stdout, "Scanning the fasta file: ");
+	fprintf(stderr, "Scanning the fasta file: ");
 	while( fscanf(_rg_fp, "%c", &ch) > 0 )
 	{
 		if (!isspace(ch))
@@ -206,8 +206,8 @@ int getGenomeMetaInfo(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoL
 				genSize = (int *)(genomeMetaInfo + i);
 				i += sizeof(int);
 				*genSize = 0;
-				fprintf(stdout, ".");
-				fflush(stdout);
+				fprintf(stderr, ".");
+				fflush(stderr);
 			}
 			else
 			{
@@ -215,7 +215,7 @@ int getGenomeMetaInfo(char *fileName, char *genomeMetaInfo, int *genomeMetaInfoL
 			}
 		}
 	}
-	fprintf(stdout, "\n");
+	fprintf(stderr, "\n");
 	*genomeMetaInfoLength = i;
 
 	rewind(_rg_fp);

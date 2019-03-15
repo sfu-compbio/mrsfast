@@ -208,7 +208,11 @@ int initOutput ( char *fileName, int compressed)
 		  }
 		}
 
-		_out_fp = fileOpen(newFileName, "w");
+		if (!strstr(newFileName, "/dev/stdout"))
+		  _out_fp = fileOpen(newFileName, "w");
+		else
+		  _out_fp = stdout;
+		
 		if (_out_fp == NULL)
 		{
 			return 0;

@@ -115,7 +115,7 @@ void initLoadingSNPs(char *fileName)
 		else					// not found
 		{
 			t = fread(dummy, sizeof(SNPLoc), locCnt, fp);	// read dummy
-			fprintf(stdout, "Warning: chromosome %s is present in the SNP database but not found in the reference genome\n", cname);
+			fprintf(stderr, "Warning: chromosome %s is present in the SNP database but not found in the reference genome\n", cname);
 		}
 	}
 

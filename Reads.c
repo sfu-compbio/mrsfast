@@ -930,7 +930,7 @@ void finalizeReads()
 		}
 	}
 	
-	fprintf(stdout, "Input check: OK\n");
+	fprintf(stderr, "Input check: OK\n");
 	return 1;
 }
 */
