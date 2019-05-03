@@ -38,5 +38,5 @@
 
 int parseCommandLine (int argc, char *argv[]);
 void finalizeCommandParser();
-
+void printHelp(void);
 #endif

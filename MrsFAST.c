@@ -2692,34 +2692,34 @@ void outputBestPairedEnd()
 				f1 = 1 + 4 + 8 + 64;
 				f2 = 1 + 4 + 8 + 128;
 				optSize1 = optSize2 = 0;
-				//fprintf(stdout, "unset\n");
+				//fprintf(stderr, "unset\n");
 				break;
 			case first_mate:
 				f1 = 1 + 8 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0);
 				f2 = 1 + 4 + 128 + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
 				optSize2 = 0;
-				//fprintf(stdout, "1stmate\n");
+				//fprintf(stderr, "1stmate\n");
 				break;
 			case second_mate:
 				f1 = 1 + 4 + 64 + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
 				f2 = 1 + 8 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0);
-				//fprintf(stdout, "2ndmate\n");
+				//fprintf(stderr, "2ndmate\n");
 				optSize1 = 0;
 				break;
 			case trans_loc:
 				f1 = 1 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
 				f2 = 1 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
-				//fprintf(stdout, "transLoc %d %d\n", f1, f2);
+				//fprintf(stderr, "transLoc %d %d\n", f1, f2);
 				break;
 			case improper:
 				f1 = 1 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
 				f2 = 1 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
-				//fprintf(stdout, "improper\n");
+				//fprintf(stderr, "improper\n");
 				break;
 			case proper:
 				f1 = 1 + 2 + 64 + ((_msf_bestMappingPE[i].dir1 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir2 == -1) ?32 :0);
 				f2 = 1 + 2 + 128 + ((_msf_bestMappingPE[i].dir2 == -1) ?16 :0) + ((_msf_bestMappingPE[i].dir1 == -1) ?32 :0);
-				//fprintf(stdout, "proper\n");
+				//fprintf(stderr, "proper\n");
 				break;
 		}
 		//output best
@@ -3415,7 +3415,7 @@ void updateBestPairedEnd()
 		}
 
 
-//fprintf(stdout, "HERE?\n");
+//fprintf(stderr, "HERE?\n");
 /*		pos = 0;
 
 		for (j=0; j<size1; j++)
@@ -3622,7 +3622,7 @@ void outputPairedEndDiscPP()
 			int dist = 0;
 			char event;
 
-			//fprintf(stdout, "%c %c ", dir1, dir2);
+			//fprintf(stderr, "%c %c ", dir1, dir2);
 
 			if (loc1 == loc2)
 			{
@@ -3633,49 +3633,49 @@ void outputPairedEndDiscPP()
 				if ( dir1 == dir2 )
 				{
 					event = 'V';
-					//fprintf(stdout, "Inverstion \n");
+					//fprintf(stderr, "Inverstion \n");
 				}
 				else
 				{
 					if (loc1 < loc2)
 					{
 
-						//fprintf(stdout, "< %d ", loc2-loc1-SEQ_LENGTH);
+						//fprintf(stderr, "< %d ", loc2-loc1-SEQ_LENGTH);
 
 						if (dir1 == 'R' && dir2 == 'F')
 						{
 							event = 'E';
 
-							//fprintf(stdout, "Everted \n");
+							//fprintf(stderr, "Everted \n");
 						}
 						else if ( loc2 - loc1 >= maxPairEndedDiscordantDistance )
 						{
 							event = 'D';
-							//fprintf(stdout, "Deletion \n");
+							//fprintf(stderr, "Deletion \n");
 						}
 						else
 						{
 							event = 'I';
-							//fprintf(stdout, "Insertion \n");
+							//fprintf(stderr, "Insertion \n");
 						}
 					}
 					else if (loc2 < loc1)
 					{
-						//fprintf(stdout, "> %d ", loc1-loc2-SEQ_LENGTH);
+						//fprintf(stderr, "> %d ", loc1-loc2-SEQ_LENGTH);
 						if (dir2 == 'R' && dir1 == 'F')
 						{
 							event = 'E';
-							//fprintf(stdout, "Everted \n");
+							//fprintf(stderr, "Everted \n");
 						}
 						else if ( loc1 - loc2 >= maxPairEndedDiscordantDistance )
 						{
 							event = 'D';
-							//fprintf(stdout, "Deletion \n");
+							//fprintf(stderr, "Deletion \n");
 						}
 						else
 						{
 							event = 'I';
-							//fprintf(stdout, "Insertion \n");
+							//fprintf(stderr, "Insertion \n");
 						}
 					}
 				}
@@ -4080,7 +4080,7 @@ void calculateConcordantDistances()
 
 	minPairEndedDistance = (int)(mu - 3*sigma);
 	maxPairEndedDistance = (int)(mu + 3*sigma);
-	//fprintf(stdout, "cnt %d  mu %lf  sig %lf  min %d  max %d\n", cnt, mu, sigma, minPairEndedDistance, maxPairEndedDistance);
+	//fprintf(stderr, "cnt %d  mu %lf  sig %lf  min %d  max %d\n", cnt, mu, sigma, minPairEndedDistance, maxPairEndedDistance);
 
 	FILE *out = fileOpen(concordantStatOutput, "w");
 	fprintf(out, "TotalNumbReads: 2*%d\n", (_msf_seqListSize / 2));

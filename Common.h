@@ -77,6 +77,7 @@ extern int				bestMappingMode;
 extern int				SNPMode;
 extern int				seqCompressed;
 extern int				outCompressed;
+extern int				isCloud;
 extern int				cropSize;
 extern int				tailCropSize;
 extern int				progressRep;

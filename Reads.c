@@ -47,6 +47,7 @@
 FILE *_r_fp1;
 FILE *_r_fp2;
 FILE *_r_umfp;
+gzFile _r_gzumfp;
 gzFile _r_gzfp1;
 gzFile _r_gzfp2;
 Read *_r_seq;
@@ -396,24 +397,24 @@ void calculateSamplingLocations()
 	/*int j;
  	for (i=0; i<SEQ_LENGTH; i++)
 	{
-		fprintf(stdout, "-");
+		fprintf(stderr, "-");
 	}
-	fprintf(stdout, "\n");
+	fprintf(stderr, "\n");
 
 	for ( i=0; i<_r_samplingLocsSize; i++ )
 	{
 		for ( j=0; j<_r_samplingLocs[i]; j++ )
-			fprintf(stdout," ");
+			fprintf(stderr," ");
 		for (j=0; j<WINDOW_SIZE; j++)
-			fprintf(stdout,"+");
-		fprintf(stdout, "\n");
-		fflush(stdout);
+			fprintf(stderr,"+");
+		fprintf(stderr, "\n");
+		fflush(stderr);
 	}
 	for ( i=0; i<SEQ_LENGTH; i++ )
 	{
-		fprintf(stdout, "-");
+		fprintf(stderr, "-");
 	}
-	fprintf(stdout, "\n"); */
+	fprintf(stderr, "\n"); */
 }
 
 /**********************************************/
@@ -528,7 +529,7 @@ int initRead(char *fileName1, char *fileName2)
 
 	if ( SEQ_LENGTH >= SEQ_MAX_LENGTH )
 	{
-		fprintf(stdout, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
+		fprintf(stderr, "ERR: Read Length is greater than the MAX length we can process (Current Max: %d).\n", SEQ_MAX_LENGTH);
 		exit(EXIT_FAILURE);
 	}
 
@@ -562,12 +563,12 @@ int initRead(char *fileName1, char *fileName2)
 	if (errThreshold == -1)
 	{
 		errThreshold = SEQ_LENGTH*6/100;
-		fprintf(stdout, "# Errors: %d\n", errThreshold);
+		fprintf(stderr, "# Errors: %d\n", errThreshold);
 	}
 	if (errThreshold > maxErrThreshold && SEQ_LENGTH>0)
 	{
 		errThreshold = maxErrThreshold;
-		fprintf(stdout, "# Error: %d (full sensitivity)\n", errThreshold);
+		fprintf(stderr, "# Error: %d (full sensitivity)\n", errThreshold);
 	}
 
 
@@ -580,7 +581,10 @@ int initRead(char *fileName1, char *fileName2)
 
 	if (!nohitDisabled)
 	{
-		_r_umfp = fileOpen(unmappedOutput, "w");
+	  if (!outCompressed)
+	    _r_umfp = fileOpen(unmappedOutput, "w");
+	  else 
+	    _r_gzumfp = fileOpenGZ(unmappedOutput, "w");
 	}
 
 	_r_alphIndex = getMem(128);		// used in readChunk()
@@ -617,6 +621,8 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	int i;//, len;
 
 	int namelen;
+	int eliminate = 0;
+	
 	while( (namelen = readFirstSeq(name1,1)) )
 	{
 
@@ -643,10 +649,16 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		for (i=1; i<namelen+1; i++)
 			_r_seq[_r_seqCnt].name[i-1] = name1[i];
 
+		eliminate = 0;
 		if ( readFirstSeq(_r_seq[_r_seqCnt].seq,2) != SEQ_LENGTH)
 		{
-			fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
-			exit(EXIT_FAILURE);			
+		        if (cropSize > 0)
+			  eliminate = 1;
+			else
+			  {
+			    fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
+			    exit(EXIT_FAILURE);
+			  }
 		} 
 
 		if ( _r_fastq )
@@ -658,8 +670,11 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 		{
 			_r_seq[_r_seqCnt].qual = "*";
 		}
-		_r_seqCnt++;
-
+		
+		if (eliminate)
+		        freeMem(_r_seq[_r_seqCnt].hits, size);
+		else
+		        _r_seqCnt++;
 
 		if (pairedEndMode)
 		{
@@ -681,7 +696,7 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 
 			if ( readSecondSeq(_r_seq[_r_seqCnt].seq,2) != SEQ_LENGTH)
 			{
-				fprintf(stdout, "ERR: Inconsistent read length for %s\n", name1);
+				fprintf(stderr, "ERR: Inconsistent read length for %s\n", name1);
 				exit(EXIT_FAILURE);			
 			} 
 
@@ -706,12 +721,12 @@ int readChunk(Read **seqList, unsigned int *seqListSize)
 	if (_r_seqCnt > 0)
 	{
 		preProcessReadsMT();
-		fprintf(stdout, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
+		fprintf(stderr, "| *Reading Input* | %15.2f | XXXXXXXXXXXXXXX | %15.2f | XXXXXXXXXXXXXXX %15d |\n", (getTime()-startTime), getMemUsage(), _r_seqCnt );
 		_r_firstIteration = 0;
 	}
 	else if (_r_firstIteration)
 	{
-		fprintf(stdout, "ERR: No reads for mapping\n");
+		fprintf(stderr, "ERR: No reads for mapping\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -736,22 +751,34 @@ void outputUnmapped()
 		{
 			if (_r_seq[2*i].hits[0] == 0 && _r_fastq)
 			{
-				fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
+				else
+				  gzprintf(_r_gzumfp,"@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].qual, _r_seq[i*2].name, _r_seq[i*2+1].seq, _r_seq[i*2+1].qual);
 			}
 			else if (_r_seq[2*i].hits[0] == 0)
 			{
-				fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+			        if (!outCompressed)
+				  fprintf(_r_umfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
+				else
+				  gzprintf(_r_gzumfp, ">%s/1\n%s\n>%s/2\n%s\n", _r_seq[i*2].name, _r_seq[i*2].seq, _r_seq[i*2].name, _r_seq[i*2+1].seq);
 			}
 		}
 		else
 		{
 			if (_r_seq[i].hits[0] == 0 && _r_fastq)
 			{
-				fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);
+				else
+				  gzprintf(_r_gzumfp,"@%s\n%s\n+\n%s\n", _r_seq[i].name, _r_seq[i].seq, _r_seq[i].qual);				
 			}
 			else if (_r_seq[i].hits[0] == 0)
 			{
-				fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+			        if (!outCompressed)
+				  fprintf(_r_umfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
+				else 
+				  gzprintf(_r_gzumfp,">%s\n%s\n", _r_seq[i].name, _r_seq[i].seq);
 			}
 		}
 	}
@@ -830,7 +857,10 @@ void finalizeReads()
 
 	if (!nohitDisabled)
 	{
-		fclose(_r_umfp);
+	        if (!outCompressed)
+		  fclose(_r_umfp);
+		else
+		  gzclose(_r_gzumfp);	    
 	}
 }
 
@@ -900,7 +930,7 @@ void finalizeReads()
 		}
 	}
 	
-	fprintf(stdout, "Input check: OK\n");
+	fprintf(stderr, "Input check: OK\n");
 	return 1;
 }
 */

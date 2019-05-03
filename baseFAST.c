@@ -98,9 +98,9 @@ int main(int argc, char *argv[])
 		if (SNPMode)
 			initLoadingSNPs(fileName[2]);
 
-		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
-		fprintf(stdout, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
-		fprintf(stdout, "-----------------------------------------------------------------------------------------------------------\n");
+		fprintf(stderr, "-----------------------------------------------------------------------------------------------------------\n");
+		fprintf(stderr, "| %15s | %15s | %15s | %15s | %15s %15s |\n","Genome Name","Loading Time", "Mapping Time", "Memory Usage(M)","Total Mappings","Mapped reads");
+		fprintf(stderr, "-----------------------------------------------------------------------------------------------------------\n");
 
 		mappingTime = 0;
 		loadingTime = 0;
@@ -136,9 +136,9 @@ int main(int argc, char *argv[])
 					totalLoadingTime += loadingTime;
 
 
-					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+					fprintf(stderr, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-					fflush(stdout);
+					fflush(stderr);
 
 					loadingTime = 0;
 					mappingTime = 0;
@@ -146,9 +146,9 @@ int main(int argc, char *argv[])
 				}
 				else if (progressRep)
 				{
-					fprintf(stdout, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
+					fprintf(stderr, "| %15s | %15.2f | %15.2f | %15.2f | %15lld %15lld |\n",
 							getRefGenomeName(),loadingTime, mappingTime, maxMem, mappingCnt , mappedSeqCnt);
-					fflush(stdout);
+					fflush(stderr);
 				}
 			} while (flag);
 
@@ -165,15 +165,15 @@ int main(int argc, char *argv[])
 		if (SNPMode)
 			finalizeSNPs();
 
-		fprintf(stdout, "----------------------------------------------------------------------------------------------------------\n");
+		fprintf(stderr, "----------------------------------------------------------------------------------------------------------\n");
 
-		fprintf(stdout, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
-		fprintf(stdout, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
-		fprintf(stdout, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
-		fprintf(stdout, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
-		//fprintf(stdout, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
+		fprintf(stderr, "%19s%16.2f%18.2f\n\n", "Total:",totalLoadingTime, totalMappingTime);
+		fprintf(stderr, "%-30s%10.2f\n","Total Time:", totalMappingTime+totalLoadingTime);
+		fprintf(stderr, "%-30s%10d\n","Total No. of Reads:", totalNumOfReads);
+		fprintf(stderr, "%-30s%10lld\n","Total No. of Mappings:", mappingCnt);
+		//fprintf(stderr, "%-30s%10.0f\n","Avg No. of locations verified:", ceil((float)verificationCnt/totalNumOfReads));
 		if (memUsage > 0)
-			fprintf(stdout, "Memory Leak: %lld Bytes\n", memUsage);
+			fprintf(stderr, "Memory Leak: %lld Bytes\n", memUsage);
 	}
 
 	return 0;

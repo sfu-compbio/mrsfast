@@ -17,8 +17,8 @@ FILE *fileOpen(char *fileName, char *mode)
 	fp = fopen (fileName, mode);
 	if (fp == NULL)
 	{
-		fprintf(stdout, "Error: Cannot Open file \"%s\"\n", fileName);
-		fflush(stdout);
+		fprintf(stderr, "Error: Cannot Open file \"%s\"\n", fileName);
+		fflush(stderr);
 		exit(EXIT_FAILURE);
 	}
 	return fp;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	
 	// read file, count number of chromosomes and their locations
 	inFile = fileOpen(inFileName, "r");
-	fprintf(stdout, "Pre-processing VCF file ...\n");
+	fprintf(stderr, "Pre-processing VCF file ...\n");
 
 	while ( fgets(line, MAX_LINE_LENGTH, inFile) )
 	{
@@ -113,29 +113,29 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	fprintf(stdout, "Chromosomes: %d\n", chrCount);
-	fprintf(stdout, "Valid SNP locations: %d\n", snpCount);
+	fprintf(stderr, "Chromosomes: %d\n", chrCount);
+	fprintf(stderr, "Valid SNP locations: %d\n", snpCount);
 
 	// allocate SNPLocs for each chromosome
 	for (i = 0; i < chrCount; i++)
 	{
 		chrInfo[i].snpLocs = malloc(chrInfo[i].locCnt * sizeof(SNPLoc));
 		chrInfo[i].locCnt = 0;
-		//fprintf(stdout, "%s\n", chrInfo[i].chrName);
+		//fprintf(stderr, "%s\n", chrInfo[i].chrName);
 	}
 
 	// read file again, fill locations
 	rewind(inFile);
 	i = 0;
-	fprintf(stdout, "Reading SNP locations ");
-	fflush(stdout);
+	fprintf(stderr, "Reading SNP locations ");
+	fflush(stderr);
 
 	while ( fgets(line, MAX_LINE_LENGTH, inFile) )
 	{
 		if (++i == PROGRESS_METER_UNIT)
 		{
-			fprintf(stdout, ".");
-			fflush(stdout);
+			fprintf(stderr, ".");
+			fflush(stderr);
 			i = 0;
 		}
 		if (line[0] == '#')		// comment line
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 	fclose(inFile);
 
 	// sort locations for each chromosome
-	fprintf(stdout, ".\nReformatting data ...\n");
+	fprintf(stderr, ".\nReformatting data ...\n");
 
 	for (i = 0; i < chrCount; i++)
 	{
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 	}
 
 	// write to output file
-	fprintf(stdout, "Creating output in %s\n", outFileName);
+	fprintf(stderr, "Creating output in %s\n", outFileName);
 	
 	outFile = fileOpen(outFileName, "w");	
 	fwrite(&chrCount, sizeof(int), 1, outFile);
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 	}
 
 	fclose(outFile);
-	fprintf(stdout, "%u SNP locations registered successfully\n", snpCount);
+	fprintf(stderr, "%u SNP locations registered successfully\n", snpCount);
 
 	freeMems(chrInfo, chrCount);
 	return 0;

@@ -1,3 +1,8 @@
+2018-11-12  Can Alkan  <calkan@gmail.com>
+	* Default output file is now (seqFile1)-output.sam(.gz) & default nohit file is (seqFile1)-output.nohit.fastq(.gz)
+	* No-hit FASTQ output is new also compressed when --outcomp parameter is used.
+	* mrsFAST now accepts -t as a short form for --threads.
+
 2014-03-31  Faraz Hach  <fhach@sfu.ca>
 	* Added with-sse4 option to Makefile
 	* Bug reported by viktor in dc mode is fixed.

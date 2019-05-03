@@ -232,8 +232,8 @@ int generateHashTable(char *fileName, char *indexName)
 	if (!initLoadingRefGenome(fileName, genomeMetaInfo, &genomeMetaInfoLength))
 		return 0;		
 	initSavingIHashTable(indexName, genomeMetaInfo, genomeMetaInfoLength);
-	fprintf(stdout, "Generating Index from %s", fileName);
-	fflush(stdout);
+	fprintf(stderr, "Generating Index from %s", fileName);
+	fflush(stderr);
 
 	do
 	{
@@ -244,14 +244,14 @@ int generateHashTable(char *fileName, char *indexName)
 
 		if ( strcmp(prev, refGenName) != 0)
 		{
-			fprintf(stdout, "\n - %s ", refGenName);
-			fflush(stdout);
+			fprintf(stderr, "\n - %s ", refGenName);
+			fflush(stderr);
 			sprintf(prev, "%s", refGenName);
 		}
 		else
 		{
-			fprintf(stdout, ".");
-			fflush(stdout);
+			fprintf(stderr, ".");
+			fflush(stderr);
 		}
 		
 		c = refGen;
@@ -296,7 +296,7 @@ int generateHashTable(char *fileName, char *indexName)
 	finalizeLoadingRefGenome();
 	finalizeSavingIHashTable();
 
-	fprintf(stdout, "\nDONE in %0.2fs!\n", (getTime()-startTime));
+	fprintf(stderr, "\nDONE in %0.2fs!\n", (getTime()-startTime));
 	return 1;
 }
 /**********************************************/
@@ -315,12 +315,12 @@ int checkHashTable(char *fileName)
 	tmp = fread(&magicNumber, sizeof(magicNumber), 1, _ih_fp);
 	if (magicNumber == 1)
 	{
-		fprintf(stdout, "Error: Please use version 1.2.6.4 in bisulfite mode.\n");
+		fprintf(stderr, "Error: Please use version 1.2.6.4 in bisulfite mode.\n");
 		return 0;
 	}
 	else if (magicNumber == 0)
 	{
-		fprintf(stdout, "Error: Please use version 2.x.x.x or upgrade your index.\n");
+		fprintf(stderr, "Error: Please use version 2.x.x.x or upgrade your index.\n");
 		return 0;
 	}
 

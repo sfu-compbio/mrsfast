@@ -163,7 +163,11 @@ int initOutput ( char *fileName, int compressed)
 	if (compressed)
 	{
 		char newFileName[strlen(mappingOutputPath)+strlen(fileName)+4];
-		sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
+		if (!isCloud)
+		  sprintf(newFileName, "%s%s.sam.gz", mappingOutputPath, fileName);
+		else
+		  sprintf(newFileName, "%s.sam.gz", fileName);
+		fprintf(stderr, "mappingOutputPath: %s\nfileName: %s\nnewFileName: %s\n", mappingOutputPath, fileName, newFileName);
 		_out_gzfp = fileOpenGZ(newFileName, "w1f");
 		if (_out_gzfp == Z_NULL)
 		{
@@ -187,11 +191,28 @@ int initOutput ( char *fileName, int compressed)
 		}
 		else
 		{
-			//sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
-			sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		  if (!isCloud){	   
+		          int fnlen = strlen(fileName);
+			  if ( ! (fileName[fnlen-1]=='m' && fileName[fnlen-2]=='a' && fileName[fnlen-3]=='s' ) )
+			    sprintf(newFileName, "%s%s.sam", mappingOutputPath, fileName);
+			  else
+			    sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		  }
+		  else{
+		          int fnlen = strlen(fileName);
+			  if ( ! (fileName[fnlen-1]=='m' && fileName[fnlen-2]=='a' && fileName[fnlen-3]=='s' ) )
+			    sprintf(newFileName, "%s.sam", fileName);
+			  else
+			    sprintf(newFileName, "%s", fileName);
+			//sprintf(newFileName, "%s%s", mappingOutputPath, fileName);
+		  }
 		}
 
-		_out_fp = fileOpen(newFileName, "w");
+		if (!strstr(newFileName, "/dev/stdout"))
+		  _out_fp = fileOpen(newFileName, "w");
+		else
+		  _out_fp = stdout;
+		
 		if (_out_fp == NULL)
 		{
 			return 0;
