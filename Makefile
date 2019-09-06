@@ -1,12 +1,13 @@
-MRSFAST_VERSION := "3.4.0"
+MRSFAST_VERSION := "3.4.1"
 BUILD_DATE := "$(shell date)"
 
+CC?= gcc
 all: OPTIMIZE_FLAGS build
 debug: DEBUG_FLAGS build
 profile: PROFILE_FLAGS build
 build: clean_executables SSE_FLAGS mrsfast snp_indexer clean_objects
 
-LDFLAGS=#-static
+
 LIBS=-lz -lm -pthread -lpthread
 CFLAGS=-fno-pic -DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\"
 
@@ -14,13 +15,13 @@ objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o Has
 
 mrsfast: clean_executables $(objects)
 ifeq ($(shell uname -s),Linux)
-	gcc -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
+	$(CC) -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
 else
-	gcc -Wl,-no_pie -fno-pic -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
+	$(CC) -Wl,-no_pie -fno-pic -w $(objects) -o $@ ${LDFLAGS} ${LIBS}
 endif
 
 snp_indexer: clean_executables SNPIndexer.o
-	gcc SNPIndexer.o -o $@ ${LDFLAGS} ${LIBS}
+	$(CC) SNPIndexer.o -o $@ ${LDFLAGS} ${LIBS}
 
 clean_objects: mrsfast snp_indexer
 	@rm -f $(objects)
@@ -44,7 +45,7 @@ ifeq ($(shell uname -s),Linux)
 	@ld -r -b binary -o HELP.o HELP
 else
 	@touch HELPstub.c
-	gcc -o HELPstub.o -c HELPstub.c
+	$(CC) -o HELPstub.o -c HELPstub.c
 	ld -r -o HELP.o -sectcreate binary HELP HELP HELPstub.o
 endif
 
@@ -65,7 +66,7 @@ ifeq ($(with-sse4),no)
 		$(shell echo "-DSSE4=0")
 else
         	$(eval CFLAGS = $(CFLAGS) \
-        	$(shell gv=`gcc -dumpversion`; \
+        	$(shell gv=`$(CC) -dumpversion`; \
             	    sc=`grep -c "sse4" /proc/cpuinfo`; \
                 	echo $$sc.$$gv | awk -F. '{if($$1>0 && $$2>=4 && $$3>=4) print "-DSSE4=1 -msse4.2"; else print "-DSSE4=0"}'))
 endif
@@ -74,7 +75,7 @@ ifeq ($(with-sse4),no)
 		$(shell echo "-DSSE4=0")
 else
         $(eval CFLAGS = $(CFLAGS) \
-        $(shell gv=`gcc -dumpversion`; \
+        $(shell gv=`$(CC) -dumpversion`; \
                 sc=`sysctl -n machdep.cpu.features | grep -c "SSE4"` ;\
                 echo $$sc.$$gv | awk -F. '{if($$1>0 && $$2>=4 && $$3>=4) print "-DSSE4=1 -msse4.2"; else print "-DSSE4=0"}'))
 endif
