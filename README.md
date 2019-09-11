@@ -1,5 +1,6 @@
-##0. Installation
+## 0. Installation
 
+### From source
 To install mrsFAST-Ultra, first you should fetch it from our git repository, or download one of the corresponding compressed zip/tar.gz packages. After downloading, change the current directory to the source directory `mrsfast`, and run `make` in the terminal. The `mrsfast` and `snp_indexer` binaries will be created, which are ready to use.
 
 ```bash
@@ -16,7 +17,7 @@ cd mrsfast
 git checkout v3.3.0
 make
 ```
-
+### From release
 Alternatively, you can go to [releases page](https://github.com/sfu-compbio/mrsfast/releases) and click on the desired version and then click on download the zip or tar file, switch to directory and run `make`. 
 
 To grab sample data and test `mrsfast`, please download it from our git repository or the compressed package.
@@ -26,9 +27,16 @@ git clone https://github.com/sfu-compbio/mrsfast mrsfast/sample-data -b sample-d
 ```
 Note that the current version of mrsFAST-Ultra requires 64 bit architecture and does not support 32 bit machines.
 
+### From `bioconda`
+Install [conda](https://conda.io) and run:
+
+```bash
+conda install -c bioconda calib
+```
+
 ----
 
-##1. Indexing Reference Genome
+## 1. Indexing Reference Genome
 
 In order to map read sequences to a reference genome, mrsFAST-Ultra first needs to creata an index from the genome fasta file. This command will create the file `genome.fa.index`.
 
@@ -45,7 +53,7 @@ $ ./mrsfast --index genome.fa --ws 14
 
 ----
 
-##2. Mapping Options
+## 2. Mapping Options
 
 To perform read mapping, mrsFAST-Ultra should be executed with the `--search` option. By default, mrsFAST-Ultra is a all-mapper tool. This means that it finds and reports all the mappings for each input read. If no option is provided, mrsFAST-Ultra performs single-end mapping. This is an example of running mrsFAST-Ultra for mapping read sequences in the sample `reads.fq` file.
 
@@ -103,7 +111,7 @@ $ ./mrsfast --search genome.fa --seq reads.fq --crop 60 -e 2 --mem 6 --threads 4
 
 ----
 
-##3. Paired-end Mapping
+## 3. Paired-end Mapping
 
 As mentioned above, by default mrsFAST-Ultra will run in single-end mode. The paired-end mapping options is invoked using the `--pe` option. If the reads are in two different files, `--seq1` and `--seq2` should be used to indicate the input files. If the reads are interleaved in a single file, `--seq` is used to indicated the file.
 
@@ -138,7 +146,7 @@ $ ./mrsfast --search genome.fa --seq1 mates1.fq --seq2 mates2.fq --discordant-vh
 
 ----
 
-##4. SNP-aware mode
+## 4. SNP-aware mode
 mrsFAST-Ultra is able to do sequence mapping in SNP-aware mode. In this mode mrsFAST-Ultra tolerates the mismatches in known SNP locations provided by dbSNP database (see sample file `dbSNP.vcf`). To run in this mode, first, the snp_indexer binary should be used to create an index from the input dbSNP (vcf) file. The following command reads the sample `dbSNP.vcf` file and creates `snp.index` which is only readable by mrsFAST-Ultra. The current vcf format that is accepted by mrsFAST-Ultra is vcf version 4.
 
 ```
@@ -161,7 +169,7 @@ The SNP-aware mode could be run together with any other combination of options b
 
 ----
 
-##5. Input and Output Options
+## 5. Input and Output Options
 
 By default, mrsfast-Ultra outputs the mapping results in `output` which is written in standard SAM format. Also in single-end mode, the set of unmapped reads are printed in `output.nohit` file. The name of sam and nohit files can be set by the `-o` option.
 
@@ -200,10 +208,15 @@ $ ./mrsfast --search genome.fa --seq reads.fq -o mappings.sam --disable-sam-head
 ```
 
 ----
-##6. mrsFAST-Ultra man page
+## 6. mrsFAST-Ultra man page
 
 To view the full list of mrsFAST-Ultra options and their descriptions, please run the following.
 
 ```
 $ ./mrsfast -h
 ```
+
+## 7. Citation
+If you use mrsfast, please cite its [paper](https://www.nature.com/articles/nmeth0810-576):
+
+> Hach, F. et al. mrsFAST: a cache-oblivious algorithm for short-read mapping. Nature Methods 7, 576–577 (2010)
