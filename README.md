@@ -31,7 +31,7 @@ Note that the current version of mrsFAST-Ultra requires 64 bit architecture and 
 Install [conda](https://conda.io) and run:
 
 ```bash
-conda install -c bioconda calib
+conda install -c bioconda mrsfast
 ```
 
 ----
