@@ -137,7 +137,7 @@ int readFirstSeq(char *seq , int line)
 			return i;
 		}
 		
-		if (l==0 && cur == ' ')
+		if (l==0 && (cur == ' ' || cur == '\t'))
 		{
 			l = i;
 		}
@@ -175,7 +175,7 @@ int readSecondSeq( char *seq, int line )
 			return i;
 		}
 		
-		if (cur == ' '&& l==0)
+		if ((cur == ' ' || cur == '\t')&& l==0)
 		{
 			l = i;
 		}
