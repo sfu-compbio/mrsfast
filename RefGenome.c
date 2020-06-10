@@ -88,9 +88,9 @@ int loadRefGenome(char **refGen, char **refGenName, int *refGenOff, int *refGenL
 		size = 0;
 		tmp = fgets(_rg_name, SEQ_MAX_LENGTH, _rg_fp);
 		int k;
-		for (k=0; k<strlen(_rg_name);k++)
+		for (k=0; _rg_name[k] != '\0';k++)
 		{
-			if (_rg_name[k] == ' ')
+			if (_rg_name[k] == ' ' || _rg_name[k] == '\t')
 			{
 				_rg_name[k]='\0';
 				break;
