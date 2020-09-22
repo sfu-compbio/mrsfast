@@ -9,7 +9,7 @@ build: clean_executables SSE_FLAGS mrsfast snp_indexer clean_objects
 
 
 LIBS=-lz -lm -pthread -lpthread
-CFLAGS=-fno-pic -DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\"
+CFLAGS=-fno-pic -fPIE -DMRSFAST_VERSION=\"$(MRSFAST_VERSION)\" -DBUILD_DATE=\"$(BUILD_DATE)\"
 
 objects=baseFAST.o Sort.o MrsFAST.o Common.o CommandLineParser.o RefGenome.o HashTable.o Reads.o Output.o SNPReader.o  HELP.o
 

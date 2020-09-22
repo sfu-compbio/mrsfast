@@ -43,7 +43,10 @@
 FILE			*_out_fp;
 gzFile			_out_gzfp;
 
-
+void (*finalizeOutput)() = NULL;
+void (*output)(SAM map) = NULL;
+void (*outputMeta)(char*) = NULL;
+void (*outputBuffer)(char *, int) = NULL;
 
 void finalizeGZOutput()
 {
